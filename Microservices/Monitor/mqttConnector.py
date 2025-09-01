@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import paho.mqtt.publish as publish
 import time
 from typing import Optional, Dict, Callable, Any, List
-
+import socket
 class MQTTService:
     def __init__(self, host: str, port: int, auth: Optional[Dict[str, str]] = None):
         self.host = host
@@ -15,6 +15,8 @@ class MQTTService:
     # Publisher functionality
     def publish(self, topic: str, payload: Any, retain: bool = False, qos: int = 1) -> bool:
         try:
+            print(self.host)
+            print(self.port)
             publish.single(
                 topic,
                 payload=str(payload),

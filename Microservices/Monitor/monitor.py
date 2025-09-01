@@ -26,7 +26,7 @@ class Monitor:
     
     @cherrypy.expose
     def read(self,chat_id):
-       catalog_services=requests.get("http://localhost:5001/services/catalog")
+       catalog_services=requests.get("http://catalog:5001/services/catalog")
        json_catalog=catalog_services.json()
 
        user_info=requests.get(json_catalog["url"]+":" + str(json_catalog["port"])+"/users/"+ chat_id)
@@ -64,9 +64,9 @@ class Monitor:
     
     def read_and_publish(self,data):
         if data is not None:
-            mqtt_service=requests.get("http://localhost:5001/services/mqtt")
+            mqtt_service=requests.get("http://catalog:5001/services/mqtt")
             json_mqtt=mqtt_service.json()
-           
+            print(json_mqtt)
             mqtt = MQTTService(
                 host=json_mqtt["url"],
                 port=json_mqtt["port"],
@@ -87,10 +87,10 @@ class Monitor:
 
 if __name__ == "__main__":
     response = requests.post(
-        f"http://localhost:5001/services/",
+        f"http://catalog:5001/services/",
         json={
             "sensor": {
-            "url": "http://localhost:3500/read/",
+            "url": "http://monitor:3500/read/",
             "port": 3500,
             "endpoints": {
                 "GET /read/<id>": "read sensor value from device"
