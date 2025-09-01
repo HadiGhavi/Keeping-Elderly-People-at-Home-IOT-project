@@ -7,10 +7,10 @@ class AdminPanel:
     def index(self):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         response = requests.post(
-        f"http://localhost:5000/services/",
+        f"http://catalog:5001/services/",
                 json={
                     "adminPanel": {
-                        "url": "http://localhost",
+                        "url": "http://admin_panel",
                         "port": 9000,
                         "endpoints": {
                             "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
@@ -31,7 +31,7 @@ class AdminPanel:
     def sensorInfo(self, user_id):
         try:
             # Get data from InfluxDB via your API
-            data_service=requests.get("http://localhost:5000/services/dataIngestion")
+            data_service=requests.get("http://catalog:5001/services/dataIngestion")
             json_data=data_service.json()
             response = requests.get(json_data["url"] + ":"+ str(json_data["port"])+"/getUserData/"+user_id)
             sensor_data = json.loads(response.json())
@@ -100,7 +100,7 @@ class AdminPanel:
     def report(self, user_id):
         try:
             # Get data from InfluxDB via your API
-            data_service=requests.get("http://localhost:5000/services/dataIngestion")
+            data_service=requests.get("http://catalog:5001/services/dataIngestion")
             json_data=data_service.json()
             response = requests.get(json_data["url"] + ":"+ str(json_data["port"])+"/getUserData/"+user_id)
             sensor_data = json.loads(response.json())

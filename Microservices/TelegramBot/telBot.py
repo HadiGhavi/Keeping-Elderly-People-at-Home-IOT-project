@@ -1,5 +1,7 @@
-import html   
+import html
+import json
 import requests
+from urllib.parse import urljoin
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -8,71 +10,197 @@ from telegram.ext import (
     MessageHandler,
     filters,
     ContextTypes,
-    ConversationHandler,
-    JobQueue
+    ConversationHandler
 )
-import aiohttp
-import pytz
-import tzlocal
 import logging
-import json
-import asyncio
 
-# Enable logging
+# =========================
+# Logging
+# =========================
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
 
-# REST API configuration
-REST_API_URL = "http://localhost:5000"
+# =========================
+# Config
+# =========================
+REST_API_URL = "http://catalog:5001"
 
-# Conversation states
+# keep END symbol available even if we don't use states now
 ADD_SENSOR, ADD_SITUATION, SENSOR_DETAILS, UPDATE_PROFILE = range(4)
 
-# Helper functions for API calls
+# Your requested token (hard-coded, per your instruction)
+TELEGRAM_TOKEN = "8439269111:AAFVv-C_qC0cfMC9oXomfxlMbkKNUlSq9Fo"
+
+# Admins (Telegram user IDs)
+ADMINS = [6378242947, 650295422, 6605276431, 548805315]
+
+
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMINS
+
+
+# =========================
+# REST helpers
+# =========================
 def api_get(endpoint):
     try:
-        response = requests.get(f"{REST_API_URL}/{endpoint}")
-        return response.json() if response.status_code == 200 else None
+        r = requests.get(f"{REST_API_URL}/{endpoint}", timeout=10)
+        if r.status_code == 200:
+            return r.json()
+        return None
     except requests.exceptions.RequestException as e:
         logger.error(f"API GET error: {e}")
         return None
 
+
 def api_post(endpoint, data):
     try:
-        response = requests.post(f"{REST_API_URL}/{endpoint}", json=data)
-        return response.status_code == 201
+        r = requests.post(f"{REST_API_URL}/{endpoint}", json=data, timeout=10)
+        return r.status_code in (200, 201)
     except requests.exceptions.RequestException as e:
         logger.error(f"API POST error: {e}")
         return False
 
+
 def api_put(endpoint, data):
     try:
-        response = requests.put(f"{REST_API_URL}/{endpoint}", json=data)
-        return response.status_code == 200
+        r = requests.put(f"{REST_API_URL}/{endpoint}", json=data, timeout=10)
+        return r.status_code == 200
     except requests.exceptions.RequestException as e:
         logger.error(f"API PUT error: {e}")
         return False
 
+
 def api_delete(endpoint):
     try:
-        response = requests.delete(f"{REST_API_URL}/{endpoint}")
-        return response.status_code == 200
+        r = requests.delete(f"{REST_API_URL}/{endpoint}", timeout=10)
+        return r.status_code == 200
     except requests.exceptions.RequestException as e:
         logger.error(f"API DELETE error: {e}")
         return False
 
-# Telegram Bot Handlers
+
+# =========================
+# Service helpers
+# =========================
+def _sensor_service_url():
+    svc = api_get("services/sensor")
+    if not svc or "url" not in svc:
+        return None
+    # normalize trailing slash
+    return svc["url"].rstrip("/")
+
+
+def _panel_service():
+    svc = api_get("services/adminPanel")
+    if not svc or "url" not in svc:
+        return None
+    return {"url": svc["url"].rstrip("/"), "port": svc.get("port")}
+
+
+def start_recording_for(user_id: int):
+    """
+    Try several common patterns so we work with your existing sensor service.
+    Returns (ok: bool, message: str)
+    """
+    base = _sensor_service_url()
+    if not base:
+        return False, "Sensor service not found."
+
+    # Candidate GET endpoints (in order)
+    get_candidates = [
+        f"{base}/start/{user_id}",
+        f"{base}/{user_id}/start",
+        f"{base}/{user_id}",  # legacy "run" path
+    ]
+    for url in get_candidates:
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                return True, "Recording started."
+        except Exception as e:
+            logger.warning(f"start GET attempt failed {url}: {e}")
+
+    # Candidate POST endpoint
+    try:
+        r = requests.post(f"{base}/start", json={"user_id": user_id}, timeout=10)
+        if r.status_code in (200, 201):
+            return True, "Recording started."
+    except Exception as e:
+        logger.warning(f"start POST attempt failed {base}/start: {e}")
+
+    return False, "Failed to start recording."
+
+
+def stop_recording_for(user_id: int):
+    """
+    Try several common patterns for stopping.
+    Returns (ok: bool, message: str)
+    """
+    url = _sensor_service_url()
+    base = urljoin(url, "/")
+    if not base:
+        return False, "Sensor service not found."
+
+    get_candidates = [
+        f"{base}/stop/{user_id}",
+        f"{base}/{user_id}/stop",
+    ]
+    for url in get_candidates:
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                return True, "Recording stopped."
+        except Exception as e:
+            logger.warning(f"stop GET attempt failed {url}: {e}")
+
+    try:
+        r = requests.post(f"{base}/stop", json={"user_id": user_id}, timeout=10)
+        if r.status_code in (200, 201):
+            return True, "Recording stopped."
+    except Exception as e:
+        logger.warning(f"stop POST attempt failed {base}/stop: {e}")
+
+    return False, "Failed to stop recording."
+
+
+def get_report_for(user_id: int):
+    panel = _panel_service()
+    if not panel:
+        return False, "Report service not found."
+    url = panel["url"]
+    port = panel.get("port")
+    full = f"{url}:{port}/report/{user_id}" if port else f"{url}/report/{user_id}"
+    try:
+        r = requests.get(full, timeout=15)
+        if r.status_code == 200:
+            try:
+                data = r.json()
+            except Exception:
+                data = r.text
+            if not data:
+                return True, "No report found."
+            # keep it short to avoid Telegram 4096 char limit
+            text = html.escape(json.dumps(data, ensure_ascii=False)[:1200])
+            return True, text
+        return False, f"Failed to fetch report (HTTP {r.status_code})."
+    except Exception as e:
+        logger.error(f"Error fetching report {full}: {e}")
+        return False, "Error while fetching report."
+
+
+# =========================
+# Telegram Handlers
+# =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    user =  api_get(f"users/{chat_id}")
-    print(user)
+    user = api_get(f"users/{chat_id}")
     if user:
         await update.message.reply_text(
-            f"👋 Welcome back, {user['full_name']}!\n"
-            "Use /menu to manage your health data."
+            f"👋 Welcome back, {html.escape(user['full_name'])}!\nUse /menu."
         )
     else:
         await update.message.reply_text(
@@ -81,450 +209,249 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/register <your full name>"
         )
 
+
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if len(context.args) < 1:
         await update.message.reply_text("Please provide your full name: /register <your name>")
         return
-    
-    full_name = ' '.join(context.args)
-    if  api_post("users", {"user_chat_id": chat_id, "full_name": full_name}):
-        await update.message.reply_text(
-            f"✅ Registration successful, {full_name}!\n"
-            "Use /menu to manage your health data."
-        )
+    full_name = " ".join(context.args)
+    if api_post("users", {"user_chat_id": chat_id, "full_name": full_name}):
+        await update.message.reply_text(f"✅ Registered, {html.escape(full_name)}.\nUse /menu.")
     else:
-        await update.message.reply_text("❌ Registration failed. Please try again.")
+        await update.message.reply_text("❌ Registration failed. Try again.")
+
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    if not  api_get(f"users/{chat_id}"):
+    if not api_get(f"users/{chat_id}"):
         await update.message.reply_text("Please register first with /register <your name>")
         return
-    
-    keyboard = [
-        [InlineKeyboardButton("👤 My Profile", callback_data='profile')],
-        [InlineKeyboardButton("📟 My Sensors", callback_data='sensors')],
-        [InlineKeyboardButton("⚠️ Sensitive Situations", callback_data='situations')],
-        [
-         InlineKeyboardButton("📟 run Sensor", callback_data='run_sensor'),
-        ],
-        [
-            InlineKeyboardButton("➕ Add Sensor", callback_data='add_sensor'),
-            InlineKeyboardButton("➕ Add Situation", callback_data='add_situation')
-        ],
-        [
-            InlineKeyboardButton("🔄 Update Profile", callback_data='update_profile'),
-            InlineKeyboardButton("🗑️ Delete Profile", callback_data='delete_profile')
-        ],
-        [
-            InlineKeyboardButton("➕ Get Report", callback_data='get_report')
+
+    if is_admin(chat_id):
+        keyboard = [
+            [InlineKeyboardButton("▶️ Start all", callback_data="admin_start_all")],
+            [InlineKeyboardButton("⏹ Stop all", callback_data="admin_stop_all")],
+            [InlineKeyboardButton("📊 Monitor all", callback_data="admin_monitor_all")],
+            [InlineKeyboardButton("👥 Manage users", callback_data="admin_user_list")],
+            [InlineKeyboardButton("📄 Get my report", callback_data="get_report")],
+            [InlineKeyboardButton("🗑 Remove my profile", callback_data="delete_profile")],
         ]
-    ]
-    
-    await update.message.reply_text(
-        "📋 Main Menu:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+        text = "🛠 Admin menu:"
+    else:
+        keyboard = [
+            [InlineKeyboardButton("▶️ Start", callback_data="start_recording")],
+            [InlineKeyboardButton("📄 Get report", callback_data="get_report")],
+            [InlineKeyboardButton("⏹ Stop", callback_data="stop_recording")],
+            [InlineKeyboardButton("🗑 Remove profile", callback_data="delete_profile")],
+        ]
+        text = "📋 Main menu:"
+
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     chat_id = query.message.chat_id
-    user =  api_get(f"users/{chat_id}")
-    
+
+    # user must exist
+    user = api_get(f"users/{chat_id}")
     if not user:
         await query.edit_message_text("Please register first with /register <your name>")
-        return
-    
-    if query.data == 'profile':
-        sensors =  api_get(f"sensors/{chat_id}") or []
-        situations =  api_get(f"situations/{chat_id}") or []
-        
-        profile_text = (
-            f"👤 <b>Health Profile</b>\n\n"
-            f"🆔 <b>ID:</b> {user['user_chat_id']}\n"
-            f"👨‍⚕️ <b>Name:</b> {user['full_name']}\n"
-            f"📊 <b>Monitoring:</b>\n"
-            f"   - Sensors: {len(sensors)}\n"
-            f"   - Sensitive Situations: {len(situations)}\n\n"
-            f"Use /update_profile to change your name"
-        )
-        await query.edit_message_text(profile_text, parse_mode='HTML')
-    elif query.data == 'run_sensor':
-        sensor_services =  api_get(f"services/sensor")
-        print(sensor_services)
-        read_res = requests.get(sensor_services["url"] + str(chat_id))
-        if read_res.status_code == 200:
-            res = read_res.json()
-            if not res:
-                profile_text = "you dont have sersor"
-                await query.edit_message_text(profile_text, parse_mode='HTML')
-            
-            profile_text = "running sensors..."
-            await query.edit_message_text(profile_text, parse_mode='HTML')
-        else:
-            profile_text = "Failed to fetch your sensor. Please try again later"
-            await query.edit_message_text(profile_text, parse_mode='HTML')
+        return ConversationHandler.END
 
-    elif query.data == 'sensors':
-        sensors =  api_get(f"sensors/{chat_id}")
-        if not sensors:
-            await query.edit_message_text("You don't have any sensors registered.")
-            return
-        
-        sensor_list = []
-        for sensor in sensors:
-            sensor_list.append(
-                f"🔹 <b>{html.escape(sensor['name'])}</b> (ID: {sensor['id']})\n"
-                f"   🔺 Max: {sensor['max_level_alert']} | "
-                f"🔻 Min: {sensor['min_level_alert']}"
-            )
-        
-        message = (
-            "📡 <b>Your Health Sensors</b>\n\n" +
-            "\n\n".join(sensor_list) +
-            "\n\n"
-            "Use /delete_sensor &lt;id&gt; to remove sensors"
-        )
-        
-        await query.edit_message_text(
-            text=message,
-            parse_mode='HTML'
-        )
-    elif query.data.startswith('delete_sensor_'):
-        sensor_id = query.data.split('_')[-1]
-        if  api_delete(f"sensors/{chat_id}/{sensor_id}"):
-            await query.edit_message_text(f"✅ Sensor with ID {sensor_id} deleted successfully!")
-        else:
-            await query.edit_message_text("❌ Failed to delete sensor. Please try again.")
-    elif query.data.startswith('delete_sit_'):
-        sit = query.data.split('_')[-1]
-        if  api_delete(f"situations/{chat_id}/{sit}"):
-            await query.edit_message_text(f"✅ situation {sit} deleted successfully!")
-        else:
-            await query.edit_message_text("❌ Failed to delete situation. Please try again.")
-    elif query.data == 'situations':
-        situations =  api_get(f"situations/{chat_id}")
-        if not situations:
-            await query.edit_message_text("No sensitive situations registered.")
-            return
-        
-        escaped_situations = [html.escape(sit) for sit in situations]
-        situation_list = "\n".join(f"⚠️ {situation}" for situation in escaped_situations)
-        
-        await query.edit_message_text(
-            "🚨 <b>Sensitive Situations</b>\n\n" +
-            situation_list + "\n\n" +
-            "Use /add_situation to add new situations\n" +
-            "Use /delete_situation &lt;name&gt; to remove situations",
-            parse_mode='HTML'
-        )
-    
-    elif query.data == 'add_sensor':
-        context.user_data['action'] = 'add_sensor'
-        await query.edit_message_text(
-            "🆕 <b>Add New Sensor</b>\n\n"
-            "You must have at least 3 sensors whose names contain (temp,heart_rate,oxygen).\n"
-            "Please send sensor details in this format:\n"
-            "<code>name id max_alert min_alert</code>\n\n"
-            "Example:\n"
-            "<code>heart_rate 1 100 60</code>",
-            parse_mode='HTML'
-        )
-        return SENSOR_DETAILS
-    
-    elif query.data == 'add_situation':
-        context.user_data['action'] = 'add_situation'
-        await query.edit_message_text(
-            "⚠️ <b>Add Sensitive Situation</b>\n\n"
-            "Please describe the situation you want to add:",
-            parse_mode='HTML'
-        )
-        return ADD_SITUATION
-    
-    elif query.data == 'update_profile':
-        context.user_data['action'] = 'update_profile'
-        await query.edit_message_text(
-            "🔄 <b>Update Profile</b>\n\n"
-            "Please enter your new full name:",
-            parse_mode='HTML'
-        )
-        return UPDATE_PROFILE
-    
-    elif query.data == 'delete_profile':
+    admin_mode = is_admin(chat_id)
+
+    # ===== Normal user buttons =====
+    if query.data == "start_recording":
+        ok, msg = start_recording_for(chat_id)
+        await query.edit_message_text("✅ " + msg if ok else "❌ " + msg)
+
+    elif query.data == "stop_recording":
+        ok, msg = stop_recording_for(chat_id)
+        await query.edit_message_text("✅ " + msg if ok else "❌ " + msg)
+
+    elif query.data == "get_report":
+        ok, text = get_report_for(chat_id)
+        await query.edit_message_text(text if ok else "❌ " + text, parse_mode="HTML")
+
+    elif query.data == "delete_profile":
         keyboard = [
             [
-                InlineKeyboardButton("Yes, delete my data", callback_data=f'confirm_delete_{chat_id}'),
-                InlineKeyboardButton("Cancel", callback_data='cancel_delete')
+                InlineKeyboardButton("Yes, delete my data", callback_data=f"confirm_delete_{chat_id}"),
+                InlineKeyboardButton("Cancel", callback_data="cancel_delete"),
             ]
         ]
-        
         await query.edit_message_text(
-            "⚠️ <b>Are you sure you want to delete your profile and all associated data?</b>\n"
-            "This action cannot be undone!",
+            "⚠️ Are you sure you want to delete your profile and all data?",
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='HTML'
         )
-    
-    elif query.data.startswith('confirm_delete_'):
-        target_user = int(query.data.split('_')[-1])
-        if  api_delete(f"users/{target_user}"):
+
+    elif query.data.startswith("confirm_delete_"):
+        target_user = int(query.data.split("_")[-1])
+        if api_delete(f"users/{target_user}"):
             await query.edit_message_text("✅ Your profile and all data have been deleted.")
         else:
-            await query.edit_message_text("❌ Failed to delete profile. Please try again.")
-    
-    elif query.data == 'cancel_delete':
+            await query.edit_message_text("❌ Failed to delete profile.")
+
+    elif query.data == "cancel_delete":
         await query.edit_message_text("Profile deletion cancelled.")
-    elif query.data== 'get_report':
-        try:
-            panel_services =  api_get(f"services/adminPanel")
-            read_res = requests.get(panel_services["url"] +":"+str(panel_services["port"])+"/report/" + str(chat_id))
-            json_convert = read_res.json()
-            print(json_convert)
 
-            if len(json_convert) != 0:
-                await query.edit_message_text(json_convert[:4], parse_mode='HTML')
-            else:
-                await query.edit_message_text("not found report")
-        
-        except Exception as e:
-            logger.error(f"Error : {e}")
-            await query.edit_message_text("An error occurred while fetching your sensor.")
+    # ===== Admin buttons =====
+    elif query.data == "admin_start_all" and admin_mode:
+        users = api_get("users") or []
+        started, failed = 0, 0
+        for u in users:
+            ok, _ = start_recording_for(int(u["user_chat_id"]))
+            started += 1 if ok else 0
+            failed += 0 if ok else 1
+        await query.edit_message_text(f"▶️ Started for {started} users. Failed: {failed}.")
 
-async def handle_sensor_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    try:
-        parts = update.message.text.split()
-        if len(parts) != 4:
-            raise ValueError
-        
-        name, sensor_id, max_alert, min_alert = parts
-        sensor_data = {
-            "id": int(sensor_id),
-            "name": name,
-            "max_level_alert": float(max_alert),
-            "min_level_alert": float(min_alert)
-        }
-        
-        if  api_post(f"sensors/{chat_id}", sensor_data):
-            await update.message.reply_text("✅ Sensor added successfully!")
+    elif query.data == "admin_stop_all" and admin_mode:
+        users = api_get("users") or []
+        stopped, failed = 0, 0
+        for u in users:
+            ok, _ = stop_recording_for(int(u["user_chat_id"]))
+            stopped += 1 if ok else 0
+            failed += 0 if ok else 1
+        await query.edit_message_text(f"⏹ Stopped for {stopped} users. Failed: {failed}.")
+
+    elif query.data == "admin_monitor_all" and admin_mode:
+        users = api_get("users") or []
+        lines = []
+        shown = 0
+        for u in users:
+            uid = int(u["user_chat_id"])
+            ok, snippet = get_report_for(uid)
+            if ok:
+                name = html.escape(u.get("full_name", str(uid)))
+                lines.append(f"• <b>{name}</b> (ID {uid})\n<code>{snippet[:600]}</code>")
+                shown += 1
+            if shown >= 8:  # keep message size safe
+                lines.append("… (truncated)")
+                break
+        if not lines:
+            await query.edit_message_text("No reports found.")
         else:
-            await update.message.reply_text("❌ Failed to add sensor. Please try again.")
-    except (ValueError, IndexError):
-        await update.message.reply_text(
-            "Invalid format. Please use:\n"
-            "<code>name id max_alert min_alert</code>\n\n"
-            "Example:\n"
-            "<code>heart_rate 1 100 60</code>",
-            parse_mode='HTML'
-        )
-        return SENSOR_DETAILS
-    
-    return ConversationHandler.END
+            await query.edit_message_text("\n\n".join(lines), parse_mode="HTML")
 
-async def delete_sensor(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    
-    if not context.args:
-        sensors =  api_get(f"sensors/{chat_id}")
-        if not sensors:
-            await update.message.reply_text("You don't have any sensors to delete.")
-            return
-        
+    elif query.data == "admin_user_list" and admin_mode:
+        users = api_get("users") or []
+        if not users:
+            await query.edit_message_text("No users found.")
+            return ConversationHandler.END
+
         keyboard = [
-            [InlineKeyboardButton(f"{sensor['name']} (ID: {sensor['id']})", 
-                                callback_data=f'delete_sensor_{sensor["id"]}')]
-            for sensor in sensors
+            [InlineKeyboardButton(f"{html.escape(u['full_name'])} (ID: {u['user_chat_id']})",
+                                  callback_data=f"admin_user_{u['user_chat_id']}")]
+            for u in users
         ]
-        keyboard.append([InlineKeyboardButton("Cancel", callback_data='cancel_delete')])
-        
-        await update.message.reply_text(
-            "Select a sensor to delete:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+        keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])
+        await query.edit_message_text(
+            "👥 User list — choose one:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML",
         )
-        return
-    
-    try:
-        sensor_id = int(context.args[0])
-        if  api_delete(f"sensors/{chat_id}/{sensor_id}"):
-            await update.message.reply_text(f"✅ Sensor with ID {sensor_id} deleted successfully!")
+
+    elif query.data.startswith("admin_user_") and admin_mode:
+        target_id = int(query.data.split("_")[-1])
+        user_target = api_get(f"users/{target_id}")
+        if not user_target:
+            await query.edit_message_text("User not found.")
+            return ConversationHandler.END
+
+        keyboard = [
+            [InlineKeyboardButton("▶️ Start", callback_data=f"admin_start_user_{target_id}")],
+            [InlineKeyboardButton("⏹ Stop", callback_data=f"admin_stop_user_{target_id}")],
+            [InlineKeyboardButton("📄 Get report", callback_data=f"admin_get_report_{target_id}")],
+            [InlineKeyboardButton("🗑️ Remove user", callback_data=f"admin_delete_user_{target_id}")],
+            [InlineKeyboardButton("⬅️ Back to list", callback_data="admin_user_list")],
+        ]
+        await query.edit_message_text(
+            f"Managing: <b>{html.escape(user_target['full_name'])}</b> (ID {target_id})",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML",
+        )
+
+    elif query.data.startswith("admin_start_user_") and admin_mode:
+        target_id = int(query.data.split("_")[-1])
+        ok, msg = start_recording_for(target_id)
+        await query.edit_message_text(f"User {target_id}: " + ("✅ " + msg if ok else "❌ " + msg))
+
+    elif query.data.startswith("admin_stop_user_") and admin_mode:
+        target_id = int(query.data.split("_")[-1])
+        ok, msg = stop_recording_for(target_id)
+        await query.edit_message_text(f"User {target_id}: " + ("✅ " + msg if ok else "❌ " + msg))
+
+    elif query.data.startswith("admin_get_report_") and admin_mode:
+        target_id = int(query.data.split("_")[-1])
+        ok, text = get_report_for(target_id)
+        await query.edit_message_text(
+            (f"📄 Report for {target_id}:\n\n{text}" if ok else "❌ " + text),
+            parse_mode="HTML",
+        )
+
+    elif query.data.startswith("admin_delete_user_") and admin_mode:
+        target_id = int(query.data.split("_")[-1])
+        keyboard = [
+            [
+                InlineKeyboardButton("Yes, delete user", callback_data=f"confirm_admin_delete_{target_id}"),
+                InlineKeyboardButton("Cancel", callback_data="admin_user_list"),
+            ]
+        ]
+        await query.edit_message_text(
+            f"⚠️ Delete user {target_id} and all data?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+
+    elif query.data.startswith("confirm_admin_delete_") and admin_mode:
+        target_id = int(query.data.split("_")[-1])
+        if api_delete(f"users/{target_id}"):
+            await query.edit_message_text(f"✅ User {target_id} deleted.")
         else:
-            await update.message.reply_text("❌ Failed to delete sensor. Please try again.")
-    except ValueError:
-        await update.message.reply_text("Invalid sensor ID. Please provide a numeric ID.")
+            await query.edit_message_text("❌ Failed to delete user.")
 
-async def handle_situation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    situation = update.message.text
-    
-    if  api_post(f"situations/{chat_id}", {"situation": situation}):
-        await update.message.reply_text("✅ Situation added successfully!")
+    elif query.data == "cancel":
+        await query.edit_message_text("Operation cancelled.")
+
     else:
-        await update.message.reply_text("❌ Failed to add situation. Please try again.")
-    
+        await query.edit_message_text("Action not recognized or not permitted.")
+
     return ConversationHandler.END
 
-async def update_profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    new_name = update.message.text
-    
-    if  api_put(f"users/{chat_id}", {"full_name": new_name}):
-        await update.message.reply_text(f"✅ Profile updated successfully! New name: {new_name}")
-    else:
-        await update.message.reply_text("❌ Failed to update profile. Please try again.")
-    
-    return ConversationHandler.END
 
-async def delete_situation_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    
-    if not context.args:
-        situations =  api_get(f"situations/{chat_id}") or []
-        if not situations:
-            await update.message.reply_text("You don't have any sensitive situations to delete.")
-            return
-        
-        keyboard = [
-            [InlineKeyboardButton(sit, callback_data=f'delete_sit_{sit}')]
-            for sit in situations
-        ]
-        keyboard.append([InlineKeyboardButton("Cancel", callback_data='cancel_delete')])
-        
-        await update.message.reply_text(
-            "⚠️ Select a situation to delete:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
-    
-    situation = ' '.join(context.args)
-    if  api_delete(f"situations/{chat_id}/{situation}"):
-        await update.message.reply_text(f"✅ Situation '{situation}' deleted successfully!")
-    else:
-        await update.message.reply_text("❌ Failed to delete situation. Please try again.")
-
-async def update_situation_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    
-    if len(context.args) < 2:
-        situations =  api_get(f"situations/{chat_id}") or []
-        if not situations:
-            await update.message.reply_text("You don't have any sensitive situations to update.")
-            return
-        
-        keyboard = [
-            [InlineKeyboardButton(sit, callback_data=f'update_sit_{sit}')]
-            for sit in situations
-        ]
-        keyboard.append([InlineKeyboardButton("Cancel", callback_data='cancel_update')])
-        
-        await update.message.reply_text(
-            "Select a situation to update:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
-    
-    old_situation = context.args[0]
-    new_situation = ' '.join(context.args[1:])
-    
-    if  api_put(f"situations/{chat_id}/{old_situation}", {"new_situation": new_situation}):
-        await update.message.reply_text(
-            f"✅ Situation updated from '{old_situation}' to '{new_situation}'!"
-        )
-    else:
-        await update.message.reply_text("❌ Failed to update situation. Please try again.")
-
-async def delete_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    
-    if len(context.args) < 1:
-        await update.message.reply_text("Usage: /delete_user <user_chat_id>")
-        return
-    
-    try:
-        target_user = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("Invalid user ID. Must be a number.")
-        return
-    
-    if  api_delete(f"users/{target_user}"):
-        await update.message.reply_text(f"✅ User {target_user} deleted successfully!")
-    else:
-        await update.message.reply_text("❌ Failed to delete user. Please try again.")
-
+# (kept for backward-compat with old code paths, but now unused)
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Operation cancelled.")
     return ConversationHandler.END
 
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(msg="Exception while handling update:", exc_info=context.error)
-    if update and update.message:
-        await update.message.reply_text("An error occurred. Please try again.")
-
-async def get_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.message.chat_id
-    
     try:
-        panel_services =  api_get(f"services/adminPanel/{chat_id}")
-        json_sensor = panel_services.json()
-        print(json_sensor)
+        if update and update.effective_message:
+            await update.effective_message.reply_text("An error occurred. Please try again.")
+    except Exception:
+        pass
 
-        read_res = requests.get(json_sensor["url"] +":"+str(json_sensor["port"])+"/report/" + str(chat_id))
-        json_convert = read_res.json()
-        if panel_services.status_code == 200:
-            
-            if not json_convert:
-                await update.message.reply_text("You don't have any sensor yet. Use /addsensor to create one.")
-                return
-            print(json_convert)
-            await update.message.reply_text(json_convert[:4], parse_mode='HTML')
-        else:
-            await update.message.reply_text("Failed to fetch your sensor. Please try again later.")
-    
-    except Exception as e:
-        logger.error(f"Error in find sensor: {e}")
-        await update.message.reply_text("An error occurred while fetching your sensor.")
 
 def main():
-    """Run the bot."""
-    application = Application.builder() \
-        .token("7795249101:AAHhhz9iBkBsaWZpj46dXKuVPOmN8RTls") \
-        .job_queue(JobQueue()) \
-        .build()
-    
-    # Add all your handlers here (same as before)
-    conv_handler = ConversationHandler(
-        entry_points=[
-            CallbackQueryHandler(button_handler),
-            CommandHandler('add_situation', lambda u,c: button_handler(u,c, data='add_situation')),
-            CommandHandler('add_sensor', lambda u,c: button_handler(u,c, data='add_sensor'))
-        ],
-        states={
-            SENSOR_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_sensor_details)],
-            ADD_SITUATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_situation)],
-            UPDATE_PROFILE: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_profile_handler)]
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-    )
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
 
+    # Core commands
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("register", register))
     application.add_handler(CommandHandler("menu", menu))
-    application.add_handler(CommandHandler("delete_situation", delete_situation_command))
-    application.add_handler(CommandHandler("update_situation", update_situation_command))
-    application.add_handler(CommandHandler("delete_user", delete_user_command))
-    application.add_handler(CommandHandler("delete_sensor", delete_sensor))
-    application.add_handler(conv_handler)
-    application.add_error_handler(error_handler)
 
-    # Run the bot until Ctrl-C is pressed
+    # Single callback handler drives the whole UI
+    application.add_handler(CallbackQueryHandler(button_handler))
+
+    # Error handler
+    application.add_error_handler(error_handler)
 
     application.run_polling()
 
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
-    except Exception as e:
-        logger.error(f"Bot crashed with error: {e}")
+
+if __name__ == "__main__":
+    main()
