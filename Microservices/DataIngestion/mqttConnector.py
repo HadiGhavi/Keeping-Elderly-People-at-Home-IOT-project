@@ -1,7 +1,7 @@
 import paho.mqtt.client as mqtt
 import time
 from typing import Optional, Dict, Callable, Any, List
-
+import socket
 class MQTTService:
     def __init__(self, host: str, port: int, auth: Optional[Dict[str, str]] = None):
         self.host = host

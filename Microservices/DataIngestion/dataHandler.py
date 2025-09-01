@@ -12,6 +12,7 @@ import json
 import cherrypy
 import requests
 import threading
+import webbrowser
 
 class MockPredictor:
     """Simple mock predictor for testing"""
@@ -32,18 +33,20 @@ class DataHandler:
             print(f"Warning: Could not load ML model: {e}")
             print("Using mock predictor for testing")
             self.predict = MockPredictor()
-        self.influx = InfluxDBService("iot_health")
+        self.influx = InfluxDBService("iot_keep_elderly_peaple")
+        
+        # ✅ Start MQTT automatically
+        print("Starting MQTT subscriber...")
+        background_thread = threading.Thread(target=self.main, daemon=True)
+        background_thread.start()
     
     @cherrypy.expose
     def index(self):
-        background_thread = threading.Thread(target=self.main, daemon=True)
-        background_thread.start()
+        # ✅ Remove MQTT startup from here
         cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({
-            "message": "data handler API",
-            "endpoints": {
-                "GET /getUserData/<id>": "get user data from db",
-            }
+            "message": "data handler API - MQTT subscriber running",
+            "endpoints": {"GET /getUserData/<id>": "get user data from db"}
         }).encode('utf-8')
     
     @cherrypy.expose
@@ -87,20 +90,39 @@ class DataHandler:
                 (sensor for sensor in json_message["sensors"] if "heart_rate" in sensor["name"]),
                 None  
             )
+            # ✅ Match existing schema: temp=FLOAT, oxygen=INTEGER, heart_rate=INTEGER
+            if temp is None:
+                print("❌ WARNING: temp sensor missing, using default value 36.5")
+                temp_value = 36.5  # Keep as FLOAT
+            else:
+                temp_value = float(temp["value"])  # Ensure FLOAT
+                
+            if oxygen is None:
+                print("❌ WARNING: oxygen sensor missing, using default value 98")
+                oxygen_value = 98  # Keep as INTEGER
+            else:
+                oxygen_value = int(float(oxygen["value"]))  # Convert to INTEGER
+                
+            if heart_rate is None:
+                print("❌ WARNING: heart_rate sensor missing, using default value 70")
+                heart_rate_value = 70  # Keep as INTEGER
+            else:
+                heart_rate_value = int(float(heart_rate["value"]))  # Convert to INTEGER
 
-            predicted_state = self.predict.predict_state(temp["value"],heart_rate["value"],oxygen["value"])
+            print(f"🔍 Schema-matched values - temp: {temp_value} (float), oxygen: {oxygen_value} (int), heart_rate: {heart_rate_value} (int)")
+            predicted_state = self.predict.predict_state(temp_value,heart_rate_value,oxygen_value)
             print(predicted_state)
             res_obj={
                     "user_id":json_message["user_id"],
                     "user_name":json_message["user_name"],
                     "state":predicted_state,
-                    "temp":temp["value"],
-                    "oxygen":oxygen["value"],
-                    "heartRate":heart_rate["value"]
+                    "temp":temp_value,
+                    "oxygen":oxygen_value,
+                    "heartRate":heart_rate_value
                 }
 
             if(predicted_state in user_sensitive):
-                notif_services=requests.get("http://localhost:5001/services/notification")
+                notif_services=requests.get("http://catalog:5001/services/notification")
                 json_notif=notif_services.json()
                 # FIXED - use single quotes for dictionary keys
                 response = requests.post(
@@ -122,7 +144,7 @@ class DataHandler:
             return False
 
     def main(self):
-        mqtt_service=requests.get("http://localhost:5001/services/mqtt")
+        mqtt_service=requests.get("http://catalog:5001/services/mqtt")
         json_mqtt=mqtt_service.json()
 
         mqtt_subscriber = MQTTService(
@@ -145,10 +167,10 @@ class DataHandler:
 
 if __name__ == "__main__":
     response = requests.post(
-        f"http://localhost:5001/services/",
+        f"http://catalog:5001/services/",
         json={
             "dataIngestion": {
-            "url": "http://localhost",
+            "url": "http://data_ingestion",
             "port": 2500,
             "endpoints": {
                 "GET /getUserData/<id>": "get user data from db"
@@ -177,4 +199,5 @@ if __name__ == "__main__":
         }
     }
     
+    webbrowser.open("http://localhost:2500/")
     cherrypy.quickstart(DataHandler(), '/', conf)
