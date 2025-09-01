@@ -6,7 +6,7 @@
     "users": [
         {
             "user_chat_id": 650295422,
-            "full_name": "mojtaba",
+            "full_name": "Mojtaba",
             "SensitiveSituation": [
                 "risky",
                 "dangerous"
@@ -15,27 +15,167 @@
                 {
                     "id": 1,
                     "name": "temp",
-                    "max_level_alert": 20.0,
-                    "min_level_alert": 45.0
+                    "max_level_alert": 20,
+                    "min_level_alert": 45
                 },
                 {
                     "id": 2,
                     "name": "oxygen1",
-                    "max_level_alert": 85.0,
-                    "min_level_alert": 110.0
+                    "max_level_alert": 85,
+                    "min_level_alert": 110
                 },
                 {
                     "id": 3,
                     "name": "heart_rate",
-                    "max_level_alert": 70.0,
-                    "min_level_alert": 110.0
+                    "max_level_alert": 70,
+                    "min_level_alert": 110
+                }
+            ]
+        },
+        {
+            "user_chat_id": 6378242947,
+            "full_name": "hadi",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp",
+                    "max_level_alert": 30.0,
+                    "min_level_alert": 40.0
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen",
+                    "max_level_alert": 95.0,
+                    "min_level_alert": 100.0
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate",
+                    "max_level_alert": 100.0,
+                    "min_level_alert": 60.0
+                }
+            ]
+        },
+        {
+            "user_chat_id": 154536927,
+            "full_name": "mojtaba2",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp",
+                    "max_level_alert": 30.0,
+                    "min_level_alert": 40.0
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen",
+                    "max_level_alert": 95.0,
+                    "min_level_alert": 100.0
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate",
+                    "max_level_alert": 100.0,
+                    "min_level_alert": 60.0
+                }
+            ]
+        },
+        {
+            "user_chat_id": 654653569,
+            "full_name": "<MEHDI1>",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp",
+                    "max_level_alert": 30.0,
+                    "min_level_alert": 40.0
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen",
+                    "max_level_alert": 95.0,
+                    "min_level_alert": 100.0
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate",
+                    "max_level_alert": 100.0,
+                    "min_level_alert": 60.0
+                }
+            ]
+        },
+        {
+            "user_chat_id": 80959650,
+            "full_name": "<Hadi4>",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp",
+                    "max_level_alert": 30.0,
+                    "min_level_alert": 40.0
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen",
+                    "max_level_alert": 95.0,
+                    "min_level_alert": 100.0
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate",
+                    "max_level_alert": 100.0,
+                    "min_level_alert": 60.0
+                }
+            ]
+        },
+        {
+            "user_chat_id": 548805315,
+            "full_name": "Riccardo Fida",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp",
+                    "max_level_alert": 30.0,
+                    "min_level_alert": 40.0
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen",
+                    "max_level_alert": 95.0,
+                    "min_level_alert": 100.0
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate",
+                    "max_level_alert": 100.0,
+                    "min_level_alert": 60.0
                 }
             ]
         }
     ],
     "services": {
         "catalog": {
-            "url": "http://localhost",
+            "url": "http://catalog",
             "port": 5001,
             "endpoints": {
                 "GET /homes": "Get all home devices",
@@ -56,14 +196,14 @@
             }
         },
         "dataIngestion": {
-            "url": "http://localhost",
+            "url": "http://data_ingestion",
             "port": 2500,
             "endpoints": {
                 "GET /getUserData/<id>": "get user data from db"
             }
         },
         "adminPanel": {
-            "url": "http://localhost",
+            "url": "http://admin_panel",
             "port": 9000,
             "endpoints": {
                 "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
@@ -71,21 +211,21 @@
             }
         },
         "mqtt": {
-            "url": "mqtt.eclipseprojects.io",
+            "url": "broker.hivemq.com",
             "port": 1883,
             "topics": [
                 "iot_user_sensor/#"
             ]
         },
         "sensor": {
-            "url": "http://localhost:3500/read/",
+            "url": "http://monitor:3500/read/",
             "port": 3500,
             "endpoints": {
                 "GET /read/<id>": "read sensor value from device"
             }
         },
         "notification": {
-            "url": "http://localhost",
+            "url": "http://notification",
             "port": 1500,
             "endpoints": {
                 "Post /sendNotif/": "send notification"
