@@ -6,10 +6,9 @@ import requests
 import time
 import logging
 from datetime import datetime
-from Microservices.Notification.config import Config
 import json
 import cherrypy
-TELEGRAM_TOKEN = Config.TELEGRAM["TELEGRAM_TOKEN"]
+TELEGRAM_TOKEN = "8439269111:AAFVv-C_qC0cfMC9oXomfxlMbkKNUlSq9Fo"
 
 class Notification:
     @cherrypy.expose
@@ -41,10 +40,10 @@ class Notification:
         
 def setup_services():
     response = requests.post(
-        f"http://localhost:5000/services/",
+        f"http://catalog:5001/services/",
         json={
             "notification": {
-            "url": "http://localhost",
+            "url": "http://notification",
             "port": 1500,
             "endpoints": {
                 "Post /sendNotif/": "send notification"
