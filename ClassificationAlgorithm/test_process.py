@@ -1,9 +1,10 @@
 import pandas as pd
 import joblib
 import sys
-import os
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
+
+from config import Config
 
 class HealthStatePredictor:
     def __init__(self, model_path):
@@ -27,19 +28,17 @@ class HealthStatePredictor:
 # Example usage
 if __name__ == "__main__":
     # Initialize predictor
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(script_dir, 'trained_model.pkl')
-
+    model_path =  Config.CLASSIFICATION["TRAINMODEL"]
     predictor = HealthStatePredictor(model_path)
     
     # Make prediction
-    example_temperature = 36.5
-    example_heart_rate = 75
-    example_blood_oxygen = 90
+    # example_temperature = 36.5
+    # example_heart_rate = 75
+    # example_blood_oxygen = 97
     
-    predicted_state = predictor.predict_state(
-         example_temperature, 
-         example_heart_rate, 
-         example_blood_oxygen
-     )
-    print(f"Predicted State: {predicted_state}")
+    # predicted_state = predictor.predict_state(
+    #     example_temperature, 
+    #     example_heart_rate, 
+    #     example_blood_oxygen
+    # )
+    # print(f"Predicted State: {predicted_state}")

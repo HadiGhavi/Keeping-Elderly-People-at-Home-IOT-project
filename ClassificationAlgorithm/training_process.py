@@ -4,11 +4,9 @@ from sklearn.metrics import classification_report, confusion_matrix
 from imblearn.over_sampling import SMOTE
 import joblib
 import pandas as pd
-import sys
-import os
-# Get the directory of the current script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-data_path = os.path.join(script_dir, 'realistic_elderly_health_data.csv')
+
+# Path to the dataset
+data_path = 'E:\Iot2\ClassificationAlgorithm\elderly_health_data.csv'  # Replace with the actual path if necessary
 
 # Load the dataset
 data = pd.read_csv(data_path)
