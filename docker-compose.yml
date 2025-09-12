@@ -1,0 +1,67 @@
+version: '3.9'
+
+services:
+  catalog:
+    build:
+      context: ./Microservices/Catalog
+    container_name: catalog_service
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./Microservices/Catalog/resource_catalog.json:/app/resource_catalog.json
+    restart: always
+  data_ingestion:
+    build:
+      context: .
+      dockerfile: Microservices/DataIngestion/Dockerfile
+    container_name: data_ingestion_service
+    ports:
+      - "2500:2500"
+    volumes:
+      - ./Microservices/DataIngestion:/app/Microservices/DataIngestion
+      - ./ClassificationAlgorithm:/app/ClassificationAlgorithm
+    environment:
+      - BASE_DIR=/app/ClassificationAlgorithm
+    depends_on:
+      - catalog  
+      - notification
+    restart: always
+  monitor:
+    build:
+      context: .
+      dockerfile: Microservices/Monitor/Dockerfile
+    container_name: monitor_service
+    ports:
+      - "3500:3500"
+    depends_on:
+      - catalog  
+    restart: always
+  notification:
+    build:
+      context: ./Microservices/Notification
+    container_name: notification_service
+    ports:
+      - "1500:1500"
+    depends_on:
+      - catalog   
+    restart: always
+  admin_panel:
+    build:
+      context: .
+      dockerfile: Microservices/Report/Dockerfile
+    container_name: admin_panel_service
+    ports:
+      - "9000:9000"
+    depends_on:
+      - catalog  
+      - data_ingestion
+    restart: always
+  telegram_bot:
+    build:
+      context: ./Microservices/TelegramBot
+    container_name: telegram_bot_service
+    ports:
+      - "8000:8000" 
+    restart: unless-stopped
+    depends_on:
+      - catalog

@@ -1,0 +1,196 @@
+{
+    "project_name": "Human Health",
+    "project_owner": [
+        "Hadi"
+    ],
+    "users": [
+        {
+            "user_chat_id": 650295422,
+            "full_name": "Mojtaba",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
+            ]
+        },
+        {
+            "user_chat_id": 6378242947,
+            "full_name": "hadi",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp"
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate"
+                }
+            ]
+        },
+        {
+            "user_chat_id": 154536927,
+            "full_name": "mojtaba2",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp"
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate"
+                }
+            ]
+        },
+        {
+            "user_chat_id": 654653569,
+            "full_name": "<MEHDI1>",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp"
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate"
+                }
+            ]
+        },
+        {
+            "user_chat_id": 80959650,
+            "full_name": "<Hadi4>",
+            "SensitiveSituation": [
+                "risky",
+                "dangerous"
+            ],
+            "sensors": [
+                {
+                    "id": 2,
+                    "name": "temp"
+                },
+                {
+                    "id": 3,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 1,
+                    "name": "heart_rate"
+                }
+            ]
+        },
+        {
+            "user_chat_id": 548805315,
+            "full_name": "Riccardo Fida",
+            "sensors": [
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
+            ]
+        }
+    ],
+    "services": {
+        "catalog": {
+            "url": "http://catalog",
+            "port": 5001,
+            "endpoints": {
+                "GET /homes": "Get all home devices",
+                "GET /homes/<user_chat_id>": "Get homes for specific user",
+                "GET /homes/<user_chat_id>/<home_name>": "Get specific home details",
+                "POST /homes": "Create a new home entry",
+                "PUT /homes/<user_chat_id>/<home_name>": "Update a home",
+                "DELETE /homes/<user_chat_id>/<home_name>": "Delete a home",
+                "GET /homes/<user_chat_id>/<home_name>/sensors": "Get all sensors for a home",
+                "GET /homes/<user_chat_id>/<home_name>/sensors/<sensor_id>": "Get specific sensor",
+                "POST /homes/<user_chat_id>/<home_name>/sensors": "Add sensor to home",
+                "PUT /homes/<user_chat_id>/<home_name>/sensors/<sensor_id>": "Update sensor",
+                "DELETE /homes/<user_chat_id>/<home_name>/sensors/<sensor_id>": "Remove sensor",
+                "GET /project": "Get project info",
+                "PUT /project": "Update project info",
+                "GET /services/<servicename>": "get service info by name",
+                "POST /services/": "add service info"
+            }
+        },
+        "dataIngestion": {
+            "url": "http://data_ingestion",
+            "port": 2500,
+            "endpoints": {
+                "GET /getUserData/<id>": "get user data from db"
+            }
+        },
+        "adminPanel": {
+            "url": "http://admin_panel",
+            "port": 9000,
+            "endpoints": {
+                "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
+                "GET /report/<userid>": "get user sensor data by id => json"
+            }
+        },
+        "mqtt": {
+            "url": "broker.hivemq.com",
+            "port": 1883,
+            "topics": [
+                "iot_user_sensor/#"
+            ]
+        },
+        "sensor": {
+            "url": "http://monitor:3500/read/",
+            "port": 3500,
+            "endpoints": {
+                "GET /read/<id>": "read sensor value from device",
+                "GET /stop/<id>": "stop sensor monitoring for user"
+            }
+        },
+        "notification": {
+            "url": "http://notification",
+            "port": 1500,
+            "endpoints": {
+                "Post /sendNotif/": "send notification"
+            }
+        }
+    }
+}

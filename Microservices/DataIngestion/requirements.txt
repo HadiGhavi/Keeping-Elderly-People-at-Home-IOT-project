@@ -1,0 +1,8 @@
+cherrypy
+requests
+paho-mqtt
+influxdb-client
+pandas
+joblib
+scikit-learn
+certifi
