@@ -11,32 +11,7 @@ import cherrypy
 TELEGRAM_TOKEN = "6605276431:AAHoPhbbqSSPR7z1VS56c7Cddp34xzvT2Og"
 
 class Notification:
-    @cherrypy.expose
-    def sendNotif_old(self,**paraams):
-            try:
-                message = json.loads(cherrypy.request.body.read().decode('utf-8'))
-                response = requests.post(
-                        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                        json={ 
-                            "chat_id": message["user_id"],
-                            "text":f"Alert:{message}" ,
-                            "parse_mode": "HTML"
-                        },
-                        timeout=10
-                    )
-                response.raise_for_status()
-                logging.info(f"Telegram alert sent: {message}")
-                return True
-            except requests.exceptions.RequestException as e:
-                logging.error(f"Telegram API failed: {e}")
-                return False
-                
-            except ValueError:
-                print(f"Invalid message format: {message}")
-                return False
-            except Exception as e:
-                print(f"Processing error: {e}")
-                return False
+
     @cherrypy.expose        
     def sendNotif(self, **params):
         try:

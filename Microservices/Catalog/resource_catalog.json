@@ -7,10 +7,6 @@
         {
             "user_chat_id": 650295422,
             "full_name": "Mojtaba",
-            "SensitiveSituation": [
-                "risky",
-                "dangerous"
-            ],
             "sensors": [
                 {
                     "id": 1,
@@ -29,10 +25,6 @@
         {
             "user_chat_id": 6378242947,
             "full_name": "hadi",
-            "SensitiveSituation": [
-                "risky",
-                "dangerous"
-            ],
             "sensors": [
                 {
                     "id": 2,
@@ -51,10 +43,6 @@
         {
             "user_chat_id": 154536927,
             "full_name": "mojtaba2",
-            "SensitiveSituation": [
-                "risky",
-                "dangerous"
-            ],
             "sensors": [
                 {
                     "id": 2,
@@ -72,11 +60,7 @@
         },
         {
             "user_chat_id": 654653569,
-            "full_name": "<MEHDI1>",
-            "SensitiveSituation": [
-                "risky",
-                "dangerous"
-            ],
+            "full_name": "MEHDI1",
             "sensors": [
                 {
                     "id": 2,
@@ -93,25 +77,23 @@
             ]
         },
         {
-            "user_chat_id": 80959650,
-            "full_name": "<Hadi4>",
-            "SensitiveSituation": [
-                "risky",
-                "dangerous"
-            ],
-            "sensors": [
-                {
-                    "id": 2,
-                    "name": "temp"
-                },
-                {
-                    "id": 3,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 1,
-                    "name": "heart_rate"
-                }
+            "user_chat_id": 89000789,
+            "full_name": "Riccardo Trap",
+            "user_type": "doctor",
+            "specialization": "Cardiology",
+            "hospital": "",
+            "sensors": [],
+            "patients": []
+        },
+        {
+            "user_chat_id": 3485380,
+            "full_name": "Hadi",
+            "user_type": "doctor",
+            "specialization": "General Practice",
+            "hospital": "",
+            "sensors": [],
+            "patients": [
+                548805315
             ]
         },
         {
@@ -130,7 +112,9 @@
                     "id": 3,
                     "name": "heart_rate"
                 }
-            ]
+            ],
+            "doctor_id": null,
+            "user_type": "patient"
         }
     ],
     "services": {
@@ -152,7 +136,11 @@
                 "GET /project": "Get project info",
                 "PUT /project": "Update project info",
                 "GET /services/<servicename>": "get service info by name",
-                "POST /services/": "add service info"
+                "POST /services/": "add service info",
+                "POST /assign_patient": "Assign a patient to a doctor",
+                "GET /doctors": "Get all doctors",
+                "GET /doctors/<doctor_id>": "Get patients for a specific doctor",
+                "POST /doctors": "Register a new doctor"
             }
         },
         "dataIngestion": {
@@ -167,7 +155,9 @@
             "port": 9000,
             "endpoints": {
                 "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-                "GET /report/<userid>": "get user sensor data by id => json"
+                "GET /report/<userid>": "get user sensor data by id => json",
+                "GET /doctor_registration": "doctor registration web form",
+                "POST /register_doctor_web": "process doctor registration form"
             }
         },
         "mqtt": {
@@ -190,6 +180,18 @@
             "port": 1500,
             "endpoints": {
                 "Post /sendNotif/": "send notification"
+            }
+        },
+        "databaseAdapter": {
+            "url": "http://database_adapter",
+            "port": 3000,
+            "endpoints": {
+                "POST /write": "write health data to database",
+                "GET /read/<user_id>": "get user health data",
+                "DELETE /delete/<user_id>": "delete user data",
+                "GET /info": "get database adapter information",
+                "POST /switch": "switch database adapter",
+                "GET /adapters": "list available adapters"
             }
         }
     }

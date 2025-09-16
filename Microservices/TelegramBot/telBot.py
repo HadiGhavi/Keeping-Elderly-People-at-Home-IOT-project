@@ -16,13 +16,12 @@ import logging
 import sys
 import traceback
 
-# Try importing chart libraries, handle gracefully if missing
 try:
     import matplotlib
     matplotlib.use('Agg')  # Use non-GUI backend
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
-    from datetime import datetime, timedelta
+    from datetime import datetime
     import pandas as pd
     import io
     CHARTS_AVAILABLE = True
@@ -33,7 +32,7 @@ except ImportError as e:
     print("Charts will be disabled. Install: pip install matplotlib pandas seaborn")
 
 # =========================
-# Enhanced Logging
+# Logging
 # =========================
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -54,9 +53,6 @@ print(f"Charts enabled: {CHARTS_AVAILABLE}")
 # =========================
 REST_API_URL = "http://catalog:5001"
 
-# keep END symbol available even if we don't use states now
-ADD_SENSOR, ADD_SITUATION, SENSOR_DETAILS, UPDATE_PROFILE = range(4)
-
 # Your requested token (hard-coded, per your instruction)
 TELEGRAM_TOKEN = "6605276431:AAHoPhbbqSSPR7z1VS56c7Cddp34xzvT2Og"
 
@@ -67,8 +63,23 @@ print(f"🔧 Configuration loaded. REST API: {REST_API_URL}")
 
 
 def is_admin(user_id: int) -> bool:
-    return user_id in ADMINS
+    # Check if user is in global admin list
+    if user_id in ADMINS:
+        return True
+    
+    # Check if user is a doctor (has admin privileges over their patients)
+    user_data = api_get(f"users/{user_id}")
+    if user_data and user_data.get('user_type') == 'doctor':
+        return True
+    
+    return False
 
+def is_doctor(user_id: int) -> bool:
+    user_data = api_get(f"users/{user_id}")
+    return user_data and user_data.get('user_type') == 'doctor'
+
+def get_doctor_patients(doctor_id: int):
+    return api_get(f"doctors/{doctor_id}") or []
 
 # =========================
 # REST helpers with better error handling
@@ -217,75 +228,108 @@ def stop_recording_for(user_id: int):
         print(f"DEBUG: Exception: {e}")
         return False, f"Error while stopping: {str(e)}"
 
-def get_report_for_old(user_id: int):
-    panel = _panel_service()
-    if not panel:
-        return False, "Report service not found."
-    
-    url = panel["url"]
-    port = panel.get("port")
-    full = f"{url}:{port}/report/{user_id}" if port else f"{url}/report/{user_id}"
-    
-    try:
-        logger.info(f"Fetching report from {full}")
-        r = requests.get(full, timeout=15)
-        if r.status_code == 200:
-            try:
-                data = r.json()
-                if not data:
-                    return True, "No report found."
-                # keep it short to avoid Telegram 4096 char limit
-                text = html.escape(json.dumps(data, ensure_ascii=False)[:1200])
-                return True, text
-            except Exception as e:
-                logger.error(f"Error parsing report data: {e}")
-                return False, "Error parsing report data."
-        else:
-            logger.warning(f"Report fetch failed: {r.status_code} - {r.text}")
-            return False, f"Failed to fetch report (HTTP {r.status_code})."
-    except Exception as e:
-        logger.error(f"Error fetching report {full}: {e}")
-        return False, "Error while fetching report."
 
-
-def get_report_for(user_id: int):
-    panel = _panel_service()
-    if not panel:
-        return False, "Report service not found."
-    
-    url = panel["url"]
-    port = panel.get("port")
-    full = f"{url}:{port}/report/{user_id}" if port else f"{url}/report/{user_id}"
-    
+def get_report_for(user_id: int, max_hours: int = 24):
+    """Fetch user report through the database adapter service"""
     try:
-        logger.info(f"Fetching report from {full}")
-        r = requests.get(full, timeout=15)
-        if r.status_code == 200:
+        adapter_service = get_database_adapter_service()
+        if not adapter_service:
+            return False, "Database adapter service not found."
+        
+        url = adapter_service["url"]
+        port = adapter_service.get("port")
+        endpoint = f"/read/{user_id}"
+        
+        # Add time filtering for reports too
+        params = {"hours": max_hours}
+        full_url = f"{url}:{port}{endpoint}" if port else f"{url}{endpoint}"
+        
+        logger.info(f"Fetching report from database adapter: {full_url} (last {max_hours} hours)")
+        
+        response = requests.get(full_url, params=params, timeout=15)
+        
+        if response.status_code == 200:
             try:
-                raw_data = r.json()
+                raw_data = response.json()
+                
                 if not raw_data:
                     return True, "No report found."
                 
-                # Parse the double-encoded JSON
-                if isinstance(raw_data, str):
-                    data = json.loads(raw_data)
+                # Check if the adapter returned an error
+                if isinstance(raw_data, dict) and not raw_data.get("success", True):
+                    error_message = raw_data.get("message", "Unknown error from database adapter")
+                    logger.error(f"Database adapter error: {error_message}")
+                    return False, f"Database error: {error_message}"
+                
+                # Extract the actual data
+                if isinstance(raw_data, dict) and "data" in raw_data:
+                    data = raw_data["data"]
                 else:
                     data = raw_data
+                
+                # Parse double-encoded JSON if needed (from your original logic)
+                if isinstance(data, str):
+                    data = json.loads(data)
+                
+                if not data:
+                    return True, "No report data found for this user."
                 
                 # Format the data into a readable report
                 formatted_report = format_health_report(data, user_id)
                 return True, formatted_report
                 
-            except Exception as e:
-                logger.error(f"Error parsing report data: {e}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing report JSON: {e}")
                 return False, "Error parsing report data."
+            except Exception as e:
+                logger.error(f"Error processing report data: {e}")
+                logger.error(f"Raw response content: {response.text}")
+                return False, "Error processing report data."
         else:
-            logger.warning(f"Report fetch failed: {r.status_code} - {r.text}")
-            return False, f"Failed to fetch report (HTTP {r.status_code})."
+            logger.warning(f"Report fetch failed: {response.status_code} - {response.text}")
+            return False, f"Failed to fetch report (HTTP {response.status_code})."
+            
     except Exception as e:
-        logger.error(f"Error fetching report {full}: {e}")
-        return False, "Error while fetching report."
+        logger.error(f"Unexpected error fetching report: {e}")
+        return False, "Unexpected error while fetching report."
 
+def get_database_adapter_service():
+    """
+    Get database adapter service configuration from catalog
+    """
+    try:
+        # Get catalog service info
+        catalog_service = get_catalog_service()
+        if not catalog_service:
+            return None
+        
+        catalog_url = catalog_service["url"]
+        catalog_port = catalog_service.get("port")
+        catalog_full_url = f"{catalog_url}:{catalog_port}/services/databaseAdapter" if catalog_port else f"{catalog_url}/services/databaseAdapter"
+        
+        response = requests.get(catalog_full_url, timeout=10)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logger.warning(f"Failed to get database adapter service info: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error getting database adapter service info: {e}")
+        return None
+
+
+def get_catalog_service():
+    """
+    Get catalog service configuration
+    This should return the catalog service info from your configuration
+    """
+    # Return your catalog service configuration
+    return {
+        "url": "http://catalog",
+        "port": 5001
+    }
 
 def format_health_report(data, user_id):
     """Format raw health data into a readable report"""
@@ -372,45 +416,78 @@ def format_health_report(data, user_id):
     
     return "\n".join(report_lines)
 
-def get_chart_data_for(user_id: int):
-    """Get raw sensor data for chart generation"""
+def get_chart_data_for(user_id: int, max_hours: int = 24):
+    """Get raw sensor data for chart generation through database adapter"""
     if not CHARTS_AVAILABLE:
         return False, "Chart functionality not available - missing dependencies.", None
         
-    data_svc = _data_service()
-    if not data_svc:
-        return False, "Data service not found.", None
-    
-    url = data_svc["url"]
-    port = data_svc.get("port")
-    full = f"{url}:{port}/getUserData/{user_id}" if port else f"{url}/getUserData/{user_id}"
-    
     try:
-        logger.info(f"Fetching chart data from {full}")
-        r = requests.get(full, timeout=15)
-        if r.status_code == 200:
+        adapter_service = get_database_adapter_service()
+        if not adapter_service:
+            return False, "Database adapter service not found.", None
+        
+        url = adapter_service["url"]
+        port = adapter_service.get("port")
+        
+        # Use query parameters for time filtering
+        endpoint = f"/read/{user_id}"
+        params = {"hours": max_hours}  # Server-side filtering!
+        full_url = f"{url}:{port}{endpoint}" if port else f"{url}{endpoint}"
+        
+        logger.info(f"Fetching chart data from database adapter: {full_url} (last {max_hours} hours)")
+        
+        response = requests.get(full_url, params=params, timeout=15)
+        
+        if response.status_code == 200:
             try:
-                data = json.loads(r.json())  # Double parsing as per your existing code
-                if not data:
+                raw_data = response.json()
+                
+                if not raw_data:
                     return True, "No data found for charts.", None
+                
+                if isinstance(raw_data, dict) and not raw_data.get("success", True):
+                    error_message = raw_data.get("message", "Unknown error from database adapter")
+                    logger.error(f"Database adapter error: {error_message}")
+                    logger.error(f"Full error response: {raw_data}")  # Additional debug info
+                    return False, f"Database error: {error_message}", None
+                
+                # Extract the actual data - already filtered by server!
+                if isinstance(raw_data, dict) and "data" in raw_data:
+                    data = raw_data["data"]
+                else:
+                    data = raw_data
+                
+                if isinstance(data, str):
+                    data = json.loads(data)
+                
+                if not data:
+                    return True, f"No data found for the last {max_hours} hours.", None
+                    
                 return True, "Data retrieved successfully.", data
-            except Exception as e:
-                logger.error(f"Error parsing chart data: {e}")
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing chart data JSON: {e}")
                 return False, "Error parsing chart data.", None
+            except Exception as e:
+                logger.error(f"Error processing chart data: {e}")
+                return False, "Error processing chart data.", None
         else:
-            logger.warning(f"Chart data fetch failed: {r.status_code} - {r.text}")
-            return False, f"Failed to fetch data (HTTP {r.status_code}).", None
+            logger.warning(f"Chart data fetch failed: {response.status_code} - {response.text}")
+            return False, f"Failed to fetch data (HTTP {response.status_code}).", None
+            
+    except requests.RequestException as e:
+        logger.error(f"Request error fetching chart data: {e}")
+        return False, "Error connecting to database adapter service.", None
     except Exception as e:
-        logger.error(f"Error fetching chart data {full}: {e}")
-        return False, "Error while fetching chart data.", None
+        logger.error(f"Unexpected error fetching chart data: {e}")
+        return False, "Unexpected error while fetching chart data.", None
 
-
-def generate_chart_for(user_id: int, chart_type: str = "combined"):
-    """Generate chart from user sensor data"""
+def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: int = 24):
+    """Generate chart from user sensor data - server-side filtered"""
     if not CHARTS_AVAILABLE:
         return False, "Chart functionality not available - missing dependencies.", None
         
-    ok, msg, data = get_chart_data_for(user_id)
+    ok, msg, data = get_chart_data_for(user_id, max_hours)
     if not ok or not data:
         return False, msg, None
     
@@ -426,7 +503,11 @@ def generate_chart_for(user_id: int, chart_type: str = "combined"):
         
         # Set up the plot with basic style
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-        fig.suptitle(f'Health Monitoring Dashboard - User {user_id}', fontsize=16, fontweight='bold')
+        
+        # Update title to show time range
+        time_range_text = f"Last {max_hours} hours" if max_hours < 48 else f"Last {max_hours//24} days"
+        fig.suptitle(f'Health Monitoring Dashboard - User {user_id} ({time_range_text})', 
+                    fontsize=16, fontweight='bold')
         
         # Temperature chart
         temp_data = df[df['field'] == 'temp']
@@ -477,24 +558,30 @@ def generate_chart_for(user_id: int, chart_type: str = "combined"):
             axes[1, 1].set_yticklabels(['Normal', 'Risky', 'Dangerous'])
             axes[1, 1].grid(True, alpha=0.3)
             
-        # Format x-axis for all subplots
+        # Format x-axis for all subplots with better tick control
         for ax in axes.flat:
-            ax.tick_params(axis='x', rotation=45)
             if len(ax.get_lines()) > 0 or len(ax.collections) > 0:  # Only format if there's data
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-                ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
-        
-            # Show more frequent time labels
-            ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))  # Every 5 minutes instead of 10
-            ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=1))  # Every minute as minor ticks
-            
-            # Ensure all labels are shown
-            ax.tick_params(axis='x', which='major', labelsize=8)
-            ax.tick_params(axis='x', which='minor', labelsize=6)
-            
-            # Auto-format to prevent label overlap
-            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
+                
+                # Set appropriate time formatting based on data range
+                if max_hours <= 24:
+                    # For 24-hour view, show every hour
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                    ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=30))
+                elif max_hours <= 72:
+                    # For 3-day view, show every 4 hours
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=4))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
+                    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=6))
+                else:
+                    # For longer periods, show daily
+                    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+                    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=12))
+                
+                # Rotate labels for better readability
+                ax.tick_params(axis='x', rotation=45, labelsize=8)
+                
         plt.tight_layout()
         
         # Save plot to bytes buffer
@@ -509,8 +596,31 @@ def generate_chart_for(user_id: int, chart_type: str = "combined"):
         logger.error(f"Error generating chart: {e}")
         logger.error(traceback.format_exc())
         return False, f"Chart generation failed: {str(e)}", None
+    
+def delete_user_data_for(user_id: int):
+    """Delete all user data through database adapter"""
+    return False, "Data deletion not supported on current InfluxDB Cloud configuration (serverless v3 buckets)"
 
-
+def admin_delete_user_data(admin_user_id: int, target_user_id: int) -> tuple[bool, str]:
+    """Admin function to delete user data with proper authorization"""
+    # Verify admin privileges
+    if not is_admin(admin_user_id):  # Changed this line
+        logger.warning(f"Unauthorized delete attempt by user {admin_user_id}")
+        return False, "Access denied. Admin privileges required."
+    
+    # Log the admin action
+    logger.info(f"Admin {admin_user_id} requesting deletion of user {target_user_id} data")
+    
+    success, message = delete_user_data_for(target_user_id)
+    
+    if success:
+        success_msg = f"Data for user {target_user_id} has been deleted by admin {admin_user_id}"
+        logger.info(success_msg)
+        return True, success_msg
+    else:
+        logger.error(f"Delete failed: {message}")
+        return False, message
+       
 async def send_chart_to_user(update, context, user_id: int):
     """Send chart image to user via Telegram"""
     if not CHARTS_AVAILABLE:
@@ -583,22 +693,112 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error in register command: {e}")
         logger.error(traceback.format_exc())
 
+async def request_doctor_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        chat_id = update.effective_chat.id
+        
+        if len(context.args) < 2:
+            await update.message.reply_text(
+                "Request doctor access:\n"
+                "/request_doctor <Full Name> <Specialization>\n\n"
+                "Example: /request_doctor Dr. Sarah Johnson Cardiology"
+            )
+            return
+        
+        full_name = " ".join(context.args[:-1])
+        specialization = context.args[-1]
+        
+        request_data = {
+            "user_chat_id": chat_id,
+            "full_name": full_name,
+            "specialization": specialization,
+            "status": "pending"
+        }
+        
+        if api_post("doctor_requests", request_data):
+            await update.message.reply_text(
+                "Doctor access request submitted.\n"
+                "An administrator will review your request.\n"
+                "You will be notified when approved."
+            )
+        else:
+            await update.message.reply_text("Failed to submit request. You may already have a pending request.")
+            
+    except Exception as e:
+        logger.error(f"Error in doctor request: {e}")
+        await update.message.reply_text("Request failed. Please try again.")
+
+async def handle_admin_delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle admin delete command with confirmation workflow"""
+    user_id = update.effective_user.id
+    
+    # Check admin privileges 
+    is_authorized, auth_message = is_admin(user_id)
+    if not is_authorized:
+        await update.message.reply_text(auth_message)
+        return
+    
+    # Parse target user ID from command
+    try:
+        if not context.args:
+            await update.message.reply_text(
+                "Usage: /admin_delete_data <user_id>\n"
+                "Example: /admin_delete_data 548805315"
+            )
+            return
+        
+        target_user_id = int(context.args[0])
+        
+        # Create confirmation keyboard
+        keyboard = [
+            [
+                InlineKeyboardButton("Confirm Delete", callback_data=f"confirm_data_delete_{target_user_id}"),
+                InlineKeyboardButton("Cancel", callback_data="cancel_delete")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            f"⚠️ WARNING ⚠️\n\n"
+            f"You are about to DELETE ALL HEALTH DATA for user: {target_user_id}\n\n"
+            f"This action is IRREVERSIBLE.\n\n"
+            f"Are you sure you want to proceed?",
+            reply_markup=reply_markup
+        )
+        
+    except (IndexError, ValueError):
+        await update.message.reply_text(
+            "Invalid user ID. Please provide a valid numeric user ID.\n"
+            "Usage: /admin_delete_data <user_id>"
+        )
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         chat_id = update.effective_chat.id
-        logger.info(f"Menu command from user {chat_id}")
+        user_data = api_get(f"users/{chat_id}")
         
-        if not api_get(f"users/{chat_id}"):
+        if not user_data:
             await update.message.reply_text("Please register first with /register <your name>")
             return
 
-        if is_admin(chat_id):
+        if user_data.get('user_type') == 'doctor':
+        # Doctor menu
+            keyboard = [
+                [InlineKeyboardButton("👥 My Patients", callback_data="doctor_patients")],
+                [InlineKeyboardButton("📊 Monitor All Patients", callback_data="doctor_monitor_all")],
+                [InlineKeyboardButton("📈 Patient Charts", callback_data="doctor_patient_charts")],
+                [InlineKeyboardButton("🔔 Alert Settings", callback_data="doctor_alert_settings")],
+                [InlineKeyboardButton("👤 My Profile", callback_data="doctor_profile")]
+            ]
+            text = "👨‍⚕️ Doctor Dashboard:"
+
+        elif chat_id in ADMINS:
             keyboard = [
                 [InlineKeyboardButton("▶️ Start all", callback_data="admin_start_all")],
                 [InlineKeyboardButton("⏹ Stop all", callback_data="admin_stop_all")],
                 [InlineKeyboardButton("📊 Monitor all", callback_data="admin_monitor_all")],
                 [InlineKeyboardButton("👥 Manage users", callback_data="admin_user_list")],
+                [InlineKeyboardButton("🗑️ Delete User Data", callback_data="admin_delete_menu")],  
                 [InlineKeyboardButton("📄 Get my report", callback_data="get_report")],
             ]
             if CHARTS_AVAILABLE:
@@ -606,17 +806,19 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton("🗑 Remove my profile", callback_data="delete_profile")])
             text = "🛠 Admin menu:"
         else:
+            # Patient menu
             keyboard = [
-                [InlineKeyboardButton("▶️ Start", callback_data="start_recording")],
+                [InlineKeyboardButton("▶️ Start monitoring", callback_data="start_recording")],
                 [InlineKeyboardButton("📄 Get report", callback_data="get_report")],
+                [InlineKeyboardButton("👨‍⚕️ Assign Doctor", callback_data="assign_doctor")]
             ]
             if CHARTS_AVAILABLE:
                 keyboard.append([InlineKeyboardButton("📈 Get chart", callback_data="get_chart")])
             keyboard.extend([
-                [InlineKeyboardButton("⏹ Stop", callback_data="stop_recording")],
-                [InlineKeyboardButton("🗑 Remove profile", callback_data="delete_profile")],
+                [InlineKeyboardButton("⏹ Stop monitoring", callback_data="stop_recording")],
+                [InlineKeyboardButton("🗑 Remove profile", callback_data="delete_profile")]
             ])
-            text = "📋 Main menu:"
+            text = "📋 Patient menu:"
 
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
     except Exception as e:
@@ -678,6 +880,76 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif query.data == "cancel_delete":
             await query.edit_message_text("Profile deletion cancelled.")
 
+        elif query.data == "assign_doctor":
+            # Get list of available doctors
+            doctors = api_get("doctors") or []
+            if not doctors:
+                await query.edit_message_text("No doctors are currently registered in the system. Please contact system administrator.")
+                return
+            
+            keyboard = []
+            for doctor in doctors:
+                doctor_info = f"Dr. {doctor['full_name']}"
+                if 'specialization' in doctor:
+                    doctor_info += f" ({doctor['specialization']})"
+                keyboard.append([InlineKeyboardButton(
+                    doctor_info, 
+                    callback_data=f"select_doctor_{doctor['user_chat_id']}"
+                )])
+            
+            keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])
+            
+            await query.edit_message_text(
+                "Select your doctor:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+        elif query.data.startswith("select_doctor_"):
+            doctor_id = int(query.data.split("_")[-1])
+            
+            # Assign patient to doctor
+            assignment_data = {
+                "patient_id": chat_id,
+                "doctor_id": doctor_id
+            }
+            
+            if api_post("assign_patient", assignment_data):
+                doctor = api_get(f"users/{doctor_id}")
+                doctor_name = doctor.get('full_name', 'Unknown') if doctor else 'Unknown'
+                
+                await query.edit_message_text(
+                    f"✅ You have been assigned to {doctor_name}.\n\n"
+                    f"Your doctor will now receive alerts when your health status becomes risky or dangerous, "
+                    f"and can monitor your health data.\n\n"
+                    f"Use /menu to continue."
+                )
+            else:
+                await query.edit_message_text("Failed to assign doctor. Please try again.")
+
+        elif query.data.startswith("select_doctor_"):
+            doctor_id = int(query.data.split("_")[-1])
+            
+            # Assign patient to doctor
+            assignment_data = {
+                "patient_id": chat_id,
+                "doctor_id": doctor_id
+            }
+            
+            if api_post("assign_patient", assignment_data):
+                # Get doctor info for confirmation
+                doctor = api_get(f"users/{doctor_id}")
+                doctor_name = doctor.get('full_name', 'Unknown') if doctor else 'Unknown'
+                
+                await query.edit_message_text(
+                    f"You have been assigned to Dr. {doctor_name}.\n\n"
+                    f"Your doctor will now receive alerts when your health status becomes risky or dangerous, "
+                    f"and can monitor your health data.\n\n"
+                    f"Use /menu to continue."
+                )
+            else:
+                await query.edit_message_text("Failed to assign doctor. Please try again or contact support.")
+        
+        
         # ===== Admin buttons =====
         elif query.data == "admin_start_all" and admin_mode:
             users = api_get("users") or []
@@ -807,8 +1079,191 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text("User not found.")
                 return ConversationHandler.END
             
+        elif query.data == "doctor_patients" and is_doctor(chat_id):
+            patients = get_doctor_patients(chat_id)
+            if not patients:
+                await query.edit_message_text("No patients assigned to you yet.")
+                return
+            
+            keyboard = [
+                [InlineKeyboardButton(f"{patient['full_name']} (ID: {patient['user_chat_id']})",
+                                    callback_data=f"doctor_view_patient_{patient['user_chat_id']}")]
+                for patient in patients
+            ]
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu")])
+            
+            await query.edit_message_text(
+                f"👥 Your Patients ({len(patients)}):",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+
+        elif query.data.startswith("doctor_view_patient_") and is_doctor(chat_id):
+            patient_id = int(query.data.split("_")[-1])
+            
+            # Verify this patient belongs to this doctor
+            doctor_patients = get_doctor_patients(chat_id)
+            if not any(p['user_chat_id'] == patient_id for p in doctor_patients):
+                await query.edit_message_text("Access denied - patient not assigned to you.")
+                return
+            
+            keyboard = [
+                [InlineKeyboardButton("📄 View Report", callback_data=f"doctor_patient_report_{patient_id}")],
+                [InlineKeyboardButton("📈 View Chart", callback_data=f"doctor_patient_chart_{patient_id}")],
+                [InlineKeyboardButton("▶️ Start Monitoring", callback_data=f"doctor_start_patient_{patient_id}")],
+                [InlineKeyboardButton("⏹ Stop Monitoring", callback_data=f"doctor_stop_patient_{patient_id}")],
+                [InlineKeyboardButton("⬅️ Back to Patients", callback_data="doctor_patients")]
+            ]
+            
+            patient = next(p for p in doctor_patients if p['user_chat_id'] == patient_id)
+            await query.edit_message_text(
+                f"Managing Patient: {patient['full_name']}",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            
             # Send chart for the selected user
             await send_chart_to_user(update, context, target_id)
+        
+        elif query.data == "admin_doctor_requests" and admin_mode:
+            pending_requests = api_get("doctor_requests") or []
+            if not pending_requests:
+                await query.edit_message_text("No pending doctor requests.")
+                return
+            
+            keyboard = []
+            for req in pending_requests:
+                if req.get('status') == 'pending':
+                    keyboard.append([InlineKeyboardButton(
+                        f"{req['full_name']} ({req['specialization']})", 
+                        callback_data=f"review_doctor_{req['id']}"
+                    )])
+            
+            if not keyboard:
+                await query.edit_message_text("No pending requests.")
+                return
+                
+            keyboard.append([InlineKeyboardButton("Back", callback_data="cancel")])
+            
+            await query.edit_message_text(
+                "Pending Doctor Requests:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+        elif query.data.startswith("review_doctor_") and admin_mode:
+            request_id = int(query.data.split("_")[-1])
+            request_info = api_get(f"doctor_requests/{request_id}")
+            
+            if not request_info:
+                await query.edit_message_text("Request not found.")
+                return
+            
+            keyboard = [
+                [InlineKeyboardButton("✅ Approve", callback_data=f"approve_doctor_{request_id}")],
+                [InlineKeyboardButton("❌ Reject", callback_data=f"reject_doctor_{request_id}")],
+                [InlineKeyboardButton("Back", callback_data="admin_doctor_requests")]
+            ]
+            
+            await query.edit_message_text(
+                f"Doctor Request:\n\n"
+                f"Name: {request_info['full_name']}\n"
+                f"Specialization: {request_info['specialization']}\n"
+                f"Chat ID: {request_info['user_chat_id']}\n\n"
+                f"Approve this request?",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+        elif query.data.startswith("approve_doctor_") and admin_mode:
+            request_id = int(query.data.split("_")[-1])
+            
+            if api_post(f"approve_doctor/{request_id}", {}):
+                await query.edit_message_text("Doctor request approved. User has been notified.")
+            else:
+                await query.edit_message_text("Failed to approve request.")
+
+        elif query.data.startswith("reject_doctor_") and admin_mode:
+            request_id = int(query.data.split("_")[-1])
+            
+            if api_post(f"reject_doctor/{request_id}", {}):
+                await query.edit_message_text("Doctor request rejected. User has been notified.")
+            else:
+                await query.edit_message_text("Failed to reject request.")
+
+
+        elif query.data == "admin_doctor_list" and admin_mode:
+            keyboard = [
+                [InlineKeyboardButton("📋 Pending Requests", callback_data="admin_doctor_requests")],
+                [InlineKeyboardButton("👨‍⚕️ Active Doctors", callback_data="admin_active_doctors")],
+                [InlineKeyboardButton("Back", callback_data="cancel")]
+            ]
+            await query.edit_message_text(
+                "Doctor Management:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        
+        elif query.data == "admin_delete_menu" and admin_mode:
+            users = api_get("users") or []
+            if not users:
+                await query.edit_message_text("No users found.")
+                return
+
+            keyboard = [
+                [InlineKeyboardButton(f"🗑️ {html.escape(u['full_name'])} (ID: {u['user_chat_id']})",
+                                      callback_data=f"admin_delete_data_user_{u['user_chat_id']}")]
+                for u in users
+            ]
+            keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])
+            await query.edit_message_text(
+                "⚠️ SELECT USER TO DELETE ALL HEALTH DATA ⚠️\n\n"
+                "This will permanently delete all health data for the selected user:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML",
+            )
+
+        elif query.data.startswith("admin_delete_data_user_") and admin_mode:
+            target_id = int(query.data.split("_")[-1])
+            user_target = api_get(f"users/{target_id}")
+            if not user_target:
+                await query.edit_message_text("User not found.")
+                return
+
+            keyboard = [
+                [
+                    InlineKeyboardButton("Confirm Delete All Data", callback_data=f"confirm_data_delete_{target_id}"),
+                    InlineKeyboardButton("Cancel", callback_data="admin_delete_menu"),
+                ]
+            ]
+            await query.edit_message_text(
+                f"⚠️ DELETE ALL HEALTH DATA ⚠️\n\n"
+                f"User: <b>{html.escape(user_target['full_name'])}</b>\n"
+                f"ID: {target_id}\n\n"
+                f"This will permanently delete ALL health monitoring data for this user.\n"
+                f"The user profile will remain, but all sensor data will be lost.\n\n"
+                f"This action cannot be undone!",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML",
+            )
+
+        elif query.data.startswith("confirm_data_delete_") and admin_mode:
+            target_user_id = int(query.data.split("_")[-1])
+            
+            await query.answer("Processing delete request...")  # Added await
+            await query.edit_message_text("Deleting user health data... Please wait.")
+            
+            # Perform the actual deletion
+            success, message = admin_delete_user_data(chat_id, target_user_id)
+            
+            if success:
+                await query.edit_message_text(
+                    f"SUCCESS\n\n{message}\n\n"
+                    f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+            else:
+                await query.edit_message_text(
+                    f"FAILED\n\n{message}\n\n"
+                    f"Please check logs for details."
+                )
+
+        elif query.data == "cancel_delete":
+            await query.edit_message_text("Delete operation cancelled.")
 
         elif query.data == "cancel":
             await query.edit_message_text("Operation cancelled.")
@@ -882,6 +1337,9 @@ def main():
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("register", register))
         application.add_handler(CommandHandler("menu", menu))
+        application.add_handler(CommandHandler("admin_delete_data", handle_admin_delete_command))
+        application.add_handler(CommandHandler("request_doctor", request_doctor_status))
+        
 
         # Single callback handler drives the whole UI
         application.add_handler(CallbackQueryHandler(button_handler))
@@ -892,7 +1350,7 @@ def main():
         print("✅ Bot configured successfully!")
         print("🔄 Starting polling...")
         application.run_polling(drop_pending_updates=True)
-        
+
     except KeyboardInterrupt:
         print("🛑 Bot stopped by user")
     except Exception as e:

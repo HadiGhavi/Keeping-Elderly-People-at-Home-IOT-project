@@ -1,7 +1,7 @@
 import os
 import json
 import cherrypy
-
+from datetime import datetime
 class HumanHealthCatalog:
     def __init__(self, json_file='resource_catalog.json'):
         self.json_file = json_file
@@ -21,33 +21,6 @@ class HumanHealthCatalog:
         with open(self.json_file, 'w') as f:
             json.dump(data, f, indent=4)
     
-    @cherrypy.expose
-    def index_old(self):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
-        return json.dumps({
-            "message": "Human Health API",
-            "endpoints": {
-                "GET /project": "get project info",
-                "PUT /project": "update project info",
-                 "GET /services/<service_name>": "get service by name",
-                "POST /services/": "add new service",
-                "GET /users": "Get all users",
-                "GET /users/<user_chat_id>": "Get specific user details",
-                "POST /users": "Create a new user entry",
-                "PUT /users/<user_chat_id>": "Update a user",
-                "DELETE /users/<user_chat_id>": "Delete a user",
-                "GET /situations/<user_chat_id>": "Get all sensitive situations for a user",
-                "POST /situations/<user_chat_id>": "Add sensitive situation to user:risky-normal-dangerous",
-                "DELETE /situations/<user_chat_id>/<situation>": "Remove sensitive situation",
-                "GET /sensors/<user_chat_id>": "Get all sensors for a user",
-                "GET /sensors/<user_chat_id>/<sensor_id>": "Get specific sensor",
-                "POST /sensors/<user_chat_id>": "Add sensor to user",
-                "PUT /sensors/<user_chat_id>/<sensor_id>": "Update sensor",
-                "DELETE /sensors/<user_chat_id>/<sensor_id>": "Remove sensor"
-            }
-        }).encode('utf-8')
-
-
     # Updated API documentation in index method
     @cherrypy.expose
     def index(self):
@@ -64,9 +37,6 @@ class HumanHealthCatalog:
                 "POST /users": "Create a new user entry",
                 "PUT /users/<user_chat_id>": "Update a user",
                 "DELETE /users/<user_chat_id>": "Delete a user",
-                "GET /situations/<user_chat_id>": "Get all sensitive situations for a user",
-                "POST /situations/<user_chat_id>": "Add sensitive situation to user:risky-normal-dangerous",
-                "DELETE /situations/<user_chat_id>/<situation>": "Remove sensitive situation",
                 "GET /sensors/<user_chat_id>": "Get all sensors for a user",
                 "GET /sensors/<user_chat_id>/<sensor_id>": "Get specific sensor",
                 "POST /sensors/<user_chat_id>": "Add sensor to user (requires: id, name)",
@@ -151,29 +121,6 @@ class HumanHealthCatalog:
             raise cherrypy.HTTPError(500, str(e))
     
     @cherrypy.expose
-    def situations(self, user_chat_id=None, situation=None, **params):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
-        try:
-            if cherrypy.request.method == "GET":
-                if not user_chat_id:
-                    raise cherrypy.HTTPError(400, "User chat ID is required")
-                return json.dumps(self._get_user_situations(int(user_chat_id))).encode('utf-8')
-            elif cherrypy.request.method == "POST":
-                if not user_chat_id:
-                    raise cherrypy.HTTPError(400, "User chat ID is required")
-                try:
-                    situation_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
-                except:
-                    raise cherrypy.HTTPError(400, "Invalid JSON data")
-                return json.dumps(self._add_situation(int(user_chat_id), situation_data)).encode('utf-8')
-            elif cherrypy.request.method == "DELETE":
-                if not user_chat_id or not situation:
-                    raise cherrypy.HTTPError(400, "User chat ID and situation are required")
-                return json.dumps(self._remove_situation(int(user_chat_id), situation)).encode('utf-8')
-        except Exception as e:
-            raise cherrypy.HTTPError(500, str(e))
-    
-    @cherrypy.expose
     def sensors(self, user_chat_id=None, sensor_id=None, **params):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         try:
@@ -206,7 +153,35 @@ class HumanHealthCatalog:
                 return json.dumps(self._delete_sensor(int(user_chat_id), int(sensor_id))).encode('utf-8')
         except Exception as e:
             raise cherrypy.HTTPError(500, str(e))
-    
+
+    @cherrypy.expose
+    def doctors(self, doctor_id=None, **params):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        try:
+            if cherrypy.request.method == "GET":
+                if doctor_id:
+                    return json.dumps(self._get_doctor_patients(int(doctor_id))).encode('utf-8')
+                else:
+                    return json.dumps(self._get_all_doctors()).encode('utf-8')
+            elif cherrypy.request.method == "POST":
+                doctor_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
+                return json.dumps(self._register_doctor(doctor_data)).encode('utf-8')
+        except Exception as e:
+            raise cherrypy.HTTPError(500, str(e))
+
+    @cherrypy.expose
+    def assign_patient(self, **params):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        try:
+            if cherrypy.request.method == "POST":
+                assignment_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
+                return json.dumps(self._assign_patient_to_doctor(
+                    assignment_data['patient_id'], 
+                    assignment_data['doctor_id']
+                )).encode('utf-8')
+        except Exception as e:
+            raise cherrypy.HTTPError(500, str(e))
+           
     # Helper methods
   
     def _find_service_by_name(self, servicename):
@@ -266,19 +241,20 @@ class HumanHealthCatalog:
         new_user = {
             "user_chat_id": user_chat_id,
             "full_name": user_data['full_name'],
-            #"SensitiveSituation": user_data.get('SensitiveSituation', []),
-            "sensors": user_data.get('sensors', [
+            "sensors": [
                 {"id": 1, "name": "temp"},
                 {"id": 2, "name": "oxygen"}, 
                 {"id": 3, "name": "heart_rate"}
-                ])
+            ],
+            "doctor_id": None,  # Will be assigned when patient adds doctor
+            "user_type": "patient"  # New field to distinguish user types
         }
         
         data['users'].append(new_user)
         self._write_data(data)
         cherrypy.response.status = 201
         return new_user
-    
+
     def _update_user(self, user_chat_id, update_data):
         data = self._read_data()
         updated = False
@@ -287,8 +263,6 @@ class HumanHealthCatalog:
             if user['user_chat_id'] == user_chat_id:
                 if 'full_name' in update_data:
                     user['full_name'] = update_data['full_name']
-                if 'SensitiveSituation' in update_data:
-                    user['SensitiveSituation'] = update_data['SensitiveSituation']
                 if 'sensors' in update_data:
                     user['sensors'] = update_data['sensors']
                 updated = True
@@ -312,43 +286,46 @@ class HumanHealthCatalog:
         self._write_data(data)
         return {"message": "User deleted successfully"}
     
-    def _get_user_situations(self, user_chat_id):
-        user = self._get_user(user_chat_id)
-        return user['SensitiveSituation']
     
-    def _add_situation(self, user_chat_id, situation_data):
-        if 'situation' not in situation_data:
-            raise cherrypy.HTTPError(400, "Missing 'situation' field")
+    def _register_doctor(self, doctor_data):
+        required_fields = ['user_chat_id', 'full_name', 'specialization']
+        if not all(field in doctor_data for field in required_fields):
+            raise cherrypy.HTTPError(400, "Missing required fields")
         
         data = self._read_data()
-        for user in data['users']:
-            if user['user_chat_id'] == user_chat_id:
-                if situation_data['situation'] in user['SensitiveSituation']:
-                    raise cherrypy.HTTPError(400, "Situation already exists for this user")
-                user['SensitiveSituation'].append(situation_data['situation'])
-                break
+        doctor_chat_id = int(doctor_data['user_chat_id'])
         
+        # Check if already exists
+        for user in data['users']:
+            if user['user_chat_id'] == doctor_chat_id:
+                if user.get('user_type') == 'doctor':
+                    raise cherrypy.HTTPError(400, "Doctor already registered")
+                else:
+                    # Convert existing patient to doctor
+                    user['user_type'] = 'doctor'
+                    user['specialization'] = doctor_data['specialization']
+                    user['hospital'] = doctor_data.get('hospital', '')
+                    # Remove patient-specific fields and add doctor fields
+                    user.pop('sensors', None)
+                    user.pop('doctor_id', None)
+                    user['patients'] = []  # Add empty patients list
+                    self._write_data(data)
+                    return user
+        
+        # Create new doctor with proper structure
+        new_doctor = {
+            "user_chat_id": doctor_chat_id,
+            "full_name": doctor_data['full_name'],
+            "user_type": "doctor",
+            "specialization": doctor_data['specialization'],
+            "hospital": doctor_data.get('hospital', ''),
+            "patients": []  # List of patient IDs assigned to this doctor
+        }
+        
+        data['users'].append(new_doctor)
         self._write_data(data)
         cherrypy.response.status = 201
-        return {"message": "Situation added successfully"}
-    
-    def _remove_situation(self, user_chat_id, situation):
-        data = self._read_data()
-        removed = False
-        
-        for user in data['users']:
-            if user['user_chat_id'] == user_chat_id:
-                initial_length = len(user['SensitiveSituation'])
-                user['SensitiveSituation'] = [s for s in user['SensitiveSituation'] if s != situation]
-                if len(user['SensitiveSituation']) < initial_length:
-                    removed = True
-                break
-        
-        if not removed:
-            raise cherrypy.HTTPError(404, "Situation not found for this user")
-        
-        self._write_data(data)
-        return {"message": "Situation removed successfully"}
+        return new_doctor
     
     def _get_user_sensors(self, user_chat_id):
         user = self._get_user(user_chat_id)
@@ -361,34 +338,6 @@ class HumanHealthCatalog:
                 return sensor
         raise cherrypy.HTTPError(404, "Sensor not found")
     
-    def _add_sensor_old(self, user_chat_id, sensor_data):
-        required_fields = ['id', 'name', 'max_level_alert', 'min_level_alert']
-        if not all(field in sensor_data for field in required_fields):
-            raise cherrypy.HTTPError(400, "Missing required fields (id, name, max_level_alert, min_level_alert)")
-        
-        data = self._read_data()
-        sensor_id = int(sensor_data['id'])
-        
-        for user in data['users']:
-            if user['user_chat_id'] == user_chat_id:
-                # Check if sensor ID already exists for this user
-                for sensor in user['sensors']:
-                    if sensor['id'] == sensor_id:
-                        raise cherrypy.HTTPError(400, "Sensor with this ID already exists for this user")
-                
-                user['sensors'].append({
-                    "id": sensor_id,
-                    "name": sensor_data['name'],
-                    "max_level_alert": sensor_data['max_level_alert'],
-                    "min_level_alert": sensor_data['min_level_alert']
-                })
-                break
-        
-        self._write_data(data)
-        cherrypy.response.status = 201
-        return sensor_data
-    
-
     def _add_sensor(self, user_chat_id, sensor_data):
         # Updated to only require id and name - no min/max alert levels
         required_fields = ['id', 'name']
@@ -415,31 +364,6 @@ class HumanHealthCatalog:
         self._write_data(data)
         cherrypy.response.status = 201
         return {"id": sensor_id, "name": sensor_data['name']}
-    
-    def _update_sensor_old(self, user_chat_id, sensor_id, update_data):
-        data = self._read_data()
-        updated = False
-        
-        for user in data['users']:
-            if user['user_chat_id'] == user_chat_id:
-                for sensor in user['sensors']:
-                    if sensor['id'] == sensor_id:
-                        if 'name' in update_data:
-                            sensor['name'] = update_data['name']
-                        if 'max_level_alert' in update_data:
-                            sensor['max_level_alert'] = update_data['max_level_alert']
-                        if 'min_level_alert' in update_data:
-                            sensor['min_level_alert'] = update_data['min_level_alert']
-                        updated = True
-                        break
-                break
-        
-        if not updated:
-            raise cherrypy.HTTPError(404, "Sensor not found")
-        
-        self._write_data(data)
-        return self._get_sensor(user_chat_id, sensor_id)
-        
 
     def _update_sensor(self, user_chat_id, sensor_id, update_data):
         data = self._read_data()
@@ -479,6 +403,79 @@ class HumanHealthCatalog:
         
         self._write_data(data)
         return {"message": "Sensor deleted successfully"}
+    
+    def _get_all_doctors(self):
+        data = self._read_data()
+        doctors = [user for user in data['users'] if user.get('user_type') == 'doctor']
+        return doctors
+
+    def _get_doctor_patients(self, doctor_id):
+        data = self._read_data()
+        
+        # Find the doctor
+        doctor = None
+        for user in data['users']:
+            if user['user_chat_id'] == doctor_id and user.get('user_type') == 'doctor':
+                doctor = user
+                break
+        
+        if not doctor:
+            return []
+        
+        # Get patient details from the doctor's patients list
+        patients = []
+        patient_ids = doctor.get('patients', [])
+        
+        for user in data['users']:
+            if user['user_chat_id'] in patient_ids:
+                patients.append(user)
+        
+        return patients
+
+    def _assign_patient_to_doctor(self, patient_id, doctor_id):
+        data = self._read_data()
+        
+        # Verify doctor exists
+        doctor = None
+        for user in data['users']:
+            if user['user_chat_id'] == doctor_id and user.get('user_type') == 'doctor':
+                doctor = user
+                break
+        
+        if not doctor:
+            raise cherrypy.HTTPError(404, "Doctor not found")
+        
+        # Find and update patient
+        patient_found = False
+        for user in data['users']:
+            if user['user_chat_id'] == patient_id and user.get('user_type') != 'doctor':
+                # Remove from previous doctor's list if assigned to another doctor
+                old_doctor_id = user.get('doctor_id')
+                if old_doctor_id:
+                    for old_doc in data['users']:
+                        if (old_doc['user_chat_id'] == old_doctor_id and 
+                            old_doc.get('user_type') == 'doctor'):
+                            if patient_id in old_doc.get('patients', []):
+                                old_doc['patients'].remove(patient_id)
+                            break
+                
+                # Assign patient to new doctor
+                user['doctor_id'] = doctor_id
+                
+                # Add patient to doctor's list if not already there
+                if patient_id not in doctor.get('patients', []):
+                    if 'patients' not in doctor:
+                        doctor['patients'] = []
+                    doctor['patients'].append(patient_id)
+                
+                patient_found = True
+                break
+        
+        if not patient_found:
+            raise cherrypy.HTTPError(404, "Patient not found")
+        
+        self._write_data(data)
+        return {"message": "Patient assigned to doctor successfully"}
 
 if __name__ == '__main__':
     cherrypy.config.update({

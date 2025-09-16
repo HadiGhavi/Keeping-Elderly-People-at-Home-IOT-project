@@ -26,20 +26,6 @@ class Monitor:
             }
         }).encode('utf-8')
     
-    @cherrypy.expose
-    def read_old(self,chat_id):
-       catalog_services=requests.get("http://catalog:5001/services/catalog")
-       json_catalog=catalog_services.json()
-
-       user_info=requests.get(json_catalog["url"]+":" + str(json_catalog["port"])+"/users/"+ chat_id)
-       background_thread = threading.Thread(target= self.run,args=(user_info.json(),), daemon=True)
-       background_thread.start()
-      
-       cherrypy.response.headers['Content-Type'] = 'application/json'
-       
-       return json.dumps({
-            "message": "RUNNING SENSORS",
-        }).encode('utf-8')
     
     @cherrypy.expose
     def read(self, chat_id):
@@ -125,7 +111,6 @@ class Monitor:
                 
                 publish_data = {
                     "user_id": user_info["user_chat_id"],
-                    #"SensitiveSituation": user_info["SensitiveSituation"],
                     "user_name": user_info["full_name"],
                     "sensors": []
                 }
@@ -205,7 +190,8 @@ if __name__ == "__main__":
             "url": "http://monitor:3500/read/",
             "port": 3500,
             "endpoints": {
-                "GET /read/<id>": "read sensor value from device"
+                "GET /read/<id>": "read sensor value from device",
+                "GET /stop/<id>": "stop sensor monitoring for user"
               }
             }
         }

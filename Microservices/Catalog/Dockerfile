@@ -1,18 +1,18 @@
 FROM python:3.11-slim
 
-# تنظیم دایرکتوری کاری
+# Set working directory
 WORKDIR /app
 
-# کپی فایل‌ها به کانتینر
+# Copy files to the container
 COPY catalogService.py .
 COPY resource_catalog.json .
 COPY requirements.txt .
 
-# نصب وابستگی‌ها
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# باز کردن پورت
+# Port to expose
 EXPOSE 5001
 
-# اجرای سرویس
+# Service execution
 CMD ["python", "catalogService.py"]

@@ -10,6 +10,25 @@ services:
     volumes:
       - ./Microservices/Catalog/resource_catalog.json:/app/resource_catalog.json
     restart: always
+    networks:
+      - iot-network
+
+  database_adapter:
+    build: ./Microservices/DatabaseAdapter
+    container_name: database_adapter
+    ports:
+      - "3000:3000"
+    environment:
+      - INFLUXDB_HOST=https://eu-central-1-1.aws.cloud2.influxdata.com
+      - INFLUXDB_TOKEN=WaCTN7nEqIMjNSsl-Yzry1iz6Os2F4xskPWrdrA5JQe49JmxT0MiUtOgvAHtz94cTkVolVrcplxYXfaYxqPf-g==
+      - INFLUXDB_ORG=Dev Team
+      - INFLUXDB_BUCKET=iot_health
+    depends_on:
+      - catalog
+    restart: always
+    networks:
+      - iot-network
+
   data_ingestion:
     build:
       context: .
@@ -23,9 +42,13 @@ services:
     environment:
       - BASE_DIR=/app/ClassificationAlgorithm
     depends_on:
-      - catalog  
+      - catalog
       - notification
+      - database_adapter
     restart: always
+    networks:
+      - iot-network
+
   monitor:
     build:
       context: .
@@ -34,8 +57,11 @@ services:
     ports:
       - "3500:3500"
     depends_on:
-      - catalog  
+      - catalog
     restart: always
+    networks:
+      - iot-network
+
   notification:
     build:
       context: ./Microservices/Notification
@@ -43,8 +69,11 @@ services:
     ports:
       - "1500:1500"
     depends_on:
-      - catalog   
+      - catalog
     restart: always
+    networks:
+      - iot-network
+
   admin_panel:
     build:
       context: .
@@ -53,15 +82,24 @@ services:
     ports:
       - "9000:9000"
     depends_on:
-      - catalog  
+      - catalog
       - data_ingestion
     restart: always
+    networks:
+      - iot-network
+
   telegram_bot:
     build:
       context: ./Microservices/TelegramBot
     container_name: telegram_bot_service
     ports:
-      - "8000:8000" 
+      - "8000:8000"
     restart: unless-stopped
     depends_on:
       - catalog
+    networks:
+      - iot-network
+
+networks:
+  iot-network:
+    driver: bridge
