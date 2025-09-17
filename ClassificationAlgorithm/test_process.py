@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     predictor = HealthStatePredictor(model_path)
     
-    """  # Make prediction
+    # Make prediction
     example_temperature = 38.5
     example_heart_rate = 100
     example_blood_oxygen = 97
@@ -42,4 +42,4 @@ if __name__ == "__main__":
         example_heart_rate, 
         example_blood_oxygen
     )
-    print(f"Predicted State: {predicted_state}")  """
+    print(f"Predicted State: {predicted_state}")  

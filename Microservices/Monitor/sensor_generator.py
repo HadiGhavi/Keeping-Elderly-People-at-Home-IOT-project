@@ -158,7 +158,7 @@ class GenerateSensor:
             new_value = max(80, min(100, new_value))     # Realistic oxygen saturation
         
         # Occasionally generate concerning values for testing alerts
-        if random.random() < 0.05:  # 5% chance of concerning reading
+        if random.random() < 0.025:  # 2.5% chance of concerning reading
             if sensor_type == 'temp':
                 if random.choice([True, False]):
                     new_value = random.uniform(38.5, 40.0)  # Fever

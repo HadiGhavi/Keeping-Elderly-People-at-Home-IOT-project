@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def generate_realistic_health_data(num_samples=1000):
+def generate_realistic_health_data(num_samples=10000):
     """
     Generate synthetic elderly health data with medically meaningful labels
     """
@@ -13,9 +13,9 @@ def generate_realistic_health_data(num_samples=1000):
     blood_oxygen = []
     labels = []
     
-    # Target distribution: 40% normal, 35% risky, 25% dangerous
-    normal_count = int(num_samples * 0.40)
-    risky_count = int(num_samples * 0.35)
+    # Target distribution: 60% normal, 25% risky, 15% dangerous
+    normal_count = int(num_samples * 0.60)
+    risky_count = int(num_samples * 0.25)
     dangerous_count = num_samples - normal_count - risky_count
     
     # Generate NORMAL cases (healthy elderly)
