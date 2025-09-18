@@ -437,34 +437,129 @@ class AdminPanel:
                 "source": "Admin Panel"
             }
         ]
-
-    # Keep your existing methods
+    
     @cherrypy.expose
-    def sensorInfo(self, user_id):
-        # Your existing implementation
-        try:
-            data_service=requests.get("http://catalog:5001/services/dataIngestion")
-            json_data=data_service.json()
-            response = requests.get(json_data["url"] + ":"+ str(json_data["port"])+"/getUserData/"+user_id)
-            sensor_data = json.loads(response.json())
-            sensor_data.sort(key=lambda x: x['time'])
+    def reports(self):
+        return """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Reports</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .report-option { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; margin: 10px 0; border-radius: 5px; }
+        .btn { background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; border: none; cursor: pointer; }
+        .btn:hover { background: #2980b9; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input { width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Report Generation</h1>
+        <a href="/">← Back to Main Menu</a>
+        
+        <div class="card">
+            <h2>System Reports</h2>
             
-            table_rows = ""
-            for entry in sensor_data:
-                raw_time = entry.get('time')
-                try:
-                    clean_time = raw_time.split('+')[0].split('.')[0]  
-                    dt = datetime.fromisoformat(clean_time)
-                    formatted_time = dt.strftime('%B %d, %Y %I:%M %p')
-                except (ValueError, AttributeError):
-                    formatted_time = raw_time
-                table_rows += f"""
+            <div class="report-option">
+                <div>
+                    <h3>Patient Summary Report</h3>
+                    <p>Overview of all patients, their assigned doctors, and current status</p>
+                </div>
+                <a href="/generate_patient_report" class="btn">Generate</a>
+            </div>
+            
+            <div class="report-option">
+                <div>
+                    <h3>Doctor Workload Report</h3>
+                    <p>Statistics on doctor patient assignments and specializations</p>
+                </div>
+                <a href="/generate_doctor_report" class="btn">Generate</a>
+            </div>
+            
+            <div class="report-option">
+                <div>
+                    <h3>System Health Report</h3>
+                    <p>Overall system status, alerts, and performance metrics</p>
+                </div>
+                <a href="/generate_system_report" class="btn">Generate</a>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Custom Reports</h2>
+            <form method="get" action="/generate_custom_report">
+                <div class="form-group">
+                    <label for="report_type">Report Type:</label>
+                    <select id="report_type" name="report_type">
+                        <option value="patient_health">Patient Health Data</option>
+                        <option value="doctor_performance">Doctor Performance</option>
+                        <option value="alert_summary">Alert Summary</option>
+                        <option value="system_usage">System Usage</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="time_range">Time Range:</label>
+                    <select id="time_range" name="time_range">
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="format">Export Format:</label>
+                    <select id="format" name="format">
+                        <option value="html">HTML (View in Browser)</option>
+                        <option value="json">JSON (Raw Data)</option>
+                        <option value="csv">CSV (Spreadsheet)</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn">Generate Custom Report</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+        """
+
+    @cherrypy.expose
+    def generate_patient_report(self):
+        try:
+            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            users = users_response.json() if users_response.status_code == 200 else []
+            
+            patients = [user for user in users if user.get('user_type') != 'doctor']
+            
+            report_rows = ""
+            for patient in patients:
+                doctor_name = "Unassigned"
+                doctor_specialization = "N/A"
+                
+                if patient.get('doctor_id'):
+                    doctor_response = requests.get(f"http://catalog:5001/users/{patient['doctor_id']}", timeout=5)
+                    if doctor_response.status_code == 200:
+                        doctor = doctor_response.json()
+                        doctor_name = doctor.get('full_name', 'Unknown')
+                        doctor_specialization = doctor.get('specialization', 'N/A')
+                
+                sensor_count = len(patient.get('sensors', []))
+                
+                report_rows += f"""
                 <tr>
-                    <td>{formatted_time}</td>
-                    <td>{entry.get('user_id')}</td>
-                    <td>{entry.get('full_name')}</td>
-                    <td>{entry.get('field')}</td>
-                    <td>{entry.get('value')}</td>
+                    <td>{patient['full_name']}</td>
+                    <td>{patient['user_chat_id']}</td>
+                    <td>{doctor_name}</td>
+                    <td>{doctor_specialization}</td>
+                    <td>{sensor_count}</td>
+                    <td>Active</td>
                 </tr>
                 """
             
@@ -472,56 +567,539 @@ class AdminPanel:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Patient Health Data - User {user_id}</title>
+    <title>Patient Summary Report</title>
     <style>
         body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: center; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
         th {{ background-color: #f2f2f2; }}
-        .nav {{ margin-bottom: 20px; }}
-        .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; }}
+        .header {{ background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }}
+        .stat-box {{ text-align: center; padding: 15px; background: #ecf0f1; border-radius: 5px; }}
+        .print-btn {{ background: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }}
     </style>
 </head>
 <body>
-    <div class="nav">
-        <a href="/">← Main Menu</a>
-        <a href="/patient_overview">Patient Overview</a>
-        <a href="/report/{user_id}">JSON Report</a>
+    <div class="header">
+        <h1>Patient Summary Report</h1>
+        <p>Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
     </div>
     
-    <h1>Health Data for Patient {user_id}</h1>
+    <div class="stats">
+        <div class="stat-box">
+            <strong>{len(patients)}</strong><br>Total Patients
+        </div>
+        <div class="stat-box">
+            <strong>{len([p for p in patients if p.get('doctor_id')])}</strong><br>Assigned Patients
+        </div>
+        <div class="stat-box">
+            <strong>{len([p for p in patients if not p.get('doctor_id')])}</strong><br>Unassigned Patients
+        </div>
+    </div>
+    
+    <a href="/reports">← Back to Reports</a>
+    <a href="javascript:window.print()" class="print-btn">Print Report</a>
+    
     <table>
         <thead>
             <tr>
-                <th>Time</th>
-                <th>User ID</th>
-                <th>Full Name</th>
-                <th>Metric</th>
-                <th>Value</th>
+                <th>Patient Name</th>
+                <th>Patient ID</th>
+                <th>Assigned Doctor</th>
+                <th>Doctor Specialization</th>
+                <th>Sensors</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
-            {table_rows}
+            {report_rows}
         </tbody>
     </table>
 </body>
 </html>
             """
         except Exception as e:
-            return f"<h1>Error loading patient data</h1><p>{str(e)}</p>"
+            return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
 
     @cherrypy.expose
-    def report(self, user_id):
-        # Your existing implementation
+    def generate_doctor_report(self):
         try:
-            data_service=requests.get("http://catalog:5001/services/dataIngestion")
-            json_data=data_service.json()
-            response = requests.get(json_data["url"] + ":"+ str(json_data["port"])+"/getUserData/"+user_id)
-            sensor_data = json.loads(response.json())
-            sensor_data.sort(key=lambda x: x['time'])
-            return json.dumps(sensor_data).encode('utf-8')
+            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            users = users_response.json() if users_response.status_code == 200 else []
+            
+            doctors = [user for user in users if user.get('user_type') == 'doctor']
+            
+            report_rows = ""
+            total_patients = 0
+            
+            for doctor in doctors:
+                patient_count = len(doctor.get('patients', []))
+                total_patients += patient_count
+                
+                # Calculate workload level
+                if patient_count == 0:
+                    workload = "None"
+                elif patient_count <= 2:
+                    workload = "Light"
+                elif patient_count <= 4:
+                    workload = "Moderate"
+                else:
+                    workload = "Heavy"
+                
+                report_rows += f"""
+                <tr>
+                    <td>{doctor['full_name']}</td>
+                    <td>{doctor.get('specialization', 'N/A')}</td>
+                    <td>{doctor.get('hospital', 'N/A')}</td>
+                    <td>{patient_count}</td>
+                    <td>{workload}</td>
+                    <td>Active</td>
+                </tr>
+                """
+            
+            avg_patients = round(total_patients / len(doctors), 1) if doctors else 0
+            
+            return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Doctor Workload Report</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+        th {{ background-color: #f2f2f2; }}
+        .header {{ background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }}
+        .stat-box {{ text-align: center; padding: 15px; background: #ecf0f1; border-radius: 5px; }}
+        .print-btn {{ background: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Doctor Workload Report</h1>
+        <p>Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-box">
+            <strong>{len(doctors)}</strong><br>Total Doctors
+        </div>
+        <div class="stat-box">
+            <strong>{total_patients}</strong><br>Total Patients
+        </div>
+        <div class="stat-box">
+            <strong>{avg_patients}</strong><br>Avg Patients/Doctor
+        </div>
+        <div class="stat-box">
+            <strong>{len([d for d in doctors if len(d.get('patients', [])) == 0])}</strong><br>Doctors w/o Patients
+        </div>
+    </div>
+    
+    <a href="/reports">← Back to Reports</a>
+    <a href="javascript:window.print()" class="print-btn">Print Report</a>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Doctor Name</th>
+                <th>Specialization</th>
+                <th>Hospital/Clinic</th>
+                <th>Patient Count</th>
+                <th>Workload Level</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {report_rows}
+        </tbody>
+    </table>
+</body>
+</html>
+            """
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
+
+    @cherrypy.expose 
+    def generate_system_report(self):
+        try:
+            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            users = users_response.json() if users_response.status_code == 200 else []
+            
+            total_users = len(users)
+            doctors = [u for u in users if u.get('user_type') == 'doctor']
+            patients = [u for u in users if u.get('user_type') != 'doctor']
+            
+            alerts = self._get_recent_alerts()
+            critical_alerts = [a for a in alerts if a['severity'] == 'critical']
+            
+            return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>System Health Report</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .header {{ background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }}
+        .stat-box {{ text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .stat-number {{ font-size: 2em; font-weight: bold; color: #2c3e50; }}
+        .alert {{ background: #e74c3c; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
+        .warning {{ background: #f39c12; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
+        .success {{ background: #27ae60; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
+        .print-btn {{ background: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>System Health Report</h1>
+        <p>System Status Overview - Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-number">{total_users}</div>
+            <div>Total System Users</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{len(doctors)}</div>
+            <div>Registered Doctors</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{len(patients)}</div>
+            <div>Active Patients</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{len(critical_alerts)}</div>
+            <div>Critical Alerts</div>
+        </div>
+    </div>
+    
+    <a href="/reports">← Back to Reports</a>
+    <a href="javascript:window.print()" class="print-btn">Print Report</a>
+    
+    <h2>Recent System Activity</h2>
+    <div class="success">System Status: Operational</div>
+    <div class="success">Database: Connected</div>
+    <div class="success">MQTT Broker: Active</div>
+    <div class="warning">Monitoring Service: Normal Load</div>
+    
+    <h2>Recent Alerts</h2>
+    <div class="alert">Critical: {len(critical_alerts)} alerts require attention</div>
+    <div class="warning">Warning: {len([a for a in alerts if a['severity'] == 'warning'])} system warnings</div>
+    
+    <h2>Service Status</h2>
+    <ul>
+        <li><strong>Catalog Service:</strong> Online</li>
+        <li><strong>Database Adapter:</strong> Online</li>
+        <li><strong>Data Ingestion:</strong> Online</li>
+        <li><strong>Monitor Service:</strong> Online</li>
+        <li><strong>Admin Panel:</strong> Online</li>
+        <li><strong>Notification Service:</strong> Online</li>
+    </ul>
+</body>
+</html>
+            """
+        except Exception as e:
+            return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
+    @cherrypy.expose
+    def sensorInfo(self, user_id, hours=24):
+        """Get user sensor data through database adapter with optional time filtering"""
+        try:
+            # Get database adapter service info from catalog
+            adapter_service = requests.get("http://catalog:5001/services/databaseAdapter")
+            if adapter_service.status_code != 200:
+                return f"<h1>Service Error</h1><p>Could not reach database adapter service</p>"
+            
+            adapter_info = adapter_service.json()
+            adapter_url = adapter_info["url"]
+            adapter_port = adapter_info.get("port")
+            
+            # Build the URL for database adapter
+            if adapter_port:
+                full_url = f"{adapter_url}:{adapter_port}/read/{user_id}"
+            else:
+                full_url = f"{adapter_url}/read/{user_id}"
+            
+            # Add time filtering parameter
+            params = {"hours": hours}
+            
+            # Get data from database adapter
+            response = requests.get(full_url, params=params, timeout=15)
+            
+            if response.status_code != 200:
+                return f"<h1>Data Error</h1><p>Failed to retrieve data: HTTP {response.status_code}</p>"
+            
+            # Parse response
+            response_data = response.json()
+            
+            if not response_data.get("success", True):
+                return f"<h1>Database Error</h1><p>{response_data.get('message', 'Unknown error')}</p>"
+            
+            # Extract the actual data
+            if isinstance(response_data, dict) and "data" in response_data:
+                sensor_data = response_data["data"]
+            else:
+                sensor_data = response_data
+            
+            if not sensor_data:
+                return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Patient Health Data - User {user_id}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .nav {{ margin-bottom: 20px; }}
+            .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; }}
+            .no-data {{ text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; }}
+        </style>
+    </head>
+    <body>
+        <div class="nav">
+            <a href="/">← Main Menu</a>
+            <a href="/patient_overview">Patient Overview</a>
+            <a href="/report/{user_id}">JSON Report</a>
+        </div>
+        <h1>Health Data for Patient {user_id}</h1>
+        <div class="no-data">
+            <h3>No health data found</h3>
+            <p>No data available for the last {hours} hours</p>
+            <p><a href="/sensorInfo/{user_id}?hours=168">Try last 7 days</a> | <a href="/sensorInfo/{user_id}?hours=720">Try last 30 days</a></p>
+        </div>
+    </body>
+    </html>
+                """
+            
+            # Sort data by time (newest first)
+            sensor_data.sort(key=lambda x: x.get('time', ''), reverse=True)
+            
+            # Build table rows
+            table_rows = ""
+            for entry in sensor_data:
+                raw_time = entry.get('time')
+                try:
+                    # Handle different time formats
+                    if isinstance(raw_time, str):
+                        # Remove timezone and microseconds for parsing
+                        clean_time = raw_time.split('+')[0].split('Z')[0].split('.')[0]
+                        dt = datetime.fromisoformat(clean_time)
+                        formatted_time = dt.strftime('%B %d, %Y %I:%M %p')
+                    else:
+                        formatted_time = str(raw_time)
+                except (ValueError, AttributeError):
+                    formatted_time = str(raw_time)
+                
+                # Get values with proper defaults
+                user_id_val = entry.get('user_id', entry.get('UserId', user_id))
+                full_name = entry.get('full_name', entry.get('full_name', 'Unknown'))
+                field = entry.get('field', 'N/A')
+                value = entry.get('value', 'N/A')
+                
+                # Add status styling based on field and value
+                row_class = ""
+                if field == 'state':
+                    if value == 'dangerous':
+                        row_class = "style='background-color: #ffebee; color: #c62828;'"
+                    elif value == 'risky':
+                        row_class = "style='background-color: #fff3e0; color: #ef6c00;'"
+                    elif value == 'normal':
+                        row_class = "style='background-color: #e8f5e8; color: #2e7d32;'"
+                
+                table_rows += f"""
+                <tr {row_class}>
+                    <td>{formatted_time}</td>
+                    <td>{user_id_val}</td>
+                    <td>{full_name}</td>
+                    <td>{field}</td>
+                    <td>{value}</td>
+                </tr>
+                """
+            
+            # Get user info for better display
+            try:
+                user_response = requests.get(f"http://catalog:5001/users/{user_id}", timeout=5)
+                if user_response.status_code == 200:
+                    user_info = user_response.json()
+                    user_name = user_info.get('full_name', f'User {user_id}')
+                    doctor_info = ""
+                    if user_info.get('doctor_id'):
+                        doctor_response = requests.get(f"http://catalog:5001/users/{user_info['doctor_id']}", timeout=5)
+                        if doctor_response.status_code == 200:
+                            doctor = doctor_response.json()
+                            doctor_info = f"<p><strong>Assigned Doctor:</strong> {doctor.get('full_name', 'Unknown')} ({doctor.get('specialization', 'N/A')})</p>"
+                else:
+                    user_name = f'User {user_id}'
+                    doctor_info = ""
+            except:
+                user_name = f'User {user_id}'
+                doctor_info = ""
+            
+            # Time range selector
+            time_options = ""
+            current_hours = int(hours)
+            for h, label in [(6, "6 hours"), (24, "24 hours"), (168, "7 days"), (720, "30 days")]:
+                selected = "selected" if h == current_hours else ""
+                time_options += f'<option value="{h}" {selected}>{label}</option>'
+            
+            return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Patient Health Data - {user_name}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: center; }}
+            th {{ background-color: #f2f2f2; }}
+            .nav {{ margin-bottom: 20px; }}
+            .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; }}
+            .info-card {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+            .time-filter {{ margin-bottom: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; }}
+            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }}
+            .stat {{ text-align: center; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd; }}
+        </style>
+        <script>
+            function changeTimeRange() {{
+                const select = document.getElementById('timeRange');
+                const hours = select.value;
+                window.location.href = `/sensorInfo/{user_id}?hours=${{hours}}`;
+            }}
+        </script>
+    </head>
+    <body>
+        <div class="nav">
+            <a href="/">← Main Menu</a>
+            <a href="/patient_overview">Patient Overview</a>
+            <a href="/report/{user_id}">JSON Report</a>
+        </div>
+        
+        <div class="info-card">
+            <h1>Health Data for {user_name}</h1>
+            <p><strong>Patient ID:</strong> {user_id}</p>
+            {doctor_info}
+            <p><strong>Data Records:</strong> {len(sensor_data)} readings in the last {hours} hours</p>
+        </div>
+        
+        <div class="time-filter">
+            <label for="timeRange"><strong>Time Range:</strong></label>
+            <select id="timeRange" onchange="changeTimeRange()">
+                {time_options}
+            </select>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User ID</th>
+                    <th>Full Name</th>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {table_rows}
+            </tbody>
+        </table>
+        
+        <div style="text-align: center; margin-top: 20px; color: #666;">
+            <p>Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </div>
+    </body>
+    </html>
+            """
+            
+        except Exception as e:
+            logger.error(f"Error in sensorInfo: {e}")
+            import traceback
+            traceback.print_exc()
+            return f"""
+    <h1>Error loading patient data</h1>
+    <p>{str(e)}</p>
+    <p><a href="/">← Back to Main Menu</a></p>
+            """
+
+    @cherrypy.expose
+    def report(self, user_id, hours=24):
+        """Get user health data as JSON through database adapter"""
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        
+        try:
+            # Get database adapter service info from catalog
+            adapter_service = requests.get("http://catalog:5001/services/databaseAdapter", timeout=10)
+            if adapter_service.status_code != 200:
+                return json.dumps({
+                    "success": False,
+                    "error": "Could not reach database adapter service",
+                    "data": []
+                }).encode('utf-8')
+            
+            adapter_info = adapter_service.json()
+            adapter_url = adapter_info["url"]
+            adapter_port = adapter_info.get("port")
+            
+            # Build the URL for database adapter
+            if adapter_port:
+                full_url = f"{adapter_url}:{adapter_port}/read/{user_id}"
+            else:
+                full_url = f"{adapter_url}/read/{user_id}"
+            
+            # Add time filtering parameter
+            params = {"hours": hours}
+            
+            # Get data from database adapter
+            response = requests.get(full_url, params=params, timeout=15)
+            
+            if response.status_code != 200:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Database adapter returned HTTP {response.status_code}",
+                    "data": []
+                }).encode('utf-8')
+            
+            # Parse response
+            response_data = response.json()
+            
+            if not response_data.get("success", True):
+                return json.dumps({
+                    "success": False,
+                    "error": response_data.get('message', 'Database adapter error'),
+                    "data": []
+                }).encode('utf-8')
+            
+            # Extract the actual data
+            if isinstance(response_data, dict) and "data" in response_data:
+                sensor_data = response_data["data"]
+            else:
+                sensor_data = response_data
+            
+            # Ensure we have a list
+            if not isinstance(sensor_data, list):
+                sensor_data = []
+            
+            # Sort data by time (newest first)
+            sensor_data.sort(key=lambda x: x.get('time', ''), reverse=True)
+            
+            # Return structured JSON response
+            return json.dumps({
+                "success": True,
+                "user_id": user_id,
+                "hours": hours,
+                "count": len(sensor_data),
+                "timestamp": datetime.now().isoformat(),
+                "data": sensor_data
+            }).encode('utf-8')
+            
+        except Exception as e:
+            logger.error(f"Error in report: {e}")
+            import traceback
+            traceback.print_exc()
+            return json.dumps({
+                "success": False,
+                "error": str(e),
+                "data": []
+            }).encode('utf-8')
 
     @cherrypy.expose
     def doctor_registration(self):

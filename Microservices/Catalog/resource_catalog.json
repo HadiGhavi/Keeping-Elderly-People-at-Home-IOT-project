@@ -85,6 +85,146 @@
             "user_type": "patient"
         },
         {
+            "user_chat_id": 345678901,
+            "full_name": "Maria Garcia",
+            "sensors": [
+                {
+                "id": 1,
+                "name": "temp"
+                },
+                {
+                "id": 2,
+                "name": "oxygen"
+                },
+                {
+                "id": 3,
+                "name": "heart_rate"
+                }
+            ],
+            "doctor_id": 111222333,
+            "user_type": "patient"
+            },
+            {
+            "user_chat_id": 567890123,
+            "full_name": "James Thompson",
+            "sensors": [
+                {
+                "id": 1,
+                "name": "temp"
+                },
+                {
+                "id": 2,
+                "name": "oxygen"
+                },
+                {
+                "id": 3,
+                "name": "heart_rate"
+                }
+            ],
+            "doctor_id": 444555666,
+            "user_type": "patient"
+            },
+            {
+            "user_chat_id": 678901234,
+            "full_name": "Lisa Anderson",
+            "sensors": [
+                {
+                "id": 1,
+                "name": "temp"
+                },
+                {
+                "id": 2,
+                "name": "oxygen"
+                },
+                {
+                "id": 3,
+                "name": "heart_rate"
+                }
+            ],
+            "doctor_id": 444555666,
+            "user_type": "patient"
+            },
+            {
+            "user_chat_id": 890123456,
+            "full_name": "Robert Miller",
+            "sensors": [
+                {
+                "id": 1,
+                "name": "temp"
+                },
+                {
+                "id": 2,
+                "name": "oxygen"
+                },
+                {
+                "id": 3,
+                "name": "heart_rate"
+                }
+            ],
+            "doctor_id": null,
+            "user_type": "patient"
+            },
+            {
+            "user_chat_id": 901234567,
+            "full_name": "Jennifer Davis",
+            "sensors": [
+                {
+                "id": 1,
+                "name": "temp"
+                },
+                {
+                "id": 2,
+                "name": "oxygen"
+                },
+                {
+                "id": 3,
+                "name": "heart_rate"
+                }
+            ],
+            "doctor_id": null,
+            "user_type": "patient"
+            },
+            {
+            "user_chat_id": 135792468,
+            "full_name": "Kevin Martinez",
+            "sensors": [
+                {
+                "id": 1,
+                "name": "temp"
+                },
+                {
+                "id": 2,
+                "name": "oxygen"
+                },
+                {
+                "id": 3,
+                "name": "heart_rate"
+                }
+            ],
+            "doctor_id": 777888999,
+            "user_type": "patient"
+            },
+            {
+            "user_chat_id": 246813579,
+            "full_name": "Amanda Taylor",
+            "sensors": [
+                {
+                "id": 1,
+                "name": "temp"
+                },
+                {
+                "id": 2,
+                "name": "oxygen"
+                },
+                {
+                "id": 3,
+                "name": "heart_rate"
+                }
+            ],
+            "doctor_id": 777888999,
+            "user_type": "patient"
+            },
+        {
             "user_chat_id": 548805311,
             "full_name": "Riccardo Trap",
             "user_type": "doctor",
@@ -104,7 +244,68 @@
                 6378242947,
                 154536927,
                 654653569]
-        }
+        },
+        {
+        "user_chat_id": 987654321,
+        "full_name": "Dr. Emily Carter",
+        "user_type": "doctor",
+        "specialization": "Pediatrics",
+        "hospital": "Children's Medical Center",
+        "patients": [
+            789012345,
+            456789012
+        ]
+        },
+        {
+        "user_chat_id": 111222333,
+        "full_name": "Dr. Mark Stevens",
+        "user_type": "doctor",
+        "specialization": "Internal Medicine",
+        "hospital": "City General Hospital",
+        "patients": [
+            123456789,
+            234567890,
+            345678901
+        ]
+        },
+        {
+        "user_chat_id": 444555666,
+        "full_name": "Dr. Anna Kowalski",
+        "user_type": "doctor",
+        "specialization": "Emergency Medicine",
+        "hospital": "Metro Emergency Center",
+        "patients": [
+            567890123,
+            678901234
+        ]
+        },
+        {
+        "user_chat_id": 777888999,
+        "full_name": "Dr. Ahmed Hassan",
+        "user_type": "doctor",
+        "specialization": "Geriatrics",
+        "hospital": "Senior Care Medical Center",
+        "patients": [
+            135792468,
+            246813579
+        ]
+        },
+        {
+        "user_chat_id": 159357258,
+        "full_name": "Dr. Sophie Dubois",
+        "user_type": "doctor",
+        "specialization": "Pulmonology",
+        "hospital": "Respiratory Health Institute",
+        "patients": []
+        },
+        {
+        "user_chat_id": 258741369,
+        "full_name": "Dr. Carlos Mendez",
+        "user_type": "doctor",
+        "specialization": "Endocrinology",
+        "hospital": "Diabetes & Hormone Clinic",
+        "patients": []
+        }   
     ],
     "services": {
         "catalog": {
@@ -167,7 +368,8 @@
             "url": "http://notification",
             "port": 1500,
             "endpoints": {
-                "Post /sendNotif/": "send notification"
+                "POST /sendNotif/": "Send notification",
+                "GET /": "service information" 
             }
         },
         "databaseAdapter": {
