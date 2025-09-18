@@ -175,12 +175,12 @@ class DatabaseService:
         
         return self.adapter.write_data("value", data)
     
-    def get_user_health_data_old(self, user_id: str) -> tuple[bool, list]:
-        """Get all health data for a user"""
+    def get_all_users(self) -> tuple[bool, list]:
+        """Get all users who have data in the system"""
         if not self.adapter:
             return False, []
         
-        success, result = self.adapter.get_user_data(user_id)
+        success, result = self.adapter.get_all_users()
         if success:
             return True, result
         else:

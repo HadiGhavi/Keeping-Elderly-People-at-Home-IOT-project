@@ -77,26 +77,26 @@ class DatabaseAdapterService:
                 "success": False,
                 "message": f"Error writing data: {str(e)}"
             }).encode('utf-8')
-    
+        
     @cherrypy.expose
-    def read_old(self, user_id):
-        """Get health data for a specific user"""
+    def users(self):
+        """Get all users who have data in the system"""
         cherrypy.response.headers['Content-Type'] = 'application/json'
         
         try:
-            success, data = self.database.get_user_health_data(user_id)
+            success, data = self.database.get_all_users()
             
             return json.dumps({
                 "success": success,
                 "data": data if success else [],
-                "user_id": user_id,
+                "count": len(data) if success and isinstance(data, list) else 0,
                 "timestamp": datetime.now().isoformat()
             }).encode('utf-8')
             
         except Exception as e:
             return json.dumps({
                 "success": False,
-                "message": f"Error reading data: {str(e)}",
+                "message": f"Error getting users: {str(e)}",
                 "data": []
             }).encode('utf-8')
         
@@ -257,6 +257,7 @@ if __name__ == "__main__":
                         "port": 3000,
                         "endpoints": {
                             "POST /write": "write health data to database",
+                            "GET /users": "get all users with health data", 
                             "GET /read/<user_id>": "get user health data",
                             "DELETE /delete/<user_id>": "delete user data",
                             "GET /info": "get database adapter information",

@@ -62,6 +62,18 @@ class TimeSeriesAdapter(ABC):
         pass
     
     @abstractmethod
+    def get_all_users(self) -> tuple[bool, Union[List[Dict], str]]:
+        """
+        Get all users who have data in the system.
+        
+        Returns:
+            Tuple of (success: bool, data_or_error: Union[List[Dict], str])
+            Where data is list of dicts with user info like:
+            [{"user_id": "123", "full_name": "John Doe", "record_count": 45, "last_activity": "2024-01-01T10:00:00Z"}]
+        """
+        pass
+
+    @abstractmethod
     def get_user_data(self, user_id: str, 
                      time_range: Optional[Dict[str, datetime]] = None) -> tuple[bool, Union[List[Dict], str]]:
         """

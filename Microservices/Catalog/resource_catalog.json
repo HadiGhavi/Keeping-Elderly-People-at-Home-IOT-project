@@ -20,7 +20,9 @@
                     "id": 3,
                     "name": "heart_rate"
                 }
-            ]
+            ],
+            "doctor_id": 548805315,
+            "user_type": "patient"
         },
         {
             "user_chat_id": 6378242947,
@@ -38,7 +40,9 @@
                     "id": 1,
                     "name": "heart_rate"
                 }
-            ]
+            ],
+            "doctor_id": 548805315,
+            "user_type": "patient"
         },
         {
             "user_chat_id": 154536927,
@@ -56,7 +60,9 @@
                     "id": 1,
                     "name": "heart_rate"
                 }
-            ]
+            ],
+            "doctor_id": 548805315,
+            "user_type": "patient"
         },
         {
             "user_chat_id": 654653569,
@@ -74,10 +80,12 @@
                     "id": 1,
                     "name": "heart_rate"
                 }
-            ]
+            ],
+            "doctor_id": 548805315,
+            "user_type": "patient"
         },
         {
-            "user_chat_id": 89000789,
+            "user_chat_id": 548805311,
             "full_name": "Riccardo Trap",
             "user_type": "doctor",
             "specialization": "Cardiology",
@@ -86,35 +94,16 @@
             "patients": []
         },
         {
-            "user_chat_id": 3485380,
-            "full_name": "Hadi",
+            "user_chat_id": 548805315,
+            "full_name": "Riccardo FIda",
             "user_type": "doctor",
             "specialization": "General Practice",
-            "hospital": "",
-            "sensors": [],
+            "hospital": "Polistena",
             "patients": [
-                548805315
-            ]
-        },
-        {
-            "user_chat_id": 548805315,
-            "full_name": "Riccardo Fida",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
+                650295422,
+                6378242947,
+                154536927,
+                654653569]
         }
     ],
     "services": {
@@ -122,21 +111,20 @@
             "url": "http://catalog",
             "port": 5001,
             "endpoints": {
-                "GET /homes": "Get all home devices",
-                "GET /homes/<user_chat_id>": "Get homes for specific user",
-                "GET /homes/<user_chat_id>/<home_name>": "Get specific home details",
-                "POST /homes": "Create a new home entry",
-                "PUT /homes/<user_chat_id>/<home_name>": "Update a home",
-                "DELETE /homes/<user_chat_id>/<home_name>": "Delete a home",
-                "GET /homes/<user_chat_id>/<home_name>/sensors": "Get all sensors for a home",
-                "GET /homes/<user_chat_id>/<home_name>/sensors/<sensor_id>": "Get specific sensor",
-                "POST /homes/<user_chat_id>/<home_name>/sensors": "Add sensor to home",
-                "PUT /homes/<user_chat_id>/<home_name>/sensors/<sensor_id>": "Update sensor",
-                "DELETE /homes/<user_chat_id>/<home_name>/sensors/<sensor_id>": "Remove sensor",
-                "GET /project": "Get project info",
-                "PUT /project": "Update project info",
-                "GET /services/<servicename>": "get service info by name",
-                "POST /services/": "add service info",
+                "GET /project": "get project info",
+                "PUT /project": "update project info",
+                "GET /services/<service_name>": "get service by name",
+                "POST /services/": "add new service",
+                "GET /users": "Get all users",
+                "GET /users/<user_chat_id>": "Get specific user details",
+                "POST /users": "Create a new user entry",
+                "PUT /users/<user_chat_id>": "Update a user",
+                "DELETE /users/<user_chat_id>": "Delete a user",
+                "GET /sensors/<user_chat_id>": "Get all sensors for a user",
+                "GET /sensors/<user_chat_id>/<sensor_id>": "Get specific sensor",
+                "POST /sensors/<user_chat_id>": "Add sensor to user (requires: id, name)",
+                "PUT /sensors/<user_chat_id>/<sensor_id>": "Update sensor name",
+                "DELETE /sensors/<user_chat_id>/<sensor_id>": "Remove sensor",
                 "POST /assign_patient": "Assign a patient to a doctor",
                 "GET /doctors": "Get all doctors",
                 "GET /doctors/<doctor_id>": "Get patients for a specific doctor",

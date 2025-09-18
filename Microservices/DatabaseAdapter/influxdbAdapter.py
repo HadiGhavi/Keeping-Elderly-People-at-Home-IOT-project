@@ -151,73 +151,6 @@ class InfluxDBAdapter(TimeSeriesAdapter):
         else:
             return data
     
-    def query_data_old(self, 
-                   measurement: str, 
-                   filters: Optional[Dict[str, Any]] = None,
-                   time_range: Optional[Dict[str, datetime]] = None,
-                   fields: Optional[List[str]] = None) -> tuple[bool, Union[List[Dict], str]]:
-        """Query data from InfluxDB using Flux query language"""
-        try:
-            if not self.query_api:
-                return False, "No connection to InfluxDB"
-            
-            # Build Flux query
-            query_parts = [
-                f'from(bucket: "{self.bucket}")',
-            ]
-            
-            # Add time range
-            if time_range and 'start' in time_range:
-                start_time = time_range['start'].isoformat()
-                if 'end' in time_range:
-                    end_time = time_range['end'].isoformat()
-                    query_parts.append(f'|> range(start: {start_time}, stop: {end_time})')
-                else:
-                    query_parts.append(f'|> range(start: {start_time})')
-            else:
-                query_parts.append('|> range(start: -24h)')  # Default to last 24h
-            
-            # Add measurement filter
-            query_parts.append(f'|> filter(fn: (r) => r._measurement == "{measurement}")')
-            
-            # Add custom filters
-            if filters:
-                for key, value in filters.items():
-                    if isinstance(value, str):
-                        query_parts.append(f'|> filter(fn: (r) => r.{key} == "{value}")')
-                    else:
-                        query_parts.append(f'|> filter(fn: (r) => r.{key} == {value})')
-            
-            # Add field filters
-            if fields:
-                field_filter = ' or '.join([f'r._field == "{field}"' for field in fields])
-                query_parts.append(f'|> filter(fn: (r) => {field_filter})')
-            
-            flux_query = '\n'.join(query_parts)
-            
-            # Execute query
-            result = self.query_api.query(flux_query)
-            
-            # Convert to standard format
-            data = []
-            for table in result:
-                for record in table.records:
-                    data.append({
-                        "time": record.get_time(),  # Keep as datetime for now
-                        "measurement": record.get_measurement(),
-                        "field": record.get_field(),
-                        "value": record.get_value(),
-                        **{k: v for k, v in record.values.items()
-                        if k not in ['_time', '_measurement', '_field', '_value']}
-                    })
-
-            # Serialize datetime objects before returning
-            data = self._serialize_datetime_objects(data)
-            return True, data
-            
-        except Exception as e:
-            return False, f"Query error: {e}"
-        
     def query_data(self, 
                measurement: str, 
                filters: Optional[Dict[str, Any]] = None,
@@ -289,18 +222,66 @@ class InfluxDBAdapter(TimeSeriesAdapter):
         except Exception as e:
             print(f"DEBUG: Query exception details: {e}")
             return False, f"Query error: {e}"
-        
-    def get_user_data_old(self, user_id: str,
-                    time_range: Optional[Dict[str, datetime]] = None) -> tuple[bool, Union[List[Dict], str]]:
-        """Get all sensor data for a specific user"""
-        filters = {"UserId": user_id}
-        success, data = self.query_data("value", filters=filters, time_range=time_range)
-        
-        if success and isinstance(data, list):
-            # Ensure all datetime objects are serialized
-            data = self._serialize_datetime_objects(data)
-        
-        return success, data
+            
+    def get_all_users(self) -> tuple[bool, Union[List[Dict], str]]:
+        """Get all users who have data in the system"""
+        try:
+            if not self.query_api:
+                return False, "No connection to InfluxDB"
+            
+            # Query to get unique users and their record counts
+            flux_query = f'''
+            from(bucket: "{self.bucket}")
+            |> range(start: -30d)
+            |> filter(fn: (r) => r._measurement == "value")
+            |> group(columns: ["UserId", "full_name"])
+            |> count()
+            |> group()
+            |> sort(columns: ["UserId"])
+            '''
+            
+            result = self.query_api.query(flux_query)
+            
+            # Process results to get unique users
+            users_dict = {}
+            for table in result:
+                for record in table.records:
+                    user_id = record.values.get('UserId')
+                    full_name = record.values.get('full_name', f'User {user_id}')
+                    record_count = record.get_value()
+                    
+                    if user_id and user_id not in users_dict:
+                        users_dict[user_id] = {
+                            "user_id": user_id,
+                            "full_name": full_name,
+                            "record_count": record_count
+                        }
+            
+            # Get last activity for each user
+            for user_id, user_data in users_dict.items():
+                last_activity_query = f'''
+                from(bucket: "{self.bucket}")
+                |> range(start: -30d)
+                |> filter(fn: (r) => r._measurement == "value" and r.UserId == "{user_id}")
+                |> last()
+                '''
+                
+                try:
+                    activity_result = self.query_api.query(last_activity_query)
+                    for table in activity_result:
+                        for record in table.records:
+                            user_data["last_activity"] = record.get_time().isoformat()
+                            break
+                except:
+                    user_data["last_activity"] = None
+            
+            users_list = list(users_dict.values())
+            users_list = self._serialize_datetime_objects(users_list)
+            
+            return True, users_list
+            
+        except Exception as e:
+            return False, f"Error getting users: {e}"
     
     def get_user_data(self, user_id: str,
                   time_range: Optional[Dict[str, datetime]] = None) -> tuple[bool, Union[List[Dict], str]]:
