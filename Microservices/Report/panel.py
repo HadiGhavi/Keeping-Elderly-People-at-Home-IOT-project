@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from itertools import groupby
 
 class AdminPanel:
+   
     @cherrypy.expose
     def index(self):
         cherrypy.response.headers['Content-Type'] = 'text/html'
@@ -37,25 +38,16 @@ class AdminPanel:
         <a href="/dashboard">Dashboard</a>
         <a href="/doctor_registration">Register Doctor</a>
         <a href="/manage_doctors">Manage Doctors</a>
-        <a href="/system_alerts">System Alerts</a>
         <a href="/patient_overview">Patient Overview</a>
         <a href="/reports">Generate Reports</a>
     </div>
     
-    <div class="card">
-        <h2>Quick Actions</h2>
-        <div class="nav">
-            <a href="/emergency_alerts">Emergency Alerts</a>
-            <a href="/backup_data">Backup Data</a>
-            <a href="/system_status">System Status</a>
-        </div>
-    </div>
 </body>
 </html>
         """
 
     @cherrypy.expose
-    def dashboard(self):
+    def dashboard_old(self):
         try:
             # Get system statistics
             users_response = requests.get("http://catalog:5001/users", timeout=10)
@@ -64,13 +56,6 @@ class AdminPanel:
             total_users = len(users_response.json()) if users_response.status_code == 200 else 0
             total_doctors = len(doctors_response.json()) if doctors_response.status_code == 200 else 0
             
-            # Get recent alerts (mock data for now)
-            recent_alerts = self._get_recent_alerts()
-            
-            alerts_html = ""
-            for alert in recent_alerts[:5]:
-                alert_class = "alert" if alert['severity'] == 'critical' else "success"
-                alerts_html += f'<div class="{alert_class}">{alert["message"]} - {alert["time"]}</div>'
             
             return f"""
 <!DOCTYPE html>
@@ -102,33 +87,472 @@ class AdminPanel:
             <div>Registered Doctors</div>
         </div>
         <div class="stat-box">
-            <div class="stat-number">{len(recent_alerts)}</div>
-            <div>Recent Alerts</div>
-        </div>
-        <div class="stat-box">
             <div class="stat-number">Online</div>
             <div>System Status</div>
         </div>
     </div>
     
-    <div class="card">
-        <h2>Recent System Alerts</h2>
-        {alerts_html}
-        <a href="/system_alerts">View All Alerts</a>
-    </div>
-    
-    <div class="card">
-        <h2>Quick Actions</h2>
-        <a href="/emergency_alerts">Check Emergency Cases</a>
-        <a href="/patient_overview">Patient Overview</a>
-        <a href="/manage_doctors">Manage Doctors</a>
-    </div>
 </body>
 </html>
             """
         except Exception as e:
             return f"<h1>Dashboard Error</h1><p>{str(e)}</p>"
 
+    @cherrypy.expose
+    def dashboard(self):
+        try:
+            # Get system statistics
+            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            doctors_response = requests.get("http://catalog:5001/doctors", timeout=10)
+            
+            users = users_response.json() if users_response.status_code == 200 else []
+            doctors = doctors_response.json() if doctors_response.status_code == 200 else []
+            
+            total_users = len(users)
+            total_doctors = len(doctors)
+            patients = [u for u in users if u.get('user_type') != 'doctor']
+            total_patients = len(patients)
+            
+            # Calculate health status statistics
+            critical_patients = 0
+            warning_patients = 0
+            normal_patients = 0
+            no_data_patients = 0
+            
+            for patient in patients:
+                status, _ = self.get_patient_health_status(patient['user_chat_id'])
+                if status == "Critical":
+                    critical_patients += 1
+                elif status == "Warning":
+                    warning_patients += 1
+                elif status == "Normal":
+                    normal_patients += 1
+                else:
+                    no_data_patients += 1
+            
+            # Get recent critical alerts (patients with critical status)
+            critical_alerts = ""
+            alert_count = 0
+            for patient in patients:
+                status, last_reading = self.get_patient_health_status(patient['user_chat_id'])
+                if status == "Critical":
+                    alert_count += 1
+                    # Get doctor info
+                    doctor_name = "Unassigned"
+                    if patient.get('doctor_id'):
+                        try:
+                            doctor_response = requests.get(f"http://catalog:5001/users/{patient['doctor_id']}", timeout=5)
+                            if doctor_response.status_code == 200:
+                                doctor = doctor_response.json()
+                                doctor_name = doctor.get('full_name', 'Unknown')
+                        except:
+                            pass
+                    
+                    critical_alerts += f"""
+                    <div class="alert">
+                        <strong>CRITICAL:</strong> {patient['full_name']} (ID: {patient['user_chat_id']})
+                        <br><small>Doctor: {doctor_name} | Last: {last_reading}</small>
+                        <div style="margin-top: 5px;">
+                            <a href="/sensorInfo/{patient['user_chat_id']}" style="color: white; text-decoration: underline;">View Details</a>
+                        </div>
+                    </div>
+                    """
+            
+            if not critical_alerts:
+                critical_alerts = '<div class="success">No critical alerts at this time</div>'
+            
+            # Calculate doctor workload statistics
+            unassigned_patients = len([p for p in patients if not p.get('doctor_id')])
+            doctors_with_patients = len([d for d in doctors if len(d.get('patients', [])) > 0])
+            
+            return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Health Monitoring Dashboard</title>
+        <style>
+            body {{ 
+                font-family: Arial, sans-serif; 
+                margin: 0; 
+                padding: 20px; 
+                background: #f5f5f5; 
+            }}
+            
+            .header {{ 
+                background: #2c3e50; 
+                color: white; 
+                padding: 20px; 
+                margin: -20px -20px 20px -20px; 
+                border-radius: 0 0 8px 8px;
+            }}
+            
+            .nav {{ 
+                display: flex; 
+                gap: 15px; 
+                margin-bottom: 30px; 
+                flex-wrap: wrap;
+            }}
+            
+            .nav a {{ 
+                background: #3498db; 
+                color: white; 
+                padding: 12px 20px; 
+                text-decoration: none; 
+                border-radius: 6px; 
+                transition: background 0.3s;
+                font-weight: 500;
+            }}
+            
+            .nav a:hover {{ 
+                background: #2980b9; 
+            }}
+            
+            .nav a.active {{ 
+                background: #e74c3c; 
+            }}
+            
+            .stats {{ 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+                gap: 20px; 
+                margin-bottom: 30px; 
+            }}
+            
+            .stat-box {{ 
+                text-align: center; 
+                padding: 25px; 
+                background: white; 
+                border-radius: 8px; 
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+                transition: transform 0.2s;
+            }}
+            
+            .stat-box:hover {{
+                transform: translateY(-2px);
+            }}
+            
+            .stat-number {{ 
+                font-size: 2.5em; 
+                font-weight: bold; 
+                color: #2c3e50; 
+                margin-bottom: 10px;
+            }}
+            
+            .stat-label {{ 
+                color: #666; 
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }}
+            
+            .health-stats {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+                margin-bottom: 30px;
+            }}
+            
+            .health-stat {{
+                text-align: center;
+                padding: 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+            }}
+            
+            .critical {{ background: #e74c3c; }}
+            .warning {{ background: #f39c12; }}
+            .normal {{ background: #27ae60; }}
+            .no-data {{ background: #95a5a6; }}
+            
+            .card {{ 
+                background: white; 
+                padding: 25px; 
+                margin-bottom: 20px; 
+                border-radius: 8px; 
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            }}
+            
+            .alert {{ 
+                background: #e74c3c; 
+                color: white; 
+                padding: 15px; 
+                border-radius: 6px; 
+                margin: 10px 0; 
+            }}
+            
+            .success {{ 
+                background: #27ae60; 
+                color: white; 
+                padding: 15px; 
+                border-radius: 6px; 
+                margin: 10px 0; 
+            }}
+            
+            .info {{ 
+                background: #3498db; 
+                color: white; 
+                padding: 15px; 
+                border-radius: 6px; 
+                margin: 10px 0; 
+            }}
+            
+            .warning-notice {{ 
+                background: #f39c12; 
+                color: white; 
+                padding: 15px; 
+                border-radius: 6px; 
+                margin: 10px 0; 
+            }}
+            
+            .quick-actions {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin-top: 20px;
+            }}
+            
+            .action-card {{
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                text-align: center;
+            }}
+            
+            .action-btn {{
+                background: #3498db;
+                color: white;
+                padding: 12px 25px;
+                text-decoration: none;
+                border-radius: 6px;
+                display: inline-block;
+                margin-top: 10px;
+                transition: background 0.3s;
+            }}
+            
+            .action-btn:hover {{
+                background: #2980b9;
+            }}
+            
+            .system-status {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin-top: 20px;
+            }}
+            
+            .service-status {{
+                padding: 15px;
+                border-radius: 6px;
+                text-align: center;
+                font-weight: bold;
+            }}
+            
+            .service-online {{ background: #d4edda; color: #155724; }}
+            .service-offline {{ background: #f8d7da; color: #721c24; }}
+            
+            .refresh-info {{
+                text-align: center;
+                color: #666;
+                font-style: italic;
+                margin-top: 20px;
+            }}
+        </style>
+        <script>
+            // Auto-refresh every 30 seconds
+            setTimeout(function(){{ location.reload(); }}, 30000);
+            
+            // Update timestamp
+            function updateTime() {{
+                const now = new Date();
+                document.getElementById('current-time').textContent = now.toLocaleString();
+            }}
+            setInterval(updateTime, 1000);
+        </script>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Health Monitoring System - Dashboard</h1>
+            <p>Real-time patient monitoring and healthcare management</p>
+            <p><strong>Last Updated:</strong> <span id="current-time">{datetime.now().strftime('%B %d, %Y at %I:%M:%S %p')}</span></p>
+        </div>
+        
+        <div class="nav">
+            <a href="/" class="active">Dashboard</a>
+            <a href="/doctor_registration">Register Doctor</a>
+            <a href="/manage_doctors">Manage Doctors</a>
+            <a href="/patient_overview">Patient Overview</a>
+            <a href="/reports">Generate Reports</a>
+        </div>
+        
+        <!-- System Statistics -->
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number">{total_patients}</div>
+                <div class="stat-label">Total Patients</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">{total_doctors}</div>
+                <div class="stat-label">Registered Doctors</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">{doctors_with_patients}</div>
+                <div class="stat-label">Active Doctors</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">{unassigned_patients}</div>
+                <div class="stat-label">Unassigned Patients</div>
+            </div>
+        </div>
+        
+        <!-- Health Status Overview -->
+        <div class="card">
+            <h2>Patient Health Status Overview</h2>
+            <div class="health-stats">
+                <div class="health-stat critical">
+                    <div style="font-size: 2em;">{critical_patients}</div>
+                    <div>Critical</div>
+                </div>
+                <div class="health-stat warning">
+                    <div style="font-size: 2em;">{warning_patients}</div>
+                    <div>Warning</div>
+                </div>
+                <div class="health-stat normal">
+                    <div style="font-size: 2em;">{normal_patients}</div>
+                    <div>Normal</div>
+                </div>
+                <div class="health-stat no-data">
+                    <div style="font-size: 2em;">{no_data_patients}</div>
+                    <div>No Data</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Critical Alerts -->
+        <div class="card">
+            <h2>Critical Health Alerts ({alert_count})</h2>
+            {critical_alerts}
+        </div>
+        
+        <!-- System Status -->
+        <div class="card">
+            <h2>System Status</h2>
+            <div class="system-status">
+                <div class="service-status service-online">
+                    <div>Catalog Service</div>
+                    <div>Online</div>
+                </div>
+                <div class="service-status service-online">
+                    <div>Database Adapter</div>
+                    <div>Connected</div>
+                </div>
+                <div class="service-status service-online">
+                    <div>Data Ingestion</div>
+                    <div>Active</div>
+                </div>
+                <div class="service-status service-online">
+                    <div>Notification Service</div>
+                    <div>Running</div>
+                </div>
+                <div class="service-status service-online">
+                    <div>MQTT Broker</div>
+                    <div>Connected</div>
+                </div>
+                <div class="service-status service-online">
+                    <div>Admin Panel</div>
+                    <div>Online</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <h2>Quick Actions</h2>
+            <div class="quick-actions">
+                <div class="action-card">
+                    <h3>Doctor Management</h3>
+                    <p>Register new doctors or manage existing healthcare providers</p>
+                    <a href="/doctor_registration" class="action-btn">Register Doctor</a>
+                    <a href="/manage_doctors" class="action-btn">Manage Doctors</a>
+                </div>
+                
+                <div class="action-card">
+                    <h3>Patient Monitoring</h3>
+                    <p>View patient data and health monitoring information</p>
+                    <a href="/patient_overview" class="action-btn">Patient Overview</a>
+                </div>
+                
+                <div class="action-card">
+                    <h3>Reports & Analytics</h3>
+                    <p>Generate comprehensive reports and system analytics</p>
+                    <a href="/reports" class="action-btn">Generate Reports</a>
+                </div>
+                
+                <div class="action-card">
+                    <h3>System Monitoring</h3>
+                    <p>Monitor system health and performance metrics</p>
+                    <a href="/dashboard" class="action-btn">Refresh Dashboard</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity (if you want to add this in the future) -->
+        <div class="card">
+            <h2>System Information</h2>
+            <div class="info">
+                <strong>System Performance:</strong> All services operational
+            </div>
+            
+            {('<div class="warning-notice"><strong>Notice:</strong> ' + str(unassigned_patients) + ' patients need doctor assignment</div>') if unassigned_patients > 0 else ''}
+            
+            {('<div class="alert"><strong>Alert:</strong> ' + str(critical_patients) + ' patients in critical condition require immediate attention</div>') if critical_patients > 0 else ''}
+            
+            <div class="success">
+                <strong>System Status:</strong> Health monitoring system is fully operational
+            </div>
+        </div>
+        
+        <div class="refresh-info">
+            Dashboard automatically refreshes every 30 seconds | 
+            <a href="javascript:location.reload()" style="color: #3498db;">Refresh Now</a>
+        </div>
+    </body>
+    </html>
+            """
+            
+        except Exception as e:
+            return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Dashboard Error</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 50px; }}
+            .error {{ background: #f8d7da; color: #721c24; padding: 20px; border-radius: 8px; }}
+            .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }}
+        </style>
+    </head>
+    <body>
+        <h1>Dashboard Error</h1>
+        <div class="error">
+            <h3>Unable to load dashboard</h3>
+            <p><strong>Error:</strong> {str(e)}</p>
+            <p>This could be due to:</p>
+            <ul>
+                <li>Catalog service unavailable</li>
+                <li>Database connection issues</li>
+                <li>Network connectivity problems</li>
+            </ul>
+        </div>
+        <div style="margin-top: 20px;">
+            <a href="/" class="nav">← Back to Main Menu</a>
+            <a href="/dashboard" class="nav">Retry Dashboard</a>
+        </div>
+    </body>
+    </html>
+            """
+        
     @cherrypy.expose
     def manage_doctors(self):
         try:
@@ -152,7 +576,6 @@ class AdminPanel:
                     <td>{doctor['user_chat_id']}</td>
                     <td>
                         <a href="/view_doctor_patients/{doctor['user_chat_id']}" style="color: #3498db;">View Patients</a> |
-                        <a href="/doctor_stats/{doctor['user_chat_id']}" style="color: #27ae60;">Statistics</a>
                     </td>
                 </tr>
                 """
@@ -176,7 +599,6 @@ class AdminPanel:
     
     <div style="margin: 20px 0;">
         <a href="/doctor_registration" class="btn">Register New Doctor</a>
-        <a href="/doctor_analytics" class="btn">Doctor Analytics</a>
     </div>
     
     <table>
@@ -213,15 +635,23 @@ class AdminPanel:
             
             patient_rows = ""
             for patient in patients:
-                # Get recent health status (you'll need to implement this based on your data structure)
-                status = "Unknown"  # Placeholder
-                last_reading = "N/A"  # Placeholder
+                # Get real health status and last reading using the new function
+                health_status, last_reading = self.get_patient_health_status(patient['user_chat_id'])
+                
+                # Apply styling based on health status
+                row_class = ""
+                if health_status == "Critical":
+                    row_class = "style='background-color: #ffebee; color: #c62828;'"
+                elif health_status == "Warning":
+                    row_class = "style='background-color: #fff3e0; color: #ef6c00;'"
+                elif health_status == "Normal":
+                    row_class = "style='background-color: #e8f5e8; color: #2e7d32;'"
                 
                 patient_rows += f"""
-                <tr>
+                <tr {row_class}>
                     <td>{patient['full_name']}</td>
                     <td>{patient['user_chat_id']}</td>
-                    <td>{status}</td>
+                    <td><strong>{health_status}</strong></td>
                     <td>{last_reading}</td>
                     <td>
                         <a href="/sensorInfo/{patient['user_chat_id']}" style="color: #3498db;">View Data</a> |
@@ -240,14 +670,25 @@ class AdminPanel:
         table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
         th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
         th {{ background-color: #f2f2f2; }}
+        .refresh-btn {{ background: #27ae60; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-left: 10px; }}
+        .info-card {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
     </style>
+    <script>
+        // Auto-refresh every 30 seconds
+        setTimeout(function(){{ location.reload(); }}, 30000);
+    </script>
 </head>
 <body>
     <h1>Dr. {doctor.get('full_name', 'Unknown')}'s Patients</h1>
-    <p><strong>Specialization:</strong> {doctor.get('specialization', 'N/A')}</p>
-    <p><strong>Hospital:</strong> {doctor.get('hospital', 'N/A')}</p>
+    <div class="info-card">
+        <p><strong>Specialization:</strong> {doctor.get('specialization', 'N/A')}</p>
+        <p><strong>Hospital:</strong> {doctor.get('hospital', 'N/A')}</p>
+        <p><strong>Total Patients:</strong> {len(patients)}</p>
+        <p><em>Page auto-refreshes every 30 seconds</em></p>
+    </div>
     
     <a href="/manage_doctors">← Back to Doctor Management</a>
+    <a href="javascript:location.reload()" class="refresh-btn">Refresh Now</a>
     
     <table>
         <thead>
@@ -263,6 +704,14 @@ class AdminPanel:
             {patient_rows}
         </tbody>
     </table>
+    
+    <div style="margin-top: 20px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+        <strong>Status Legend:</strong>
+        <span style="color: #2e7d32;">● Normal</span> |
+        <span style="color: #ef6c00;">● Warning</span> |
+        <span style="color: #c62828;">● Critical</span> |
+        <span style="color: #666;">● No Data/Error</span>
+    </div>
 </body>
 </html>
             """
@@ -286,11 +735,25 @@ class AdminPanel:
                             doctor = doctor_response.json()
                             doctor_name = doctor.get('full_name', 'Unknown')
                     
+                    # Get health status for patient overview
+                    health_status, last_reading = self.get_patient_health_status(user['user_chat_id'])
+                    
+                    # Apply row styling based on health status
+                    row_class = ""
+                    if health_status == "Critical":
+                        row_class = "style='background-color: #ffebee; color: #c62828;'"
+                    elif health_status == "Warning":
+                        row_class = "style='background-color: #fff3e0; color: #ef6c00;'"
+                    elif health_status == "Normal":
+                        row_class = "style='background-color: #e8f5e8; color: #2e7d32;'"
+                    
                     patient_rows += f"""
-                    <tr>
+                    <tr {row_class}>
                         <td>{user['full_name']}</td>
                         <td>{user['user_chat_id']}</td>
                         <td>{doctor_name}</td>
+                        <td><strong>{health_status}</strong></td>
+                        <td>{last_reading}</td>
                         <td>
                             <a href="/sensorInfo/{user['user_chat_id']}" style="color: #3498db;">View Health Data</a> |
                             <a href="/report/{user['user_chat_id']}" style="color: #27ae60;">JSON Report</a>
@@ -308,11 +771,21 @@ class AdminPanel:
         table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
         th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
         th {{ background-color: #f2f2f2; }}
+        .refresh-btn {{ background: #27ae60; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-left: 10px; }}
     </style>
+    <script>
+        // Auto-refresh every 60 seconds
+        setTimeout(function(){{ location.reload(); }}, 60000);
+    </script>
 </head>
 <body>
     <h1>Patient Overview</h1>
     <a href="/">← Back to Main Menu</a>
+    <a href="javascript:location.reload()" class="refresh-btn">Refresh Now</a>
+    
+    <div style="margin: 15px 0; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+        <em>Real-time health status monitoring - Page auto-refreshes every minute</em>
+    </div>
     
     <table>
         <thead>
@@ -320,6 +793,8 @@ class AdminPanel:
                 <th>Patient Name</th>
                 <th>Patient ID</th>
                 <th>Assigned Doctor</th>
+                <th>Health Status</th>
+                <th>Last Reading</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -327,117 +802,115 @@ class AdminPanel:
             {patient_rows}
         </tbody>
     </table>
+    
+    <div style="margin-top: 20px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+        <strong>Status Legend:</strong>
+        <span style="color: #2e7d32;">● Normal</span> |
+        <span style="color: #ef6c00;">● Warning</span> |
+        <span style="color: #c62828;">● Critical</span> |
+        <span style="color: #666;">● No Data/Error</span>
+    </div>
 </body>
 </html>
             """
         except Exception as e:
             return f"<h1>Error</h1><p>{str(e)}</p>"
 
-    @cherrypy.expose
-    def system_alerts(self):
-        alerts = self._get_recent_alerts()
-        
-        alert_rows = ""
-        for alert in alerts:
-            severity_color = "#e74c3c" if alert['severity'] == 'critical' else "#f39c12" if alert['severity'] == 'warning' else "#27ae60"
-            alert_rows += f"""
-            <tr style="background-color: {severity_color}20;">
-                <td>{alert['time']}</td>
-                <td style="color: {severity_color}; font-weight: bold;">{alert['severity'].upper()}</td>
-                <td>{alert['message']}</td>
-                <td>{alert['source']}</td>
-            </tr>
-            """
-        
-        return f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>System Alerts</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-        th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-        th {{ background-color: #f2f2f2; }}
-    </style>
-</head>
-<body>
-    <h1>System Alerts</h1>
-    <a href="/">← Back to Main Menu</a>
-    
-    <table>
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Severity</th>
-                <th>Message</th>
-                <th>Source</th>
-            </tr>
-        </thead>
-        <tbody>
-            {alert_rows}
-        </tbody>
-    </table>
-</body>
-</html>
-        """
+    def get_patient_health_status(self, user_id):
+        """Get patient's latest health status and last reading from database adapter"""
+        try:
+            # Get database adapter service info from catalog
+            adapter_service = requests.get("http://catalog:5001/services/databaseAdapter", timeout=5)
+            if adapter_service.status_code != 200:
+                return "Unknown", "N/A"
+            
+            adapter_info = adapter_service.json()
+            adapter_url = adapter_info["url"]
+            adapter_port = adapter_info.get("port")
+            
+            # Build the URL for database adapter
+            if adapter_port:
+                full_url = f"{adapter_url}:{adapter_port}/read/{user_id}"
+            else:
+                full_url = f"{adapter_url}/read/{user_id}"
+            
+            # Get recent data (last 24 hours)
+            params = {"hours": 24}
+            response = requests.get(full_url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                return "Unknown", "N/A"
+            
+            response_data = response.json()
+            
+            # Extract the actual data
+            if isinstance(response_data, dict) and "data" in response_data:
+                sensor_data = response_data["data"]
+            else:
+                sensor_data = response_data
+            
+            if not sensor_data:
+                return "No Data", "N/A"
+            
+            # Sort by time (newest first)
+            sensor_data.sort(key=lambda x: x.get('time', ''), reverse=True)
+            
+            # Find the most recent state entry
+            latest_state = None
+            latest_reading = None
+            
+            for entry in sensor_data:
+                field = entry.get('field')
+                value = entry.get('value')
+                time_str = entry.get('time', '')
+                
+                # Look for state field for health status
+                if field == 'state' and not latest_state:
+                    latest_state = value
+                
+                # Get the most recent reading (any field)
+                if not latest_reading:
+                    try:
+                        # Format the time
+                        if isinstance(time_str, str):
+                            clean_time = time_str.split('+')[0].split('Z')[0].split('.')[0]
+                            dt = datetime.fromisoformat(clean_time)
+                            formatted_time = dt.strftime('%m/%d %H:%M')
+                        else:
+                            formatted_time = "Unknown"
+                        
+                        latest_reading = f"{field}: {value} ({formatted_time})"
+                    except:
+                        latest_reading = f"{field}: {value}"
+                
+                # Break if we have both
+                if latest_state and latest_reading:
+                    break
+            
+            # Determine health status
+            if latest_state:
+                if latest_state.lower() == 'dangerous':
+                    status = "Critical"
+                elif latest_state.lower() == 'risky':
+                    status = "Warning"
+                elif latest_state.lower() == 'normal':
+                    status = "Normal"
+                else:
+                    status = latest_state.title()
+            else:
+                # If no state field, try to infer from recent data
+                if len(sensor_data) > 0:
+                    status = "Active"
+                else:
+                    status = "No Data"
+            
+            return status, latest_reading or "N/A"
+            
+        except Exception as e:
+            print(f"Error getting health status for user {user_id}: {e}")
+            return "Error", "N/A"
 
-    @cherrypy.expose
-    def emergency_alerts(self):
-        # This would check for patients in critical condition
-        return """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Emergency Alerts</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .emergency { background: #e74c3c; color: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
-        .warning { background: #f39c12; color: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
-    </style>
-</head>
-<body>
-    <h1>🚨 Emergency Health Alerts</h1>
-    <a href="/">← Back to Main Menu</a>
-    
-    <div class="emergency">
-        <strong>CRITICAL:</strong> Patient ID 12345 - Temperature 40.2°C - Immediate attention required
-        <br><small>Last updated: 2 minutes ago</small>
-    </div>
-    
-    <div class="warning">
-        <strong>WARNING:</strong> Patient ID 67890 - Heart rate 110 BPM - Monitor closely
-        <br><small>Last updated: 5 minutes ago</small>
-    </div>
-    
-    <p><em>This is a demo view. In production, this would show real-time critical health alerts.</em></p>
-</body>
-</html>
-        """
 
-    def _get_recent_alerts(self):
-        # Mock alert data - in production, this would come from your monitoring system
-        return [
-            {
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "severity": "critical",
-                "message": "Patient vital signs exceeded dangerous threshold",
-                "source": "Monitoring System"
-            },
-            {
-                "time": (datetime.now() - timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M"),
-                "severity": "warning", 
-                "message": "Database connection slow response time",
-                "source": "Database Monitor"
-            },
-            {
-                "time": (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M"),
-                "severity": "info",
-                "message": "New doctor registration approved",
-                "source": "Admin Panel"
-            }
-        ]
-    
     @cherrypy.expose
     def reports(self):
         return """
@@ -498,7 +971,6 @@ class AdminPanel:
                     <select id="report_type" name="report_type">
                         <option value="patient_health">Patient Health Data</option>
                         <option value="doctor_performance">Doctor Performance</option>
-                        <option value="alert_summary">Alert Summary</option>
                         <option value="system_usage">System Usage</option>
                     </select>
                 </div>
@@ -730,9 +1202,6 @@ class AdminPanel:
             doctors = [u for u in users if u.get('user_type') == 'doctor']
             patients = [u for u in users if u.get('user_type') != 'doctor']
             
-            alerts = self._get_recent_alerts()
-            critical_alerts = [a for a in alerts if a['severity'] == 'critical']
-            
             return f"""
 <!DOCTYPE html>
 <html>
@@ -769,10 +1238,6 @@ class AdminPanel:
             <div class="stat-number">{len(patients)}</div>
             <div>Active Patients</div>
         </div>
-        <div class="stat-box">
-            <div class="stat-number">{len(critical_alerts)}</div>
-            <div>Critical Alerts</div>
-        </div>
     </div>
     
     <a href="/reports">← Back to Reports</a>
@@ -783,11 +1248,7 @@ class AdminPanel:
     <div class="success">Database: Connected</div>
     <div class="success">MQTT Broker: Active</div>
     <div class="warning">Monitoring Service: Normal Load</div>
-    
-    <h2>Recent Alerts</h2>
-    <div class="alert">Critical: {len(critical_alerts)} alerts require attention</div>
-    <div class="warning">Warning: {len([a for a in alerts if a['severity'] == 'warning'])} system warnings</div>
-    
+
     <h2>Service Status</h2>
     <ul>
         <li><strong>Catalog Service:</strong> Online</li>
@@ -802,6 +1263,7 @@ class AdminPanel:
             """
         except Exception as e:
             return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
+    
     @cherrypy.expose
     def sensorInfo(self, user_id, hours=24):
         """Get user sensor data through database adapter with optional time filtering"""
@@ -1192,7 +1654,6 @@ class AdminPanel:
 
     @cherrypy.expose
     def register_doctor_web(self, full_name, chat_id, specialization, hospital=""):
-        # Your existing implementation with enhanced success page
         try:
             doctor_data = {
                 "user_chat_id": int(chat_id),
@@ -1309,7 +1770,6 @@ class AdminPanel:
 </body>
 </html>
             """
-
 
 if __name__ == "__main__":
     # Register the service

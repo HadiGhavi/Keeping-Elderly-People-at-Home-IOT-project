@@ -186,7 +186,7 @@ class HumanHealthCatalog:
   
     def _find_service_by_name(self, servicename):
         data = self._read_data()
-        print(data)
+        #print(data)
         services = data.get("services",{})
         if servicename in services:
             return services[servicename]
@@ -247,7 +247,7 @@ class HumanHealthCatalog:
                 {"id": 3, "name": "heart_rate"}
             ],
             "doctor_id": None,  # Will be assigned when patient adds doctor
-            "user_type": "patient"  # New field to distinguish user types
+            "user_type": "patient"  
         }
         
         data['users'].append(new_user)
@@ -339,7 +339,7 @@ class HumanHealthCatalog:
         raise cherrypy.HTTPError(404, "Sensor not found")
     
     def _add_sensor(self, user_chat_id, sensor_data):
-        # Updated to only require id and name - no min/max alert levels
+        # Updated to require id and name - no min/max alert levels
         required_fields = ['id', 'name']
         if not all(field in sensor_data for field in required_fields):
             raise cherrypy.HTTPError(400, "Missing required fields (id, name)")
@@ -354,7 +354,6 @@ class HumanHealthCatalog:
                     if sensor['id'] == sensor_id:
                         raise cherrypy.HTTPError(400, "Sensor with this ID already exists for this user")
                 
-                # Simplified sensor object - only id and name
                 user['sensors'].append({
                     "id": sensor_id,
                     "name": sensor_data['name']

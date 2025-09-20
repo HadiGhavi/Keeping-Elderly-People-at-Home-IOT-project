@@ -56,7 +56,7 @@ REST_API_URL = "http://catalog:5001"
 TELEGRAM_TOKEN = "6605276431:AAHoPhbbqSSPR7z1VS56c7Cddp34xzvT2Og"
 
 # Admins (Telegram user IDs)
-ADMINS = [6378242947, 650295422, 6605276431]#, 548805315]
+ADMINS = [6378242947, 650295422, 6605276431, 548805315]
 
 print(f"🔧 Configuration loaded. REST API: {REST_API_URL}")
 
@@ -194,16 +194,35 @@ def _database_adapter_service():
 
 def start_recording_for(user_id: int):
     """
-    Try several common patterns so we work with your existing sensor service.
     Returns (ok: bool, message: str)
     """
+    # First, check if user exists and is a patient
+    try:
+        user_response = requests.get(f"http://catalog:5001/users/{user_id}", timeout=5)
+        if user_response.status_code != 200:
+            logger.warning(f"User {user_id} not found in catalog")
+            return False, "User not found in the system."
+        
+        user_data = user_response.json()
+        user_type = user_data.get('user_type', '')
+        
+        # Check if user is a patient
+        if user_type != 'patient':
+            logger.warning(f"Recording denied for user {user_id}: user type is '{user_type}', not 'patient'")
+            return False, "Recording is only available for patients."
+        
+        logger.info(f"User {user_id} verified as patient: {user_data.get('full_name', 'Unknown')}")
+        
+    except Exception as e:
+        logger.error(f"Error checking user type for {user_id}: {e}")
+        return False, "Failed to verify user type."
+    
+    # Now, try to start recording
     base = _sensor_service_url()
     if not base:
         return False, "Sensor service not found."
 
-    # For your system, use the monitor service pattern
     try:
-        # Based on monitor.py, the correct endpoint is /read/{chat_id}
         url = f"{base}/{user_id}"
         logger.info(f"Starting recording for user {user_id} at {url}")
         r = requests.get(url, timeout=10)
@@ -224,7 +243,6 @@ def stop_recording_for(user_id: int):
         return False, "Sensor service not found."
 
     try:
-        # Fix URL construction
         if base.endswith("/read/"):
             base_url = base[:-6]  # Remove "/read/" from the end
         elif base.endswith("/read"):
@@ -259,7 +277,7 @@ def get_report_for(user_id: int, max_hours: int = 24):
         port = adapter_service.get("port")
         endpoint = f"/read/{user_id}"
         
-        # Add time filtering for reports too
+        # Add time filtering 
         params = {"hours": max_hours}
         full_url = f"{url}:{port}{endpoint}" if port else f"{url}{endpoint}"
         
@@ -578,29 +596,6 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
         logger.error(traceback.format_exc())
         return False, f"Chart generation failed: {str(e)}", None
     
-def delete_user_data_for(user_id: int):
-    """Delete all user data through database adapter"""
-    return False, "Data deletion not supported on current InfluxDB Cloud configuration (serverless v3 buckets)"
-
-def admin_delete_user_data(admin_user_id: int, target_user_id: int) -> tuple[bool, str]:
-    """Admin function to delete user data with proper authorization"""
-    # Verify admin privileges
-    if not is_admin(admin_user_id):  # Changed this line
-        logger.warning(f"Unauthorized delete attempt by user {admin_user_id}")
-        return False, "Access denied. Admin privileges required."
-    
-    # Log the admin action
-    logger.info(f"Admin {admin_user_id} requesting deletion of user {target_user_id} data")
-    
-    success, message = delete_user_data_for(target_user_id)
-    
-    if success:
-        success_msg = f"Data for user {target_user_id} has been deleted by admin {admin_user_id}"
-        logger.info(success_msg)
-        return True, success_msg
-    else:
-        logger.error(f"Delete failed: {message}")
-        return False, message
        
 async def send_chart_to_user(update, context, user_id: int):
     """Send chart image to user via Telegram"""
@@ -689,8 +684,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [
                 [InlineKeyboardButton("👥 My Patients", callback_data="doctor_patients")],
                 [InlineKeyboardButton("📊 Monitor All Patients", callback_data="doctor_monitor_all")],
-                #[InlineKeyboardButton("📈 Patient Charts", callback_data="doctor_patient_charts")],
-                #[InlineKeyboardButton("🔔 Alert Settings", callback_data="doctor_alert_settings")],
                 [InlineKeyboardButton("👤 My Profile", callback_data="doctor_profile")]
             ]
             text = "👨‍⚕️ Doctor Menu:"
@@ -701,7 +694,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("⏹ Stop all", callback_data="admin_stop_all")],
                 [InlineKeyboardButton("📊 Monitor all", callback_data="admin_monitor_all")],
                 [InlineKeyboardButton("👥 Manage users", callback_data="admin_user_list")],
-                [InlineKeyboardButton("🗑️ Delete User Data", callback_data="admin_delete_menu")],  
                 [InlineKeyboardButton("📄 Get my report", callback_data="get_report")],
             ]
             if CHARTS_AVAILABLE:
@@ -727,51 +719,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in menu command: {e}")
         logger.error(traceback.format_exc())
-
-
-async def handle_admin_delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle admin delete command with confirmation workflow"""
-    user_id = update.effective_user.id
-    
-    # Check admin privileges 
-    is_authorized, auth_message = is_admin(user_id)
-    if not is_authorized:
-        await update.message.reply_text(auth_message)
-        return
-    
-    # Parse target user ID from command
-    try:
-        if not context.args:
-            await update.message.reply_text(
-                "Usage: /admin_delete_data <user_id>\n"
-                "Example: /admin_delete_data 548805315"
-            )
-            return
-        
-        target_user_id = int(context.args[0])
-        
-        # Create confirmation keyboard
-        keyboard = [
-            [
-                InlineKeyboardButton("Confirm Delete", callback_data=f"confirm_data_delete_{target_user_id}"),
-                InlineKeyboardButton("Cancel", callback_data="cancel_delete")
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text(
-            f"⚠️ WARNING ⚠️\n\n"
-            f"You are about to DELETE ALL HEALTH DATA for user: {target_user_id}\n\n"
-            f"This action is IRREVERSIBLE.\n\n"
-            f"Are you sure you want to proceed?",
-            reply_markup=reply_markup
-        )
-        
-    except (IndexError, ValueError):
-        await update.message.reply_text(
-            "Invalid user ID. Please provide a valid numeric user ID.\n"
-            "Usage: /admin_delete_data <user_id>"
-        )
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1019,7 +966,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     name = html.escape(patient.get("full_name", str(patient_id)))
                     status_lines = snippet.split('\n')
                     status = next((line for line in status_lines if 'Status:' in line), 'Status: Unknown')
-                    lines.append(f"• <b>{name}</b> (ID {patient_id})\n<code>{status}</code>")
+                    #lines.append(f"• <b>{name}</b> (ID {patient_id})\n<code>{status}</code>")
+                    lines.append(f"• <b>{name}</b> (ID {patient_id})\n{status}")
                     shown += 1
                 if shown >= 10:  # Limit for message size
                     lines.append("… (showing first 10 patients)")
@@ -1147,34 +1095,38 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ===== Admin buttons =====
         elif query.data == "admin_start_all" and admin_mode:
             users = api_get("users") or []
+            patients = [u for u in users if u.get("user_type") == "patient"]
             started, failed = 0, 0
-            for u in users:
-                ok, _ = start_recording_for(int(u["user_chat_id"]))
+            for patient in patients:
+                ok, _ = start_recording_for(int(patient["user_chat_id"]))
                 started += 1 if ok else 0
                 failed += 0 if ok else 1
             await query.edit_message_text(f"▶️ Started for {started} users. Failed: {failed}.")
 
         elif query.data == "admin_stop_all" and admin_mode:
             users = api_get("users") or []
+            patients = [u for u in users if u.get("user_type") == "patient"]
             stopped, failed = 0, 0
-            for u in users:
-                ok, _ = stop_recording_for(int(u["user_chat_id"]))
+            for patient in patients:
+                ok, _ = stop_recording_for(int(patient["user_chat_id"]))
                 stopped += 1 if ok else 0
                 failed += 0 if ok else 1
             await query.edit_message_text(f"⏹ Stopped for {stopped} users. Failed: {failed}.")
 
         elif query.data == "admin_monitor_all" and admin_mode:
             users = api_get("users") or []
+            patients = [u for u in users if u.get("user_type") == "patient"]
             lines = []
             shown = 0
-            for u in users:
-                user_id = int(u["user_chat_id"])
+            for patient in patients:
+                user_id = int(patient["user_chat_id"])
                 ok, snippet = get_report_for(user_id)
                 if ok:
-                    name = html.escape(u.get("full_name", str(user_id)))
+                    name = html.escape(patient.get("full_name", str(user_id)))
                     status_lines = snippet.split('\n')
                     status = next((line for line in status_lines if 'Status:' in line), 'Status: Unknown')
-                    lines.append(f"• <b>{name}</b> (ID {user_id})\n<code>{status}</code>")
+                    #lines.append(f"• <b>{name}</b> (ID {user_id})\n<code>{status}</code>")
+                    lines.append(f"• <b>{name}</b> (ID {user_id})\n{status}")
                     shown += 1
                 if shown >= 10:  # keep message size safe
                     lines.append("… (showing first 10 patients)")
@@ -1208,23 +1160,147 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not user_target:
                 await query.edit_message_text("User not found.")
                 return ConversationHandler.END
+            if user_target.get("user_type") == "patient":
+                keyboard = [
+                    [InlineKeyboardButton("▶️ Start", callback_data=f"admin_start_user_{target_id}")],
+                    [InlineKeyboardButton("⏹ Stop", callback_data=f"admin_stop_user_{target_id}")],
+                    [InlineKeyboardButton("📄 Get report", callback_data=f"admin_get_report_{target_id}")],
+                ]
+                if CHARTS_AVAILABLE:
+                    keyboard.append([InlineKeyboardButton("📈 Get chart", callback_data=f"admin_get_chart_{target_id}")])
+                keyboard.extend([
+                    [InlineKeyboardButton("⬅️ Back to list", callback_data="admin_user_list")],
+                ])
+                await query.edit_message_text(
+                    f"Managing: <b>{html.escape(user_target['full_name'])}</b> (ID {target_id})",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML",
+                )
+            else:
+                # show doctor-specific admin options
+                user_type = user_target.get("user_type", "unknown")
+                keyboard = [
+                    [InlineKeyboardButton("👥 View Doctor's Patients", callback_data=f"admin_doctor_patients_{target_id}")],
+                    [InlineKeyboardButton("📊 Doctor Info", callback_data=f"admin_doctor_info_{target_id}")],
+                    [InlineKeyboardButton("🗑️ Remove Doctor", callback_data=f"admin_delete_user_{target_id}")],
+                    [InlineKeyboardButton("⬅️ Back to list", callback_data="admin_user_list")],
+                ]
+                await query.edit_message_text(
+                    f"Managing Doctor: <b>{html.escape(user_target['full_name'])}</b> (ID {target_id})\n"
+                    f"Type: {user_type.title()}\n"
+                    f"Specialization: {user_target.get('specialization', 'N/A')}\n"
+                    f"Hospital: {user_target.get('hospital', 'N/A')}",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML",
+                )
 
-            keyboard = [
-                [InlineKeyboardButton("▶️ Start", callback_data=f"admin_start_user_{target_id}")],
-                [InlineKeyboardButton("⏹ Stop", callback_data=f"admin_stop_user_{target_id}")],
-                [InlineKeyboardButton("📄 Get report", callback_data=f"admin_get_report_{target_id}")],
-            ]
-            if CHARTS_AVAILABLE:
-                keyboard.append([InlineKeyboardButton("📈 Get chart", callback_data=f"admin_get_chart_{target_id}")])
-            keyboard.extend([
-                [InlineKeyboardButton("🗑️ Remove user", callback_data=f"admin_delete_user_{target_id}")],
-                [InlineKeyboardButton("⬅️ Back to list", callback_data="admin_user_list")],
-            ])
-            await query.edit_message_text(
-                f"Managing: <b>{html.escape(user_target['full_name'])}</b> (ID {target_id})",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML",
-            )
+
+        elif query.data.startswith("admin_doctor_patients_") and admin_mode:
+            try:
+                doctor_id = int(query.data.split("_")[-1])
+                
+                # Get doctor info
+                doctor_data = api_get(f"users/{doctor_id}")
+                if not doctor_data:
+                    await query.edit_message_text("Doctor not found.")
+                    return
+                
+                # Get doctor's patients
+                patients = get_doctor_patients(doctor_id)
+                
+                if not patients:
+                    await query.edit_message_text(
+                        f"Dr. {doctor_data['full_name']} has no assigned patients.\n\n"
+                        f"Use /menu to return to main menu."
+                    )
+                    return
+        
+                keyboard = []
+                for patient in patients:
+                    keyboard.append([InlineKeyboardButton(
+                        f"{patient['full_name']} (ID: {patient['user_chat_id']})",
+                        callback_data=f"admin_view_patient_{patient['user_chat_id']}"
+                    )])
+                keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data=f"admin_user_{doctor_id}")])
+                
+                await query.edit_message_text(
+                    f"👥 Dr. {doctor_data['full_name']}'s Patients ({len(patients)}):",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing doctor ID: {e}")
+                await query.edit_message_text("Invalid doctor selection.")
+
+        elif query.data.startswith("admin_doctor_info_") and admin_mode:
+            try:
+                doctor_id = int(query.data.split("_")[-1])
+                
+                # Get doctor info
+                doctor_data = api_get(f"users/{doctor_id}")
+                if not doctor_data:
+                    await query.edit_message_text("Doctor not found.")
+                    return
+                
+                # Get patient count
+                patients = get_doctor_patients(doctor_id)
+                patient_count = len(patients) if patients else 0
+                
+                info_text = f"""
+        👨‍⚕️ <b>Doctor Information</b>
+
+        <b>Name:</b> {html.escape(doctor_data['full_name'])}
+        <b>ID:</b> {doctor_id}
+        <b>Specialization:</b> {html.escape(doctor_data.get('specialization', 'Not specified'))}
+        <b>Hospital:</b> {html.escape(doctor_data.get('hospital', 'Not specified'))}
+        <b>Assigned Patients:</b> {patient_count}
+        <b>User Type:</b> {doctor_data.get('user_type', 'unknown').title()}
+                """
+                
+                keyboard = [
+                    [InlineKeyboardButton("👥 View Patients", callback_data=f"admin_doctor_patients_{doctor_id}")],
+                    [InlineKeyboardButton("🗑️ Remove Doctor", callback_data=f"admin_delete_user_{doctor_id}")],
+                    [InlineKeyboardButton("⬅️ Back", callback_data=f"admin_user_{doctor_id}")]
+                ]
+                
+                await query.edit_message_text(
+                    info_text,
+                    parse_mode="HTML",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing doctor ID: {e}")
+                await query.edit_message_text("Invalid doctor selection.")
+
+        elif query.data.startswith("admin_view_patient_") and admin_mode:
+            try:
+                patient_id = int(query.data.split("_")[-1])
+                
+                # Get patient info
+                patient_data = api_get(f"users/{patient_id}")
+                if not patient_data:
+                    await query.edit_message_text("Patient not found.")
+                    return
+                
+                keyboard = [
+                    [InlineKeyboardButton("▶️ Start Monitoring", callback_data=f"admin_start_user_{patient_id}")],
+                    [InlineKeyboardButton("⏹ Stop Monitoring", callback_data=f"admin_stop_user_{patient_id}")],
+                    [InlineKeyboardButton("📄 Get Report", callback_data=f"admin_get_report_{patient_id}")],
+                ]
+                if CHARTS_AVAILABLE:
+                    keyboard.append([InlineKeyboardButton("📈 Get Chart", callback_data=f"admin_get_chart_{patient_id}")])
+                keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="admin_user_list")])
+                
+                await query.edit_message_text(
+                    f"Managing Patient: <b>{html.escape(patient_data['full_name'])}</b> (ID {patient_id})",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML"
+                )
+                
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing patient ID: {e}")
+                await query.edit_message_text("Invalid patient selection.")
 
         elif query.data.startswith("admin_start_user_") and admin_mode:
             target_id = int(query.data.split("_")[-1])
@@ -1268,77 +1344,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await query.edit_message_text("❌ Failed to delete user.")
 
-        elif query.data == "admin_delete_menu" and admin_mode:
-            users = api_get("users") or []
-            if not users:
-                await query.edit_message_text("No users found.")
-                return
-
-            keyboard = [
-                [InlineKeyboardButton(f"🗑️ {html.escape(u['full_name'])} (ID: {u['user_chat_id']})",
-                                      callback_data=f"admin_delete_data_user_{u['user_chat_id']}")]
-                for u in users
-            ]
-            keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])
-            await query.edit_message_text(
-                "⚠️ SELECT USER TO DELETE ALL HEALTH DATA ⚠️\n\n"
-                "This will permanently delete all health data for the selected user:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML",
-            )
-
-        elif query.data.startswith("admin_delete_data_user_") and admin_mode:
-            target_id = int(query.data.split("_")[-1])
-            user_target = api_get(f"users/{target_id}")
-            if not user_target:
-                await query.edit_message_text("User not found.")
-                return
-
-            keyboard = [
-                [
-                    InlineKeyboardButton("Confirm Delete All Data", callback_data=f"confirm_data_delete_{target_id}"),
-                    InlineKeyboardButton("Cancel", callback_data="admin_delete_menu"),
-                ]
-            ]
-            await query.edit_message_text(
-                f"⚠️ DELETE ALL HEALTH DATA ⚠️\n\n"
-                f"User: <b>{html.escape(user_target['full_name'])}</b>\n"
-                f"ID: {target_id}\n\n"
-                f"This will permanently delete ALL health monitoring data for this user.\n"
-                f"The user profile will remain, but all sensor data will be lost.\n\n"
-                f"This action cannot be undone!",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="HTML",
-            )
-
-        elif query.data.startswith("confirm_data_delete_") and admin_mode:
-            target_user_id = int(query.data.split("_")[-1])
-            
-            await query.answer("Processing delete request...")
-            await query.edit_message_text("Deleting user health data... Please wait.")
-            
-            # Perform the actual deletion
-            success, message = admin_delete_user_data(chat_id, target_user_id)
-            
-            if success:
-                await query.edit_message_text(
-                    f"SUCCESS\n\n{message}\n\n"
-                    f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                )
-            else:
-                await query.edit_message_text(
-                    f"FAILED\n\n{message}\n\n"
-                    f"Please check logs for details."
-                )
-
-        elif query.data == "cancel":
-            await query.edit_message_text("Operation cancelled.")
-
-        else:
-            await query.edit_message_text(f"Handler for '{query.data}' not implemented yet.")
-
-        return ConversationHandler.END
-        
     except Exception as e:
         logger.error(f"Error in button handler: {e}")
         logger.error(traceback.format_exc())
@@ -1526,18 +1531,12 @@ def main():
     try:
         print("🚀 Initializing Telegram Bot...")
         
-        """ # Test connectivity first
-        if not test_connectivity():
-            print("❌ Connectivity tests failed. Exiting.")
-            sys.exit(1) """
-        
         application = Application.builder().token(TELEGRAM_TOKEN).build()
 
         # Core commands
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("register", register))
         application.add_handler(CommandHandler("menu", menu))
-        #application.add_handler(CommandHandler("admin_delete_data", handle_admin_delete_command))
         application.add_handler(CommandHandler("register_doctor", register_doctor))
         application.add_handler(CommandHandler("update_doctor_name", update_doctor_name))
         application.add_handler(CommandHandler("update_doctor_specialization", update_doctor_specialization))

@@ -300,39 +300,6 @@ class InfluxDBAdapter(TimeSeriesAdapter):
         
         return success, data
     
-    """ def writeInflux(self, measurement, sensor_info):
-        print("starting write")
-        try:
-            write_api = self.influxDBclient.write_api(write_options=SYNCHRONOUS)
-            
-            data = [
-                {
-                    "measurement": measurement,
-                    "tags": {
-                        "UserId": sensor_info["user_id"],
-                        "full_name": sensor_info["user_name"]
-                    },
-                    "fields": {
-                        "temp": sensor_info["temp"],
-                        "heart_rate": sensor_info["heartRate"],
-                        "oxygen": sensor_info["oxygen"],
-                        "state": sensor_info["state"],
-                    },
-                }
-            ]
-            
-            write_api.write(bucket=self.database, record=data)
-            print("Data written successfully!")
-            
-            return True, "Data written successfully!"
-            
-        except Exception as e:
-            error_msg = f"InfluxDB write failed: {e}"
-            print(error_msg)
-            
-            
-            return False, error_msg
-       """      
     def delete_user_data(self, user_id: str) -> tuple[bool, str]: 
         #Delete all data for a specific user
         try:

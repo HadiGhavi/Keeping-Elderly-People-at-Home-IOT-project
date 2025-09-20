@@ -106,8 +106,8 @@ class Monitor:
                     print(f"Stopping monitoring for user {user_id}")
                     break
 
-                print(f"User info received: {user_info}")  # Debug line
-                print(f"Number of sensors configured: {len(user_info['sensors'])}")  # Debug line
+                #print(f"User info received: {user_info}")  # Debug line
+                #print(f"Number of sensors configured: {len(user_info['sensors'])}")  # Debug line
                 
                 publish_data = {
                     "user_id": user_info["user_chat_id"],
