@@ -1,51 +1,96 @@
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import classification_report, confusion_matrix
-from imblearn.over_sampling import SMOTE
-import joblib
 import pandas as pd
+import joblib
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
 import os
 
+def train_health_model():
+    """Train a health state prediction model"""
+    
+    # Step 1: Generate or load training data
+    print("Step 1: Loading training data...")
+    
+    # First, check if we have the CSV data
+    if os.path.exists('realistic_elderly_health_data.csv'):
+        print("Loading existing data...")
+        data = pd.read_csv('realistic_elderly_health_data.csv')
+    else:
+        print("No data file found. Run data_gen.py first!")
+        print("Running: python data_gen.py")
+        os.system('python data_gen.py')
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(script_dir, "realistic_elderly_health_data.csv")
 
-# Path to the dataset
-script_dir = os.path.dirname(os.path.abspath(__file__))
-data_path = os.path.join(script_dir, "realistic_elderly_health_data.csv")
+        # Load the dataset
+        data = pd.read_csv(data_path)
+    print(f"Data loaded: {len(data)} samples")
+    print("Label distribution:")
+    print(data['label'].value_counts())
+    print()
+    
+    # Step 2: Prepare features and target
+    print("Step 2: Preparing features...")
+    X = data[['temperature', 'heart_rate', 'blood_oxygen']]
+    y = data['label']
+    
+    # Step 3: Split data
+    print("Step 3: Splitting data...")
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    print(f"Training set: {len(X_train)} samples")
+    print(f"Test set: {len(X_test)} samples")
+    print()
+    
+    # Step 4: Train model
+    print("Step 4: Training model...")
+    model = RandomForestClassifier(
+        n_estimators=100,
+        random_state=42,
+        class_weight='balanced'  # Handle any remaining imbalance
+    )
+    
+    model.fit(X_train, y_train)
+    print("Model trained successfully!")
+    print()
+    
+    # Step 5: Evaluate model
+    print("Step 5: Evaluating model...")
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    
+    print(f"Accuracy: {accuracy:.3f}")
+    print("\nDetailed Classification Report:")
+    print(classification_report(y_test, y_pred))
+    
+    # Step 6: Save model
+    print("Step 6: Saving model...")
+    model_info = {
+        'model': model,
+        'feature_columns': ['temperature', 'heart_rate', 'blood_oxygen'],
+        'accuracy': accuracy,
+        'training_samples': len(X_train)
+    }
+    
+    joblib.dump(model_info, 'trained_model.pkl')
+    print("Model saved as 'trained_model.pkl'")
+    print()
+    
+    # Step 7: Test with sample data
+    print("Step 7: Testing with sample predictions...")
+    test_cases = [
+        [36.8, 72, 97],   # Should be normal
+        [38.5, 95, 94],   # Should be risky  
+        [39.8, 110, 89]   # Should be dangerous
+    ]
+    
+    for i, case in enumerate(test_cases):
+        pred = model.predict([case])[0]
+        print(f"Case {i+1}: Temp {case[0]}°C, HR {case[1]}, O2 {case[2]}% → {pred}")
+    
+    return model
 
-# Load the dataset
-data = pd.read_csv(data_path)
-
-
-# Split the data into features and labels
-X = data[['temperature', 'heart_rate', 'blood_oxygen']]
-y = data['label']
-
-# Check class distribution
-class_distribution = y.value_counts()
-print("Class distribution before SMOTE:")
-print(class_distribution)
-
-# If any class has only one sample, remove SMOTE
-if any(class_distribution <= 1):
-    print("Some classes have only one sample. Skipping SMOTE.")
-    X_resampled, y_resampled = X, y
-else:
-    # Balance the dataset using SMOTE
-    smote = SMOTE(random_state=42)
-    X_resampled, y_resampled = smote.fit_resample(X, y)
-
-# Split the resampled data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, test_size=0.3, random_state=42)
-
-# Train the model using Decision Tree
-model = DecisionTreeClassifier(random_state=42)
-model.fit(X_train, y_train)
-
-# Evaluate the model
-y_pred = model.predict(X_test)
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
-print("\nClassification Report:\n", classification_report(y_test, y_pred))
-
-# Save the trained model to disk
-model_path = 'trained_model.pkl'
-joblib.dump(model, model_path)
-print(f"Model saved to {model_path}")
+if __name__ == "__main__":
+    train_health_model()

@@ -3,11 +3,280 @@ import requests
 import json
 from datetime import datetime, timedelta
 from itertools import groupby
-
+import secrets
 class AdminPanel:
-   
+    def __init__(self):
+        self.authorized_users = {
+            "6378242947": "admin_password_1", 
+            "650295422": "admin_password_2",
+            "548805315": "admin_password_3",
+        }
+        # Session storage 
+        self.active_sessions = {}
+
+    def check_auth(self):
+        """Check if user is authenticated"""
+        try:
+            session_id = cherrypy.session.get('session_id')
+            user_id = cherrypy.session.get('user_id')
+        except AttributeError:
+            # Sessions not configured properly
+            return False
+        
+        if not session_id or not user_id:
+            return False
+            
+        # Check if session is valid and not expired
+        if session_id in self.active_sessions:
+            session_data = self.active_sessions[session_id]
+            if session_data['user_id'] == user_id and session_data['expires'] > datetime.now():
+                return True
+            else:
+                # Clean up expired session
+                del self.active_sessions[session_id]
+                
+        return False
+    
+    def require_auth(self):
+        """Redirect to login if not authenticated"""
+        if not self.check_auth():
+            raise cherrypy.HTTPRedirect("/login")
+    
+    @cherrypy.expose
+    def login(self, username=None, password=None):
+        """Login page and authentication handler"""
+        error_message = ""
+        
+        if cherrypy.request.method == "POST":
+            if username and password:
+                # Verify credentials
+                if username in self.authorized_users and self.authorized_users[username] == password:
+                    # Create session
+                    session_id = secrets.token_urlsafe(32)
+                    expires = datetime.now() + timedelta(hours=8)  # 8-hour session
+                    
+                    self.active_sessions[session_id] = {
+                        'user_id': username,
+                        'expires': expires,
+                        'created': datetime.now()
+                    }
+                    
+                    # Set session cookies
+                    cherrypy.session['session_id'] = session_id
+                    cherrypy.session['user_id'] = username
+                    
+                    # Get user info for welcome message
+                    try:
+                        user_response = requests.get(f"http://catalog:5001/users/{username}", timeout=5)
+                        if user_response.status_code == 200:
+                            user_data = user_response.json()
+                            cherrypy.session['user_name'] = user_data.get('full_name', 'Admin User')
+                        else:
+                            cherrypy.session['user_name'] = 'Admin User'
+                    except:
+                        cherrypy.session['user_name'] = 'Admin User'
+                    
+                    raise cherrypy.HTTPRedirect("/")
+                else:
+                    error_message = "Invalid credentials. Please try again."
+            else:
+                error_message = "Please enter both username and password."
+        
+        return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel - Login</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        .login-container {{
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 100%;
+        }}
+        .login-header {{
+            text-align: center;
+            margin-bottom: 30px;
+        }}
+        .login-header h1 {{
+            color: #2c3e50;
+            margin: 0;
+            font-size: 28px;
+        }}
+        .login-header p {{
+            color: #666;
+            margin: 10px 0 0 0;
+        }}
+        .form-group {{
+            margin-bottom: 20px;
+        }}
+        label {{
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }}
+        input[type="text"], input[type="password"] {{
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }}
+        input[type="text"]:focus, input[type="password"]:focus {{
+            border-color: #3498db;
+            outline: none;
+        }}
+        .login-btn {{
+            background: #3498db;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            cursor: pointer;
+            transition: background 0.3s;
+        }}
+        .login-btn:hover {{
+            background: #2980b9;
+        }}
+        .error {{
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }}
+        .info {{
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 20px;
+            border: 1px solid #c3e6cb;
+            font-size: 14px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Health Monitoring</h1>
+            <p>Admin Dashboard Access</p>
+        </div>
+        
+        {f'<div class="error">{error_message}</div>' if error_message else ''}
+        
+        <form method="post" action="/login">
+            <div class="form-group">
+                <label for="username">Telegram User ID:</label>
+                <input type="text" id="username" name="username" required 
+                       placeholder="Enter your Telegram user ID" value="{username or ''}">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="Enter your password">
+            </div>
+            
+            <button type="submit" class="login-btn">Login to Dashboard</button>
+        </form>
+        
+        <div class="info">
+            <strong>Authorized Personnel Only</strong><br>
+            Use your Telegram user ID as username. Contact system administrator for access.
+        </div>
+    </div>
+</body>
+</html>
+        """
+    
+    @cherrypy.expose
+    def logout(self):
+        """Logout handler"""
+        try:
+            session_id = cherrypy.session.get('session_id')
+            if session_id and session_id in self.active_sessions:
+                del self.active_sessions[session_id]
+            cherrypy.session.clear()
+        except:
+            pass
+        raise cherrypy.HTTPRedirect("/login")
+
     @cherrypy.expose
     def index(self):
+        """Main dashboard - requires authentication"""
+        self.require_auth()
+        
+        user_name = cherrypy.session.get('user_name', 'Admin User')
+        user_id = cherrypy.session.get('user_id', 'Unknown')
+        
+        cherrypy.response.headers['Content-Type'] = 'text/html'
+        return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Monitoring Admin Panel</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
+        .header {{ background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }}
+        .auth-info {{ background: #3498db; color: white; padding: 10px 20px; margin: -20px -20px 20px -20px; }}
+        .nav {{ display: flex; gap: 20px; margin-bottom: 20px; }}
+        .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }}
+        .nav a:hover {{ background: #2980b9; }}
+        .logout-btn {{ background: #e74c3c; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; float: right; }}
+        .logout-btn:hover {{ background: #c0392b; }}
+        .card {{ background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }}
+        .stat-box {{ text-align: center; padding: 20px; background: #ecf0f1; border-radius: 8px; }}
+        .stat-number {{ font-size: 2em; font-weight: bold; color: #2c3e50; }}
+        .alert {{ background: #e74c3c; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; }}
+        .success {{ background: #27ae60; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; }}
+    </style>
+</head>
+<body>
+    <div class="auth-info">
+        Welcome, <strong>{user_name}</strong> (ID: {user_id})
+        <a href="/logout" class="logout-btn">Logout</a>
+        <div style="clear: both;"></div>
+    </div>
+    
+    <div class="header">
+        <h1>Health Monitoring System - Admin Panel</h1>
+        <p>Centralized management for healthcare providers and system monitoring</p>
+    </div>
+    
+    <div class="nav">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/doctor_registration">Register Doctor</a>
+        <a href="/manage_doctors">Manage Doctors</a>
+        <a href="/patient_overview">Patient Overview</a>
+        <a href="/reports">Generate Reports</a>
+    </div>
+    
+</body>
+</html>
+        """
+
+    @cherrypy.expose
+    def index_old(self):
         cherrypy.response.headers['Content-Type'] = 'text/html'
         return """
 <!DOCTYPE html>
@@ -100,6 +369,7 @@ class AdminPanel:
 
     @cherrypy.expose
     def dashboard(self):
+        self.require_auth()
         try:
             # Get system statistics
             users_response = requests.get("http://catalog:5001/users", timeout=10)
@@ -555,6 +825,7 @@ class AdminPanel:
         
     @cherrypy.expose
     def manage_doctors(self):
+        self.require_auth()
         try:
             # Get all doctors from the catalog
             response = requests.get("http://catalog:5001/doctors", timeout=10)
@@ -624,6 +895,7 @@ class AdminPanel:
 
     @cherrypy.expose
     def view_doctor_patients(self, doctor_id):
+        self.require_auth()
         try:
             # Get doctor info
             doctor_response = requests.get(f"http://catalog:5001/users/{doctor_id}", timeout=10)
@@ -720,6 +992,7 @@ class AdminPanel:
 
     @cherrypy.expose
     def patient_overview(self):
+        self.require_auth()
         try:
             # Get all users
             users_response = requests.get("http://catalog:5001/users", timeout=10)
@@ -910,9 +1183,9 @@ class AdminPanel:
             print(f"Error getting health status for user {user_id}: {e}")
             return "Error", "N/A"
 
-
     @cherrypy.expose
     def reports(self):
+        self.require_auth()
         return """
 <!DOCTYPE html>
 <html>
@@ -1004,6 +1277,7 @@ class AdminPanel:
 
     @cherrypy.expose
     def generate_patient_report(self):
+        self.require_auth()
         try:
             users_response = requests.get("http://catalog:5001/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
@@ -1095,6 +1369,7 @@ class AdminPanel:
 
     @cherrypy.expose
     def generate_doctor_report(self):
+        self.require_auth()
         try:
             users_response = requests.get("http://catalog:5001/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
@@ -1194,6 +1469,7 @@ class AdminPanel:
 
     @cherrypy.expose 
     def generate_system_report(self):
+        self.require_auth()
         try:
             users_response = requests.get("http://catalog:5001/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
@@ -1266,6 +1542,7 @@ class AdminPanel:
     
     @cherrypy.expose
     def sensorInfo(self, user_id, hours=24):
+        self.require_auth()
         """Get user sensor data through database adapter with optional time filtering"""
         try:
             # Get database adapter service info from catalog
@@ -1484,6 +1761,8 @@ class AdminPanel:
 
     @cherrypy.expose
     def report(self, user_id, hours=24):
+        self.require_auth()
+
         """Get user health data as JSON through database adapter"""
         cherrypy.response.headers['Content-Type'] = 'application/json'
         
@@ -1565,7 +1844,6 @@ class AdminPanel:
 
     @cherrypy.expose
     def doctor_registration(self):
-        # Your existing implementation with enhanced styling
         return """
 <!DOCTYPE html>
 <html>
@@ -1773,33 +2051,40 @@ class AdminPanel:
 
 if __name__ == "__main__":
     # Register the service
-    response = requests.post(
-        f"http://catalog:5001/services/",
-        json={
-            "adminPanel": {
-                "url": "http://admin_panel",
-                "port": 9000,
-                "endpoints": {
-                    "GET /": "Admin panel home page",
-                    "GET /dashboard": "System dashboard with statistics",
-                    "GET /doctor_registration": "Doctor registration form",
-                    "POST /register_doctor_web": "Process doctor registration",
-                    "GET /manage_doctors": "View and manage all doctors",
-                    "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
-                    "GET /patient_overview": "Overview of all patients",
-                    "GET /system_alerts": "View system alerts and notifications",
-                    "GET /emergency_alerts": "View emergency health alerts",
-                    "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-                    "GET /report/<userid>": "get user sensor data by id => json"
+    try:
+        response = requests.post(
+            f"http://catalog:5001/services/",
+            json={
+                "adminPanel": {
+                    "url": "http://admin_panel",
+                    "port": 9000,
+                    "endpoints": {
+                        "GET /": "Admin panel home page",
+                        "GET /login": "Admin login page",
+                        "POST /login": "Process admin login",
+                        "GET /logout": "Admin logout",
+                        "GET /dashboard": "System dashboard with statistics",
+                        "GET /doctor_registration": "Doctor registration form",
+                        "POST /register_doctor_web": "Process doctor registration",
+                        "GET /manage_doctors": "View and manage all doctors",
+                        "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
+                        "GET /patient_overview": "Overview of all patients",
+                        "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
+                        "GET /report/<userid>": "get user sensor data by id => json"
+                    }
                 }
             }
-        }
-    )
+        )
+    except:
+        pass
     
     cherrypy.config.update({
         "server.socket_host": "0.0.0.0",
         "server.socket_port": 9000,
         "tools.response_headers.on": True,
-        "tools.response_headers.headers": [("Content-Type", "text/html")]
+        "tools.response_headers.headers": [("Content-Type", "text/html")],
+        "tools.sessions.on": True,
+        "tools.sessions.timeout": 480,  # 8 hours in minutes
+        "tools.sessions.storage_class": cherrypy.lib.sessions.RamSession,
     })
     cherrypy.quickstart(AdminPanel())

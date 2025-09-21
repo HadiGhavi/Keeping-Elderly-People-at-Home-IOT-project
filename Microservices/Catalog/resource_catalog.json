@@ -8,9 +8,18 @@
             "user_chat_id": 567890123,
             "full_name": "James Thompson",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 444555666,
             "user_type": "patient"
@@ -19,9 +28,18 @@
             "user_chat_id": 678901234,
             "full_name": "Patricia Wilson",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 444555666,
             "user_type": "patient"
@@ -30,9 +48,18 @@
             "user_chat_id": 123456789,
             "full_name": "John Smith",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 111222333,
             "user_type": "patient"
@@ -41,9 +68,18 @@
             "user_chat_id": 234567890,
             "full_name": "Linda Johnson",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 111222333,
             "user_type": "patient"
@@ -52,9 +88,18 @@
             "user_chat_id": 345678901,
             "full_name": "Michael Brown",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 111222333,
             "user_type": "patient"
@@ -63,9 +108,18 @@
             "user_chat_id": 789012345,
             "full_name": "Elizabeth Garcia",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 987654321,
             "user_type": "patient"
@@ -74,9 +128,18 @@
             "user_chat_id": 890123456,
             "full_name": "Robert Miller",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": null,
             "user_type": "patient"
@@ -85,9 +148,18 @@
             "user_chat_id": 901234567,
             "full_name": "Jennifer Davis",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": null,
             "user_type": "patient"
@@ -96,9 +168,18 @@
             "user_chat_id": 135792468,
             "full_name": "Kevin Martinez",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 777888999,
             "user_type": "patient"
@@ -107,9 +188,18 @@
             "user_chat_id": 246813579,
             "full_name": "Amanda Taylor",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 777888999,
             "user_type": "patient"
@@ -118,9 +208,18 @@
             "user_chat_id": 456789012,
             "full_name": "Sarah Chen",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 987654321,
             "user_type": "patient"
@@ -129,9 +228,18 @@
             "user_chat_id": 357924680,
             "full_name": "David Anderson",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 159357258,
             "user_type": "patient"
@@ -140,9 +248,18 @@
             "user_chat_id": 468013579,
             "full_name": "Maria Rodriguez",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 159357258,
             "user_type": "patient"
@@ -151,9 +268,18 @@
             "user_chat_id": 579124680,
             "full_name": "Thomas Lee",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 258741369,
             "user_type": "patient"
@@ -162,9 +288,18 @@
             "user_chat_id": 680235791,
             "full_name": "Nancy White",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 258741369,
             "user_type": "patient"
@@ -173,9 +308,18 @@
             "user_chat_id": 791346802,
             "full_name": "Christopher Harris",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 258741369,
             "user_type": "patient"
@@ -184,9 +328,18 @@
             "user_chat_id": 802457913,
             "full_name": "Jessica Moore",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 369852147,
             "user_type": "patient"
@@ -195,9 +348,18 @@
             "user_chat_id": 913568024,
             "full_name": "William Jackson",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 369852147,
             "user_type": "patient"
@@ -206,9 +368,18 @@
             "user_chat_id": 204679135,
             "full_name": "Barbara Martin",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 147258369,
             "user_type": "patient"
@@ -217,9 +388,18 @@
             "user_chat_id": 135780246,
             "full_name": "Richard Thompson",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 147258369,
             "user_type": "patient"
@@ -228,9 +408,18 @@
             "user_chat_id": 246891357,
             "full_name": "Susan Lewis",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": 147258369,
             "user_type": "patient"
@@ -239,9 +428,18 @@
             "user_chat_id": 357902468,
             "full_name": "Joseph Walker",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": null,
             "user_type": "patient"
@@ -250,9 +448,18 @@
             "user_chat_id": 468013579,
             "full_name": "Dorothy Hall",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": null,
             "user_type": "patient"
@@ -261,9 +468,18 @@
             "user_chat_id": 579124681,
             "full_name": "Kenneth Allen",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": null,
             "user_type": "patient"
@@ -272,9 +488,18 @@
             "user_chat_id": 680235792,
             "full_name": "Lisa Young",
             "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"},
-                {"id": 3, "name": "heart_rate"}
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
             ],
             "doctor_id": null,
             "user_type": "patient"
@@ -285,7 +510,10 @@
             "user_type": "doctor",
             "specialization": "Pediatrics",
             "hospital": "Children's Medical Center",
-            "patients": [789012345, 456789012]
+            "patients": [
+                789012345,
+                456789012
+            ]
         },
         {
             "user_chat_id": 111222333,
@@ -293,7 +521,11 @@
             "user_type": "doctor",
             "specialization": "Internal Medicine",
             "hospital": "City General Hospital",
-            "patients": [123456789, 234567890, 345678901]
+            "patients": [
+                123456789,
+                234567890,
+                345678901
+            ]
         },
         {
             "user_chat_id": 444555666,
@@ -301,7 +533,10 @@
             "user_type": "doctor",
             "specialization": "Emergency Medicine",
             "hospital": "Metro Emergency Center",
-            "patients": [567890123, 678901234]
+            "patients": [
+                567890123,
+                678901234
+            ]
         },
         {
             "user_chat_id": 777888999,
@@ -309,7 +544,10 @@
             "user_type": "doctor",
             "specialization": "Geriatrics",
             "hospital": "Senior Care Medical Center",
-            "patients": [135792468, 246813579]
+            "patients": [
+                135792468,
+                246813579
+            ]
         },
         {
             "user_chat_id": 159357258,
@@ -317,7 +555,10 @@
             "user_type": "doctor",
             "specialization": "Pulmonology",
             "hospital": "Respiratory Health Institute",
-            "patients": [357924680, 468013579]
+            "patients": [
+                357924680,
+                468013579
+            ]
         },
         {
             "user_chat_id": 258741369,
@@ -325,7 +566,11 @@
             "user_type": "doctor",
             "specialization": "Endocrinology",
             "hospital": "Diabetes & Hormone Clinic",
-            "patients": [579124680, 680235791, 791346802]
+            "patients": [
+                579124680,
+                680235791,
+                791346802
+            ]
         },
         {
             "user_chat_id": 369852147,
@@ -333,7 +578,10 @@
             "user_type": "doctor",
             "specialization": "Cardiology",
             "hospital": "Heart & Vascular Institute",
-            "patients": [802457913, 913568024]
+            "patients": [
+                802457913,
+                913568024
+            ]
         },
         {
             "user_chat_id": 147258369,
@@ -341,7 +589,11 @@
             "user_type": "doctor",
             "specialization": "Neurology",
             "hospital": "Neurological Sciences Center",
-            "patients": [204679135, 135780246, 246891357]
+            "patients": [
+                204679135,
+                135780246,
+                246891357
+            ]
         },
         {
             "user_chat_id": 963852741,
@@ -374,6 +626,46 @@
             "specialization": "Dermatology",
             "hospital": "Skin Health Clinic",
             "patients": []
+        },
+        {
+            "user_chat_id": 548805315,
+            "full_name": "Riccardo Fida",
+            "sensors": [
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
+            ],
+            "doctor_id": null,
+            "user_type": "patient"
+        },
+        {
+            "user_chat_id": 6378242947,
+            "full_name": "<Hadi>",
+            "sensors": [
+                {
+                    "id": 1,
+                    "name": "temp"
+                },
+                {
+                    "id": 2,
+                    "name": "oxygen"
+                },
+                {
+                    "id": 3,
+                    "name": "heart_rate"
+                }
+            ],
+            "doctor_id": null,
+            "user_type": "patient"
         }
     ],
     "services": {

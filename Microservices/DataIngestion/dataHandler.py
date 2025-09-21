@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from ClassificationAlgorithm.test_process import HealthStatePredictor
+from ClassificationAlgorithm.HealthStatePredictor import HealthStatePredictor
 from Microservices.DataIngestion.mqttConnector import MQTTService
 from Microservices.DataIngestion.config import Config
 import time
