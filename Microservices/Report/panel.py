@@ -1090,7 +1090,7 @@ class AdminPanel:
             return f"<h1>Error</h1><p>{str(e)}</p>"
 
     def get_patient_health_status(self, user_id):
-        """Get patient's latest health status and last reading from database adapter"""
+        """Get patient's latest health status and last readings for all vital signs"""
         try:
             # Get database adapter service info from catalog
             adapter_service = requests.get("http://catalog:5001/services/databaseAdapter", timeout=5)
@@ -1128,10 +1128,15 @@ class AdminPanel:
             # Sort by time (newest first)
             sensor_data.sort(key=lambda x: x.get('time', ''), reverse=True)
             
-            # Find the most recent state entry
+            # Track latest readings for each vital sign
             latest_state = None
-            latest_reading = None
+            latest_readings = {
+                'temp': None,
+                'heart_rate': None,
+                'oxygen': None
+            }
             
+            # Process all entries to find latest of each type
             for entry in sensor_data:
                 field = entry.get('field')
                 value = entry.get('value')
@@ -1141,8 +1146,8 @@ class AdminPanel:
                 if field == 'state' and not latest_state:
                     latest_state = value
                 
-                # Get the most recent reading (any field)
-                if not latest_reading:
+                # Look for vital signs we haven't found yet
+                if field in latest_readings and latest_readings[field] is None:
                     try:
                         # Format the time
                         if isinstance(time_str, str):
@@ -1152,12 +1157,29 @@ class AdminPanel:
                         else:
                             formatted_time = "Unknown"
                         
-                        latest_reading = f"{field}: {value} ({formatted_time})"
-                    except:
-                        latest_reading = f"{field}: {value}"
+                        # Format value based on field type
+                        if field == 'temp':
+                            formatted_value = f"{value}°C"
+                            display_name = "Temp"
+                        elif field == 'heart_rate':
+                            formatted_value = f"{value} BPM"
+                            display_name = "HR"
+                        elif field == 'oxygen':
+                            formatted_value = f"{value}%"
+                            display_name = "O2"
+                        else:
+                            formatted_value = str(value)
+                            display_name = field
+                        
+                        latest_readings[field] = f"{display_name}: {formatted_value} ({formatted_time})"
+                        
+                    except Exception as e:
+                        # Fallback formatting if time parsing fails
+                        latest_readings[field] = f"{field}: {value}"
                 
-                # Break if we have both
-                if latest_state and latest_reading:
+                # Check if we have everything we need
+                if (latest_state and 
+                    all(latest_readings[field] is not None for field in latest_readings)):
                     break
             
             # Determine health status
@@ -1172,17 +1194,26 @@ class AdminPanel:
                     status = latest_state.title()
             else:
                 # If no state field, try to infer from recent data
-                if len(sensor_data) > 0:
+                if any(latest_readings[field] is not None for field in latest_readings):
                     status = "Active"
                 else:
                     status = "No Data"
             
-            return status, latest_reading or "N/A"
+            # Combine all available readings into a single string
+            available_readings = [reading for reading in latest_readings.values() if reading is not None]
+            
+            if available_readings:
+                # Join readings with " | " separator for compact display
+                combined_readings = " | ".join(available_readings)
+            else:
+                combined_readings = "N/A"
+            
+            return status, combined_readings
             
         except Exception as e:
             print(f"Error getting health status for user {user_id}: {e}")
             return "Error", "N/A"
-
+        
     @cherrypy.expose
     def reports(self):
         self.require_auth()

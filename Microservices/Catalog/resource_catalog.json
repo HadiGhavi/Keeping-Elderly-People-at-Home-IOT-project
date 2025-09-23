@@ -425,86 +425,6 @@
             "user_type": "patient"
         },
         {
-            "user_chat_id": 357902468,
-            "full_name": "Joseph Walker",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 468013579,
-            "full_name": "Dorothy Hall",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 579124681,
-            "full_name": "Kenneth Allen",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 680235792,
-            "full_name": "Lisa Young",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
-        },
-        {
             "user_chat_id": 987654321,
             "full_name": "Dr. Emily Carter",
             "user_type": "doctor",
@@ -594,38 +514,6 @@
                 135780246,
                 246891357
             ]
-        },
-        {
-            "user_chat_id": 963852741,
-            "full_name": "Dr. Yuki Tanaka",
-            "user_type": "doctor",
-            "specialization": "Orthopedics",
-            "hospital": "Sports Medicine & Joint Center",
-            "patients": []
-        },
-        {
-            "user_chat_id": 852741963,
-            "full_name": "Dr. Isabella Romano",
-            "user_type": "doctor",
-            "specialization": "Psychiatry",
-            "hospital": "Mental Health & Wellness Center",
-            "patients": []
-        },
-        {
-            "user_chat_id": 741852963,
-            "full_name": "Dr. Michael Chen",
-            "user_type": "doctor",
-            "specialization": "Ophthalmology",
-            "hospital": "Vision Care Medical Center",
-            "patients": []
-        },
-        {
-            "user_chat_id": 654987321,
-            "full_name": "Dr. Sarah Johnson",
-            "user_type": "doctor",
-            "specialization": "Dermatology",
-            "hospital": "Skin Health Clinic",
-            "patients": []
         },
         {
             "user_chat_id": 548805315,

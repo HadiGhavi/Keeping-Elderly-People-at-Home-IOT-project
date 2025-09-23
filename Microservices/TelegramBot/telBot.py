@@ -482,7 +482,7 @@ def get_chart_data_for(user_id: int, max_hours: int = 24):
         return False, "Unexpected error while fetching chart data.", None
 
 def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: int = 24):
-    """Generate chart from user sensor data - server-side filtered"""
+    """Generate chart using time-based averaging with proper data type handling"""
     if not CHARTS_AVAILABLE:
         return False, "Chart functionality not available - missing dependencies.", None
         
@@ -496,98 +496,211 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
         if df.empty:
             return False, "No data available for chart generation.", None
         
-        # Convert time column to datetime
+        # Convert time column to datetime and set as index
         df['time'] = pd.to_datetime(df['time'])
         df = df.sort_values('time')
         
-        # Set up the plot with basic style
+        # DEBUG: Check data types and content
+        print(f"Original data shape: {df.shape}")
+        print(f"Unique fields: {df['field'].unique()}")
+        print(f"Value column data types: {df['value'].apply(type).unique()}")
+        
+        # CRITICAL: Separate numeric and non-numeric data BEFORE any operations
+        numeric_fields = ['temp', 'heart_rate', 'oxygen']
+        
+        # Filter and convert numeric data
+        numeric_df = df[df['field'].isin(numeric_fields)].copy()
+        
+        if not numeric_df.empty:
+            # Convert values to numeric, errors='coerce' converts invalid values to NaN
+            numeric_df['value'] = pd.to_numeric(numeric_df['value'], errors='coerce')
+            
+            # Remove rows with NaN values
+            numeric_df = numeric_df.dropna(subset=['value'])
+            
+            print(f"Numeric data shape after cleaning: {numeric_df.shape}")
+        
+        # Handle categorical data separately
+        categorical_df = df[df['field'] == 'state'].copy()
+        
+        # AGGREGATION based on time period
+        if max_hours <= 24:
+            resample_freq = '5min'
+            sample_info = "5-minute averages"
+        elif max_hours <= 48:
+            resample_freq = '15min'
+            sample_info = "15-minute averages"
+        elif max_hours <= 72:
+            resample_freq = '30min'
+            sample_info = "30-minute averages"
+        else:
+            resample_freq = '2H'
+            sample_info = "2-hour averages"
+        
+        aggregated_data = []
+        
+        # Process ONLY numeric fields with averaging
+        if not numeric_df.empty:
+            for field in numeric_fields:
+                field_data = numeric_df[numeric_df['field'] == field].copy()
+                if not field_data.empty:
+                    # Set time as index for resampling
+                    field_data = field_data.set_index('time')
+                    
+                    # Resample with robust aggregation
+                    try:
+                        resampled = field_data['value'].resample(resample_freq).agg({
+                            'mean': 'mean',
+                            'min': 'min', 
+                            'max': 'max',
+                            'count': 'count'
+                        }).dropna()
+                        
+                        for timestamp, row in resampled.iterrows():
+                            if row['count'] > 0:
+                                aggregated_data.append({
+                                    'time': timestamp,
+                                    'field': field,
+                                    'value': float(row['mean']),  # Ensure float
+                                    'min_value': float(row['min']),
+                                    'max_value': float(row['max']),
+                                    'sample_count': int(row['count'])
+                                })
+                    except Exception as field_error:
+                        print(f"Error processing field {field}: {field_error}")
+                        continue
+        
+        # Process categorical data (health states) separately
+        if not categorical_df.empty:
+            categorical_df = categorical_df.set_index('time')
+            try:
+                # Find most common state in each time window
+                resampled_states = categorical_df['value'].resample(resample_freq).apply(
+                    lambda x: x.mode().iloc[0] if not x.empty and len(x.mode()) > 0 else None
+                ).dropna()
+                
+                for timestamp, state_value in resampled_states.items():
+                    if state_value is not None:
+                        aggregated_data.append({
+                            'time': timestamp,
+                            'field': 'state',
+                            'value': str(state_value),  # Keep as string
+                            'min_value': str(state_value),
+                            'max_value': str(state_value),
+                            'sample_count': 1
+                        })
+            except Exception as state_error:
+                print(f"Error processing health states: {state_error}")
+        
+        # Convert back to DataFrame
+        if not aggregated_data:
+            return False, "No valid data available after aggregation.", None
+            
+        agg_df = pd.DataFrame(aggregated_data)
+        print(f"Final aggregated data shape: {agg_df.shape}")
+        
+        # Set up the plot
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         
-        # Update title to show time range
         time_range_text = f"Last {max_hours} hours" if max_hours < 48 else f"Last {max_hours//24} days"
-        fig.suptitle(f'Health Monitoring Dashboard - User {user_id} ({time_range_text})', 
+        fig.suptitle(f'Health Monitoring Dashboard - User {user_id} ({time_range_text})\n{sample_info}', 
                     fontsize=16, fontweight='bold')
         
         # Temperature chart
-        temp_data = df[df['field'] == 'temp']
+        temp_data = agg_df[agg_df['field'] == 'temp'].copy()
         if not temp_data.empty:
-            axes[0, 0].plot(temp_data['time'], temp_data['value'], 'r-', linewidth=2, marker='o', markersize=4)
-            axes[0, 0].set_title('Body Temperature (°C)', fontweight='bold')
-            axes[0, 0].set_ylabel('Temperature (°C)')
-            axes[0, 0].grid(True, alpha=0.3)
-            axes[0, 0].axhline(y=37, color='orange', linestyle='--', alpha=0.7, label='Normal limit')
-            axes[0, 0].axhline(y=39, color='red', linestyle='--', alpha=0.7, label='Danger limit')
-            axes[0, 0].legend()
+            # Ensure numeric values
+            temp_data['value'] = pd.to_numeric(temp_data['value'], errors='coerce')
+            temp_data['min_value'] = pd.to_numeric(temp_data['min_value'], errors='coerce')
+            temp_data['max_value'] = pd.to_numeric(temp_data['max_value'], errors='coerce')
+            temp_data = temp_data.dropna()
             
+            if not temp_data.empty:
+                axes[0, 0].plot(temp_data['time'], temp_data['value'], 'r-', linewidth=2, label='Average')
+                axes[0, 0].fill_between(temp_data['time'], temp_data['min_value'], temp_data['max_value'], 
+                                       alpha=0.2, color='red', label='Range')
+                axes[0, 0].set_title('Body Temperature (°C)', fontweight='bold')
+                axes[0, 0].set_ylabel('Temperature (°C)')
+                axes[0, 0].grid(True, alpha=0.3)
+                axes[0, 0].axhline(y=37, color='orange', linestyle='--', alpha=0.7)
+                axes[0, 0].axhline(y=39, color='red', linestyle='--', alpha=0.7)
+                axes[0, 0].legend()
+        
         # Heart Rate chart
-        hr_data = df[df['field'] == 'heart_rate']
+        hr_data = agg_df[agg_df['field'] == 'heart_rate'].copy()
         if not hr_data.empty:
-            axes[0, 1].plot(hr_data['time'], hr_data['value'], 'g-', linewidth=2, marker='o', markersize=4)
-            axes[0, 1].set_title('Heart Rate (BPM)', fontweight='bold')
-            axes[0, 1].set_ylabel('BPM')
-            axes[0, 1].grid(True, alpha=0.3)
-            axes[0, 1].axhline(y=60, color='blue', linestyle='--', alpha=0.7, label='Lower normal')
-            axes[0, 1].axhline(y=100, color='orange', linestyle='--', alpha=0.7, label='Upper normal')
-            axes[0, 1].legend()
+            hr_data['value'] = pd.to_numeric(hr_data['value'], errors='coerce')
+            hr_data['min_value'] = pd.to_numeric(hr_data['min_value'], errors='coerce')
+            hr_data['max_value'] = pd.to_numeric(hr_data['max_value'], errors='coerce')
+            hr_data = hr_data.dropna()
             
+            if not hr_data.empty:
+                axes[0, 1].plot(hr_data['time'], hr_data['value'], 'g-', linewidth=2, label='Average')
+                axes[0, 1].fill_between(hr_data['time'], hr_data['min_value'], hr_data['max_value'], 
+                                       alpha=0.2, color='green', label='Range')
+                axes[0, 1].set_title('Heart Rate (BPM)', fontweight='bold')
+                axes[0, 1].set_ylabel('BPM')
+                axes[0, 1].grid(True, alpha=0.3)
+                axes[0, 1].axhline(y=60, color='blue', linestyle='--', alpha=0.7)
+                axes[0, 1].axhline(y=100, color='orange', linestyle='--', alpha=0.7)
+                axes[0, 1].legend()
+        
         # Oxygen Level chart
-        oxygen_data = df[df['field'] == 'oxygen']
+        oxygen_data = agg_df[agg_df['field'] == 'oxygen'].copy()
         if not oxygen_data.empty:
-            axes[1, 0].plot(oxygen_data['time'], oxygen_data['value'], 'b-', linewidth=2, marker='o', markersize=4)
-            axes[1, 0].set_title('Oxygen Saturation (%)', fontweight='bold')
-            axes[1, 0].set_ylabel('SpO2 (%)')
-            axes[1, 0].grid(True, alpha=0.3)
-            axes[1, 0].axhline(y=95, color='orange', linestyle='--', alpha=0.7, label='Normal limit')
-            axes[1, 0].axhline(y=90, color='red', linestyle='--', alpha=0.7, label='Danger limit')
-            axes[1, 0].legend()
+            oxygen_data['value'] = pd.to_numeric(oxygen_data['value'], errors='coerce')
+            oxygen_data['min_value'] = pd.to_numeric(oxygen_data['min_value'], errors='coerce')
+            oxygen_data['max_value'] = pd.to_numeric(oxygen_data['max_value'], errors='coerce')
+            oxygen_data = oxygen_data.dropna()
             
-        # Health State chart (categorical)
-        state_data = df[df['field'] == 'state']
+            if not oxygen_data.empty:
+                axes[1, 0].plot(oxygen_data['time'], oxygen_data['value'], 'b-', linewidth=2, label='Average')
+                axes[1, 0].fill_between(oxygen_data['time'], oxygen_data['min_value'], oxygen_data['max_value'], 
+                                       alpha=0.2, color='blue', label='Range')
+                axes[1, 0].set_title('Oxygen Saturation (%)', fontweight='bold')
+                axes[1, 0].set_ylabel('SpO2 (%)')
+                axes[1, 0].grid(True, alpha=0.3)
+                axes[1, 0].axhline(y=95, color='orange', linestyle='--', alpha=0.7)
+                axes[1, 0].axhline(y=90, color='red', linestyle='--', alpha=0.7)
+                axes[1, 0].legend()
+        
+        # Health State chart
+        state_data = agg_df[agg_df['field'] == 'state'].copy()
         if not state_data.empty:
-            # Map states to numbers for plotting
             state_mapping = {'normal': 0, 'risky': 1, 'dangerous': 2}
-            state_data = state_data.copy()
+            # Convert states to numbers for plotting
             state_data['state_num'] = state_data['value'].map(state_mapping)
+            state_data = state_data.dropna(subset=['state_num'])
             
-            colors = ['green' if x == 0 else 'orange' if x == 1 else 'red' for x in state_data['state_num']]
-            axes[1, 1].scatter(state_data['time'], state_data['state_num'], c=colors, s=50, alpha=0.7)
-            axes[1, 1].set_title('Health State', fontweight='bold')
-            axes[1, 1].set_ylabel('State')
-            axes[1, 1].set_yticks([0, 1, 2])
-            axes[1, 1].set_yticklabels(['Normal', 'Risky', 'Dangerous'])
-            axes[1, 1].grid(True, alpha=0.3)
-            
-        # Format x-axis for all subplots with better tick control
+            if not state_data.empty:
+                colors = ['green' if x == 0 else 'orange' if x == 1 else 'red' for x in state_data['state_num']]
+                axes[1, 1].scatter(state_data['time'], state_data['state_num'], c=colors, s=40, alpha=0.8)
+                axes[1, 1].set_title('Health State (Mode per Window)', fontweight='bold')
+                axes[1, 1].set_ylabel('State')
+                axes[1, 1].set_yticks([0, 1, 2])
+                axes[1, 1].set_yticklabels(['Normal', 'Risky', 'Dangerous'])
+                axes[1, 1].grid(True, alpha=0.3)
+        
+        # Time formatting (same as before)
         for ax in axes.flat:
-            if len(ax.get_lines()) > 0 or len(ax.collections) > 0:  # Only format if there's data
-                
-                # Set appropriate time formatting based on data range
+            if len(ax.get_lines()) > 0 or len(ax.collections) > 0:
                 if max_hours <= 24:
-                    # For 24-hour view, show every hour
-                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-                    ax.xaxis.set_minor_locator(mdates.MinuteLocator(interval=30))
-                elif max_hours <= 72:
-                    # For 3-day view, show every 4 hours
                     ax.xaxis.set_major_locator(mdates.HourLocator(interval=4))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                elif max_hours <= 48:
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=8))
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
-                    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=6))
                 else:
-                    # For longer periods, show daily
                     ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
-                    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=12))
                 
-                # Rotate labels for better readability
-                ax.tick_params(axis='x', rotation=45, labelsize=8)
-                
-        plt.tight_layout()
+                ax.tick_params(axis='x', rotation=45, labelsize=9)
         
-        # Save plot to bytes buffer
+        plt.tight_layout()
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
         buf.seek(0)
-        plt.close()  # Important: close the figure to free memory
+        plt.close()
         
         return True, "Chart generated successfully.", buf
         
@@ -595,10 +708,9 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
         logger.error(f"Error generating chart: {e}")
         logger.error(traceback.format_exc())
         return False, f"Chart generation failed: {str(e)}", None
-    
-       
-async def send_chart_to_user(update, context, user_id: int):
-    """Send chart image to user via Telegram"""
+      
+async def send_chart_to_user(update, context, user_id: int, max_hours: int = 24):
+    """Send chart image to user via Telegram with specified time period"""
     if not CHARTS_AVAILABLE:
         await update.callback_query.edit_message_text("Chart functionality disabled - missing matplotlib/pandas dependencies")
         return
@@ -607,16 +719,29 @@ async def send_chart_to_user(update, context, user_id: int):
         # Show typing action
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_photo")
         
-        ok, msg, chart_buffer = generate_chart_for(user_id)
+        # Generate chart with specified time period
+        ok, msg, chart_buffer = generate_chart_for(user_id, max_hours=max_hours)
         if not ok or not chart_buffer:
             await update.callback_query.edit_message_text(f"❌ {msg}")
             return
+        
+        # Determine time period text for caption
+        if max_hours == 24:
+            period_text = "24 hours"
+        elif max_hours == 48:
+            period_text = "48 hours"
+        elif max_hours == 72:
+            period_text = "72 hours"
+        elif max_hours == 168:
+            period_text = "1 week"
+        else:
+            period_text = f"{max_hours} hours"
         
         # Send the chart as photo
         await context.bot.send_photo(
             chat_id=update.effective_chat.id,
             photo=chart_buffer,
-            caption=f"📊 Health monitoring chart for user {user_id}\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            caption=f"📊 Health monitoring chart for user {user_id} (Last {period_text})\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         
         # Edit the original message
@@ -626,7 +751,6 @@ async def send_chart_to_user(update, context, user_id: int):
         logger.error(f"Error sending chart: {e}")
         logger.error(traceback.format_exc())
         await update.callback_query.edit_message_text(f"❌ Failed to send chart: {str(e)}")
-
 
 # =========================
 # Telegram Handlers
@@ -751,7 +875,35 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text if ok else "❌ " + text, parse_mode="HTML")
 
         elif query.data == "get_chart":
-            await send_chart_to_user(update, context, chat_id)
+            # Show time period selection instead of immediately generating chart
+            keyboard = [
+                [InlineKeyboardButton("📊 Last 24 hours", callback_data=f"get_chart_24h_{chat_id}")],
+                [InlineKeyboardButton("📊 Last 48 hours", callback_data=f"get_chart_48h_{chat_id}")],
+                [InlineKeyboardButton("📊 Last 72 hours", callback_data=f"get_chart_72h_{chat_id}")],
+                [InlineKeyboardButton("📊 Last week", callback_data=f"get_chart_week_{chat_id}")],
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+            ]
+            await query.edit_message_text(
+                "📈 Select chart time period:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+        # Add new handlers for different time periods
+        elif query.data.startswith("get_chart_24h_"):
+            user_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, user_id, max_hours=24)
+
+        elif query.data.startswith("get_chart_48h_"):
+            user_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, user_id, max_hours=48)
+
+        elif query.data.startswith("get_chart_72h_"):
+            user_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, user_id, max_hours=72)
+
+        elif query.data.startswith("get_chart_week_"):
+            user_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, user_id, max_hours=168)  # 7 days * 24 hours
 
         elif query.data == "delete_profile":
             keyboard = [
@@ -907,11 +1059,55 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await query.edit_message_text("Access denied - patient not assigned to you.")
                     return
                 
-                await send_chart_to_user(update, context, patient_id)
+                # Show time period selection for doctor
+                keyboard = [
+                    [InlineKeyboardButton("📊 Last 24 hours", callback_data=f"doctor_chart_24h_{patient_id}")],
+                    [InlineKeyboardButton("📊 Last 48 hours", callback_data=f"doctor_chart_48h_{patient_id}")],
+                    [InlineKeyboardButton("📊 Last 72 hours", callback_data=f"doctor_chart_72h_{patient_id}")],
+                    [InlineKeyboardButton("📊 Last week", callback_data=f"doctor_chart_week_{patient_id}")],
+                    [InlineKeyboardButton("❌ Back", callback_data=f"doctor_view_patient_{patient_id}")]
+                ]
+                await query.edit_message_text(
+                    f"📈 Select chart time period for patient {patient_id}:",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
                 
             except (ValueError, IndexError) as e:
                 logger.error(f"Error parsing patient ID for chart: {e}")
                 await query.edit_message_text("Invalid patient selection.")
+
+        # Add doctor chart time period handlers
+        elif query.data.startswith("doctor_chart_24h_") and is_doctor(chat_id):
+            patient_id = int(query.data.split("_")[-1])
+            doctor_patients = get_doctor_patients(chat_id)
+            if any(p['user_chat_id'] == patient_id for p in doctor_patients):
+                await send_chart_to_user(update, context, patient_id, max_hours=24)
+            else:
+                await query.edit_message_text("Access denied.")
+
+        elif query.data.startswith("doctor_chart_48h_") and is_doctor(chat_id):
+            patient_id = int(query.data.split("_")[-1])
+            doctor_patients = get_doctor_patients(chat_id)
+            if any(p['user_chat_id'] == patient_id for p in doctor_patients):
+                await send_chart_to_user(update, context, patient_id, max_hours=48)
+            else:
+                await query.edit_message_text("Access denied.")
+
+        elif query.data.startswith("doctor_chart_72h_") and is_doctor(chat_id):
+            patient_id = int(query.data.split("_")[-1])
+            doctor_patients = get_doctor_patients(chat_id)
+            if any(p['user_chat_id'] == patient_id for p in doctor_patients):
+                await send_chart_to_user(update, context, patient_id, max_hours=72)
+            else:
+                await query.edit_message_text("Access denied.")
+
+        elif query.data.startswith("doctor_chart_week_") and is_doctor(chat_id):
+            patient_id = int(query.data.split("_")[-1])
+            doctor_patients = get_doctor_patients(chat_id)
+            if any(p['user_chat_id'] == patient_id for p in doctor_patients):
+                await send_chart_to_user(update, context, patient_id, max_hours=168)
+            else:
+                await query.edit_message_text("Access denied.")
 
         elif query.data.startswith("doctor_start_patient_") and is_doctor(chat_id):
             try:
@@ -981,40 +1177,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode="HTML"
                 )
 
-            """ elif query.data == "doctor_patient_charts" and is_doctor(chat_id):
-                patients = get_doctor_patients(chat_id)
-                if not patients:
-                    await query.edit_message_text("No patients assigned to you.")
-                    return
-                
-                keyboard = []
-                for patient in patients:
-                    keyboard.append([InlineKeyboardButton(
-                        f"📈 {patient['full_name']} Chart",
-                        callback_data=f"doctor_patient_chart_{patient['user_chat_id']}"
-                    )])
-                keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="doctor_menu")])
-                
-                await query.edit_message_text(
-                    "Select patient to view chart:",
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
-
-            elif query.data == "doctor_alert_settings" and is_doctor(chat_id):
-                keyboard = [
-                    [InlineKeyboardButton("🚨 Critical Alerts: ON", callback_data="toggle_critical_alerts")],
-                    [InlineKeyboardButton("⚠️ Warning Alerts: ON", callback_data="toggle_warning_alerts")],
-                    [InlineKeyboardButton("📱 SMS Notifications: OFF", callback_data="toggle_sms_alerts")],
-                    [InlineKeyboardButton("⬅️ Back", callback_data="doctor_menu")]
-                ]
-                
-                await query.edit_message_text(
-                    "🔔 Alert Settings:\n\n"
-                    "Configure which notifications you want to receive for your patients.\n\n"
-                    "Current Settings:",
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                ) """
-
         elif query.data == "doctor_profile" and is_doctor(chat_id):
             user_data = api_get(f"users/{chat_id}")
             if user_data:
@@ -1048,8 +1210,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [
                 [InlineKeyboardButton("👥 My Patients", callback_data="doctor_patients")],
                 [InlineKeyboardButton("📊 Monitor All Patients", callback_data="doctor_monitor_all")],
-                #[InlineKeyboardButton("📈 Patient Charts", callback_data="doctor_patient_charts")],
-                #[InlineKeyboardButton("🔔 Alert Settings", callback_data="doctor_alert_settings")],
                 [InlineKeyboardButton("👤 My Profile", callback_data="doctor_profile")]
             ]
             
@@ -1322,7 +1482,35 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif query.data.startswith("admin_get_chart_") and admin_mode:
             target_id = int(query.data.split("_")[-1])
-            await send_chart_to_user(update, context, target_id)
+            # Show time period selection for admin
+            keyboard = [
+                [InlineKeyboardButton("📊 Last 24 hours", callback_data=f"admin_chart_24h_{target_id}")],
+                [InlineKeyboardButton("📊 Last 48 hours", callback_data=f"admin_chart_48h_{target_id}")],
+                [InlineKeyboardButton("📊 Last 72 hours", callback_data=f"admin_chart_72h_{target_id}")],
+                [InlineKeyboardButton("📊 Last week", callback_data=f"admin_chart_week_{target_id}")],
+                [InlineKeyboardButton("❌ Back", callback_data=f"admin_user_{target_id}")]
+            ]
+            await query.edit_message_text(
+                f"📈 Select chart time period for user {target_id}:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+        # Add admin chart time period handlers
+        elif query.data.startswith("admin_chart_24h_") and admin_mode:
+            target_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, target_id, max_hours=24)
+
+        elif query.data.startswith("admin_chart_48h_") and admin_mode:
+            target_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, target_id, max_hours=48)
+
+        elif query.data.startswith("admin_chart_72h_") and admin_mode:
+            target_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, target_id, max_hours=72)
+
+        elif query.data.startswith("admin_chart_week_") and admin_mode:
+            target_id = int(query.data.split("_")[-1])
+            await send_chart_to_user(update, context, target_id, max_hours=168)
 
         elif query.data.startswith("admin_delete_user_") and admin_mode:
             target_id = int(query.data.split("_")[-1])
