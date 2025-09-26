@@ -415,8 +415,9 @@ def format_health_report(data, user_id):
     
     return "\n".join(report_lines)
 
-def get_chart_data_for(user_id: int, max_hours: int = 24):
-    """Get raw sensor data for chart generation through database adapter"""
+
+def get_aggregated_chart_data_for(user_id: int, max_hours: int = 24):
+    """Get aggregated sensor data for chart generation through database adapter"""
     if not CHARTS_AVAILABLE:
         return False, "Chart functionality not available - missing dependencies.", None
         
@@ -428,176 +429,77 @@ def get_chart_data_for(user_id: int, max_hours: int = 24):
         url = adapter_service["url"]
         port = adapter_service.get("port")
         
-        # Use query parameters for time filtering
-        endpoint = f"/read/{user_id}"
-        params = {"hours": max_hours}  # Server-side filtering!
+        # Use the new aggregated endpoint
+        endpoint = f"/aggregated/{user_id}"
+        params = {"hours": max_hours}
         full_url = f"{url}:{port}{endpoint}" if port else f"{url}{endpoint}"
         
-        logger.info(f"Fetching chart data from database adapter: {full_url} (last {max_hours} hours)")
+        logger.info(f"Fetching aggregated chart data: {full_url} (last {max_hours} hours)")
         
         response = requests.get(full_url, params=params, timeout=15)
         
         if response.status_code == 200:
             try:
-                raw_data = response.json()
+                result = response.json()
                 
-                if not raw_data:
-                    return True, "No data found for charts.", None
-                
-                if isinstance(raw_data, dict) and not raw_data.get("success", True):
-                    error_message = raw_data.get("message", "Unknown error from database adapter")
+                if not result.get("success", False):
+                    error_message = result.get("message", "Unknown error from database adapter")
                     logger.error(f"Database adapter error: {error_message}")
-                    logger.error(f"Full error response: {raw_data}")  # Additional debug info
                     return False, f"Database error: {error_message}", None
                 
-                # Extract the actual data - already filtered by server!
-                if isinstance(raw_data, dict) and "data" in raw_data:
-                    data = raw_data["data"]
-                else:
-                    data = raw_data
-                
-                if isinstance(data, str):
-                    data = json.loads(data)
+                data = result.get("data", [])
                 
                 if not data:
-                    return True, f"No data found for the last {max_hours} hours.", None
+                    return True, f"No aggregated data found for the last {max_hours} hours.", None
                     
-                return True, "Data retrieved successfully.", data
+                return True, "Aggregated data retrieved successfully.", {
+                    "data": data,
+                    "sample_info": result.get("sample_info", "aggregated data"),
+                    "aggregation_frequency": result.get("aggregation_frequency", "unknown")
+                }
                 
             except json.JSONDecodeError as e:
-                logger.error(f"Error parsing chart data JSON: {e}")
-                return False, "Error parsing chart data.", None
+                logger.error(f"Error parsing aggregated data JSON: {e}")
+                return False, "Error parsing aggregated data.", None
             except Exception as e:
-                logger.error(f"Error processing chart data: {e}")
-                return False, "Error processing chart data.", None
+                logger.error(f"Error processing aggregated data: {e}")
+                return False, "Error processing aggregated data.", None
         else:
-            logger.warning(f"Chart data fetch failed: {response.status_code} - {response.text}")
-            return False, f"Failed to fetch data (HTTP {response.status_code}).", None
+            logger.warning(f"Aggregated data fetch failed: {response.status_code} - {response.text}")
+            return False, f"Failed to fetch aggregated data (HTTP {response.status_code}).", None
             
     except requests.RequestException as e:
-        logger.error(f"Request error fetching chart data: {e}")
+        logger.error(f"Request error fetching aggregated data: {e}")
         return False, "Error connecting to database adapter service.", None
     except Exception as e:
-        logger.error(f"Unexpected error fetching chart data: {e}")
-        return False, "Unexpected error while fetching chart data.", None
+        logger.error(f"Unexpected error fetching aggregated data: {e}")
+        return False, "Unexpected error while fetching aggregated data.", None
 
 def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: int = 24):
-    """Generate chart using time-based averaging with proper data type handling"""
+    """Generate chart using server-side aggregated data"""
     if not CHARTS_AVAILABLE:
         return False, "Chart functionality not available - missing dependencies.", None
         
-    ok, msg, data = get_chart_data_for(user_id, max_hours)
-    if not ok or not data:
+    # Get aggregated data from database adapter service
+    ok, msg, result = get_aggregated_chart_data_for(user_id, max_hours)
+    if not ok or not result:
         return False, msg, None
     
     try:
-        # Convert to DataFrame for easier manipulation
-        df = pd.DataFrame(data)
-        if df.empty:
-            return False, "No data available for chart generation.", None
+        aggregated_data = result["data"]
+        sample_info = result["sample_info"]
         
-        # Convert time column to datetime and set as index
-        df['time'] = pd.to_datetime(df['time'])
-        df = df.sort_values('time')
-        
-        # DEBUG: Check data types and content
-        print(f"Original data shape: {df.shape}")
-        print(f"Unique fields: {df['field'].unique()}")
-        print(f"Value column data types: {df['value'].apply(type).unique()}")
-        
-        # CRITICAL: Separate numeric and non-numeric data BEFORE any operations
-        numeric_fields = ['temp', 'heart_rate', 'oxygen']
-        
-        # Filter and convert numeric data
-        numeric_df = df[df['field'].isin(numeric_fields)].copy()
-        
-        if not numeric_df.empty:
-            # Convert values to numeric, errors='coerce' converts invalid values to NaN
-            numeric_df['value'] = pd.to_numeric(numeric_df['value'], errors='coerce')
-            
-            # Remove rows with NaN values
-            numeric_df = numeric_df.dropna(subset=['value'])
-            
-            print(f"Numeric data shape after cleaning: {numeric_df.shape}")
-        
-        # Handle categorical data separately
-        categorical_df = df[df['field'] == 'state'].copy()
-        
-        # AGGREGATION based on time period
-        if max_hours <= 24:
-            resample_freq = '5min'
-            sample_info = "5-minute averages"
-        elif max_hours <= 48:
-            resample_freq = '15min'
-            sample_info = "15-minute averages"
-        elif max_hours <= 72:
-            resample_freq = '30min'
-            sample_info = "30-minute averages"
-        else:
-            resample_freq = '2H'
-            sample_info = "2-hour averages"
-        
-        aggregated_data = []
-        
-        # Process ONLY numeric fields with averaging
-        if not numeric_df.empty:
-            for field in numeric_fields:
-                field_data = numeric_df[numeric_df['field'] == field].copy()
-                if not field_data.empty:
-                    # Set time as index for resampling
-                    field_data = field_data.set_index('time')
-                    
-                    # Resample with robust aggregation
-                    try:
-                        resampled = field_data['value'].resample(resample_freq).agg({
-                            'mean': 'mean',
-                            'min': 'min', 
-                            'max': 'max',
-                            'count': 'count'
-                        }).dropna()
-                        
-                        for timestamp, row in resampled.iterrows():
-                            if row['count'] > 0:
-                                aggregated_data.append({
-                                    'time': timestamp,
-                                    'field': field,
-                                    'value': float(row['mean']),  # Ensure float
-                                    'min_value': float(row['min']),
-                                    'max_value': float(row['max']),
-                                    'sample_count': int(row['count'])
-                                })
-                    except Exception as field_error:
-                        print(f"Error processing field {field}: {field_error}")
-                        continue
-        
-        # Process categorical data (health states) separately
-        if not categorical_df.empty:
-            categorical_df = categorical_df.set_index('time')
-            try:
-                # Find most common state in each time window
-                resampled_states = categorical_df['value'].resample(resample_freq).apply(
-                    lambda x: x.mode().iloc[0] if not x.empty and len(x.mode()) > 0 else None
-                ).dropna()
-                
-                for timestamp, state_value in resampled_states.items():
-                    if state_value is not None:
-                        aggregated_data.append({
-                            'time': timestamp,
-                            'field': 'state',
-                            'value': str(state_value),  # Keep as string
-                            'min_value': str(state_value),
-                            'max_value': str(state_value),
-                            'sample_count': 1
-                        })
-            except Exception as state_error:
-                print(f"Error processing health states: {state_error}")
-        
-        # Convert back to DataFrame
         if not aggregated_data:
-            return False, "No valid data available after aggregation.", None
-            
+            return False, "No aggregated data available for chart generation.", None
+        
+        # Convert to DataFrame for plotting
         agg_df = pd.DataFrame(aggregated_data)
+        
+        # Convert time strings back to datetime for plotting
+        agg_df['time'] = pd.to_datetime(agg_df['time'])
+        
         print(f"Final aggregated data shape: {agg_df.shape}")
+        print(f"Sample info: {sample_info}")
         
         # Set up the plot
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
@@ -609,7 +511,7 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
         # Temperature chart
         temp_data = agg_df[agg_df['field'] == 'temp'].copy()
         if not temp_data.empty:
-            # Ensure numeric values
+            # Convert to numeric and handle any non-numeric values
             temp_data['value'] = pd.to_numeric(temp_data['value'], errors='coerce')
             temp_data['min_value'] = pd.to_numeric(temp_data['min_value'], errors='coerce')
             temp_data['max_value'] = pd.to_numeric(temp_data['max_value'], errors='coerce')
@@ -622,13 +524,12 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
                 axes[0, 0].set_title('Body Temperature (°C)', fontweight='bold')
                 axes[0, 0].set_ylabel('Temperature (°C)')
                 axes[0, 0].grid(True, alpha=0.3)
-                axes[0, 0].axhline(y=37, color='orange', linestyle='--', alpha=0.7)
-                axes[0, 0].axhline(y=39, color='red', linestyle='--', alpha=0.7)
                 axes[0, 0].legend()
         
         # Heart Rate chart
         hr_data = agg_df[agg_df['field'] == 'heart_rate'].copy()
         if not hr_data.empty:
+            # Convert to numeric and handle any non-numeric values
             hr_data['value'] = pd.to_numeric(hr_data['value'], errors='coerce')
             hr_data['min_value'] = pd.to_numeric(hr_data['min_value'], errors='coerce')
             hr_data['max_value'] = pd.to_numeric(hr_data['max_value'], errors='coerce')
@@ -641,13 +542,12 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
                 axes[0, 1].set_title('Heart Rate (BPM)', fontweight='bold')
                 axes[0, 1].set_ylabel('BPM')
                 axes[0, 1].grid(True, alpha=0.3)
-                axes[0, 1].axhline(y=60, color='blue', linestyle='--', alpha=0.7)
-                axes[0, 1].axhline(y=100, color='orange', linestyle='--', alpha=0.7)
                 axes[0, 1].legend()
         
         # Oxygen Level chart
         oxygen_data = agg_df[agg_df['field'] == 'oxygen'].copy()
         if not oxygen_data.empty:
+            # Convert to numeric and handle any non-numeric values
             oxygen_data['value'] = pd.to_numeric(oxygen_data['value'], errors='coerce')
             oxygen_data['min_value'] = pd.to_numeric(oxygen_data['min_value'], errors='coerce')
             oxygen_data['max_value'] = pd.to_numeric(oxygen_data['max_value'], errors='coerce')
@@ -660,40 +560,45 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
                 axes[1, 0].set_title('Oxygen Saturation (%)', fontweight='bold')
                 axes[1, 0].set_ylabel('SpO2 (%)')
                 axes[1, 0].grid(True, alpha=0.3)
-                axes[1, 0].axhline(y=95, color='orange', linestyle='--', alpha=0.7)
-                axes[1, 0].axhline(y=90, color='red', linestyle='--', alpha=0.7)
                 axes[1, 0].legend()
         
-        # Health State chart
+        # Health State chart - now using weighted priority aggregation
         state_data = agg_df[agg_df['field'] == 'state'].copy()
         if not state_data.empty:
             state_mapping = {'normal': 0, 'risky': 1, 'dangerous': 2}
-            # Convert states to numbers for plotting
+            state_colors = {'normal': 'green', 'risky': 'orange', 'dangerous': 'red'}
+            
+            # Convert states to numbers and colors for plotting
             state_data['state_num'] = state_data['value'].map(state_mapping)
+            colors = [state_colors.get(state, 'gray') for state in state_data['value']]
+            
             state_data = state_data.dropna(subset=['state_num'])
             
             if not state_data.empty:
-                colors = ['green' if x == 0 else 'orange' if x == 1 else 'red' for x in state_data['state_num']]
-                axes[1, 1].scatter(state_data['time'], state_data['state_num'], c=colors, s=40, alpha=0.8)
-                axes[1, 1].set_title('Health State (Mode per Window)', fontweight='bold')
+                axes[1, 1].scatter(state_data['time'], state_data['state_num'], c=colors, s=50, alpha=0.8)
+                axes[1, 1].set_title('Health State (Weighted Priority)', fontweight='bold')
                 axes[1, 1].set_ylabel('State')
                 axes[1, 1].set_yticks([0, 1, 2])
                 axes[1, 1].set_yticklabels(['Normal', 'Risky', 'Dangerous'])
                 axes[1, 1].grid(True, alpha=0.3)
+                
         
-        # Time formatting (same as before)
+        # Time formatting
         for ax in axes.flat:
             if len(ax.get_lines()) > 0 or len(ax.collections) > 0:
                 if max_hours <= 24:
-                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=4))
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
                 elif max_hours <= 48:
-                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=8))
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
+                elif max_hours <= 72:
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=4))
                     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
                 else:
-                    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
-                
+                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=12))
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
+
                 ax.tick_params(axis='x', rotation=45, labelsize=9)
         
         plt.tight_layout()
@@ -702,13 +607,17 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
         buf.seek(0)
         plt.close()
         
-        return True, "Chart generated successfully.", buf
+        return True, "Chart generated successfully using server-side aggregation.", buf
         
     except Exception as e:
-        logger.error(f"Error generating chart: {e}")
+        logger.error(f"Error generating chart from aggregated data: {e}")
         logger.error(traceback.format_exc())
         return False, f"Chart generation failed: {str(e)}", None
-      
+    
+def get_chart_data_for(user_id: int, max_hours: int = 24):
+    """Legacy function - redirects to aggregated data endpoint"""
+    return get_aggregated_chart_data_for(user_id, max_hours)
+
 async def send_chart_to_user(update, context, user_id: int, max_hours: int = 24):
     """Send chart image to user via Telegram with specified time period"""
     if not CHARTS_AVAILABLE:
