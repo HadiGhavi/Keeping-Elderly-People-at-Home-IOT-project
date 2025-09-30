@@ -252,22 +252,3 @@ if __name__ == "__main__":
     # Get database info
     info = db_service.get_database_info()
     print(f"Current database: {info}")
-    
-    # Write sample health data
-    success, message = db_service.write_health_data(
-        user_id="123456",
-        user_name="John Doe", 
-        temp=36.5,
-        heart_rate=75,
-        oxygen=98.0,
-        state="normal"
-    )
-    print(f"Write result: {success}, {message}")
-    
-    # Query user data
-    success, data = db_service.get_user_health_data("327834")
-    print(f"Query result: {success}, found {len(data) if success else 0} records")
-    
-    # List available adapters
-    adapters = db_service.get_available_adapters()
-    print(f"Available adapters: {adapters}")

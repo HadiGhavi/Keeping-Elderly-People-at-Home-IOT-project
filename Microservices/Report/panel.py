@@ -276,101 +276,33 @@ class AdminPanel:
         """
 
     @cherrypy.expose
-    def index_old(self):
-        cherrypy.response.headers['Content-Type'] = 'text/html'
-        return """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Health Monitoring Admin Panel</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .header { background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }
-        .nav { display: flex; gap: 20px; margin-bottom: 20px; }
-        .nav a { background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
-        .nav a:hover { background: #2980b9; }
-        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-        .stat-box { text-align: center; padding: 20px; background: #ecf0f1; border-radius: 8px; }
-        .stat-number { font-size: 2em; font-weight: bold; color: #2c3e50; }
-        .alert { background: #e74c3c; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; }
-        .success { background: #27ae60; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Health Monitoring System - Admin Panel</h1>
-        <p>Centralized management for healthcare providers and system monitoring</p>
-    </div>
-    
-    <div class="nav">
-        <a href="/dashboard">Dashboard</a>
-        <a href="/doctor_registration">Register Doctor</a>
-        <a href="/manage_doctors">Manage Doctors</a>
-        <a href="/patient_overview">Patient Overview</a>
-        <a href="/reports">Generate Reports</a>
-    </div>
-    
-</body>
-</html>
-        """
-
-    @cherrypy.expose
-    def dashboard_old(self):
-        try:
-            # Get system statistics
-            users_response = requests.get("http://catalog:5001/users", timeout=10)
-            doctors_response = requests.get("http://catalog:5001/doctors", timeout=10)
-            
-            total_users = len(users_response.json()) if users_response.status_code == 200 else 0
-            total_doctors = len(doctors_response.json()) if doctors_response.status_code == 200 else 0
-            
-            
-            return f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin Dashboard</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
-        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
-        .stat-box {{ text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .stat-number {{ font-size: 2em; font-weight: bold; color: #2c3e50; }}
-        .card {{ background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .alert {{ background: #e74c3c; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; }}
-        .success {{ background: #27ae60; color: white; padding: 15px; border-radius: 5px; margin: 10px 0; }}
-        .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; }}
-    </style>
-</head>
-<body>
-    <h1>System Dashboard</h1>
-    <a href="/">← Back to Main Menu</a>
-    
-    <div class="stats">
-        <div class="stat-box">
-            <div class="stat-number">{total_users}</div>
-            <div>Total Users</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number">{total_doctors}</div>
-            <div>Registered Doctors</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number">Online</div>
-            <div>System Status</div>
-        </div>
-    </div>
-    
-</body>
-</html>
-            """
-        except Exception as e:
-            return f"<h1>Dashboard Error</h1><p>{str(e)}</p>"
-
-    @cherrypy.expose
     def dashboard(self):
         self.require_auth()
         try:
+            # Helper function to check service health
+            def check_service(url, timeout=3):
+                try:
+                    response = requests.get(url, timeout=timeout)
+                    return {
+                        'status': 'online' if response.status_code == 200 else 'degraded',
+                        'response_time': round(response.elapsed.total_seconds() * 1000, 0)  # ms
+                    }
+                except requests.exceptions.Timeout:
+                    return {'status': 'timeout', 'response_time': timeout * 1000}
+                except requests.exceptions.ConnectionError:
+                    return {'status': 'offline', 'response_time': None}
+                except:
+                    return {'status': 'error', 'response_time': None}
+            
+            # Check all services
+            service_checks = {
+                'Catalog Service': check_service('http://catalog:5001/'),
+                'Database Adapter': check_service('http://database_adapter:3000/'),
+                'Data Ingestion': check_service('http://data_ingestion:2500/'),
+                'Notification Service': check_service('http://notification:1500/'),
+                'Admin Panel': {'status': 'online', 'response_time': 0}  # Current service
+            }
+            
             # Get system statistics
             users_response = requests.get("http://catalog:5001/users", timeout=10)
             doctors_response = requests.get("http://catalog:5001/doctors", timeout=10)
@@ -400,14 +332,14 @@ class AdminPanel:
                 else:
                     no_data_patients += 1
             
-            # Get recent critical alerts (patients with critical status)
+            # Get recent critical alerts
             critical_alerts = ""
             alert_count = 0
+            
             for patient in patients:
                 status, last_reading = self.get_patient_health_status(patient['user_chat_id'])
                 if status == "Critical":
                     alert_count += 1
-                    # Get doctor info
                     doctor_name = "Unassigned"
                     if patient.get('doctor_id'):
                         try:
@@ -419,13 +351,13 @@ class AdminPanel:
                             pass
                     
                     critical_alerts += f"""
-                    <div class="alert">
-                        <strong>CRITICAL:</strong> {patient['full_name']} (ID: {patient['user_chat_id']})
-                        <br><small>Doctor: {doctor_name} | Last: {last_reading}</small>
-                        <div style="margin-top: 5px;">
-                            <a href="/sensorInfo/{patient['user_chat_id']}" style="color: white; text-decoration: underline;">View Details</a>
+                        <div class="alert">
+                            <strong>CRITICAL:</strong> {patient['full_name']} (ID: {patient['user_chat_id']})
+                            <br><small>Doctor: {doctor_name} | Last: {last_reading}</small>
+                            <div style="margin-top: 5px;">
+                                <a href="/sensorInfo/{patient['user_chat_id']}" style="color: white; text-decoration: underline;">View Details</a>
+                            </div>
                         </div>
-                    </div>
                     """
             
             if not critical_alerts:
@@ -435,93 +367,131 @@ class AdminPanel:
             unassigned_patients = len([p for p in patients if not p.get('doctor_id')])
             doctors_with_patients = len([d for d in doctors if len(d.get('patients', [])) > 0])
             
+            # Build system status HTML with real checks
+            system_status_html = ""
+            services_online = 0
+            total_services = len(service_checks)
+            
+            for service_name, check_result in service_checks.items():
+                status = check_result['status']
+                response_time = check_result.get('response_time')
+                
+                if status == 'online':
+                    services_online += 1
+                    status_class = 'service-online'
+                    status_text = f'Online ({int(response_time)}ms)' if response_time else 'Online'
+                elif status == 'timeout':
+                    status_class = 'service-warning'
+                    status_text = 'Timeout'
+                elif status == 'degraded':
+                    services_online += 0.5  # Partially functional
+                    status_class = 'service-warning'
+                    status_text = 'Degraded'
+                elif status == 'unknown':
+                    status_class = 'service-unknown'
+                    status_text = 'Unknown'
+                else:
+                    status_class = 'service-offline'
+                    status_text = 'Offline'
+                
+                system_status_html += f"""
+                    <div class="service-status {status_class}">
+                        <div>{service_name}</div>
+                        <div>{status_text}</div>
+                    </div>
+                """
+            
+            # Overall system health
+            system_health_percentage = (services_online / total_services) * 100
+            
+            if system_health_percentage == 100:
+                system_health_class = 'success'
+                system_health_text = 'All services operational'
+            elif system_health_percentage >= 75:
+                system_health_class = 'info'
+                system_health_text = f'System operational ({int(system_health_percentage)}% services online)'
+            elif system_health_percentage >= 50:
+                system_health_class = 'warning-notice'
+                system_health_text = f'Degraded performance ({int(system_health_percentage)}% services online)'
+            else:
+                system_health_class = 'alert'
+                system_health_text = f'Critical system issues ({int(system_health_percentage)}% services online)'
+            
             return f"""
     <!DOCTYPE html>
     <html>
     <head>
         <title>Health Monitoring Dashboard</title>
         <style>
-            body {{ 
-                font-family: Arial, sans-serif; 
-                margin: 0; 
-                padding: 20px; 
-                background: #f5f5f5; 
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background: #f5f5f5;
             }}
-            
-            .header {{ 
-                background: #2c3e50; 
-                color: white; 
-                padding: 20px; 
-                margin: -20px -20px 20px -20px; 
+            .header {{
+                background: #2c3e50;
+                color: white;
+                padding: 20px;
+                margin: -20px -20px 20px -20px;
                 border-radius: 0 0 8px 8px;
             }}
-            
-            .nav {{ 
-                display: flex; 
-                gap: 15px; 
-                margin-bottom: 30px; 
+            .nav {{
+                display: flex;
+                gap: 15px;
+                margin-bottom: 30px;
                 flex-wrap: wrap;
             }}
-            
-            .nav a {{ 
-                background: #3498db; 
-                color: white; 
-                padding: 12px 20px; 
-                text-decoration: none; 
-                border-radius: 6px; 
+            .nav a {{
+                background: #3498db;
+                color: white;
+                padding: 12px 20px;
+                text-decoration: none;
+                border-radius: 6px;
                 transition: background 0.3s;
                 font-weight: 500;
             }}
-            
-            .nav a:hover {{ 
-                background: #2980b9; 
+            .nav a:hover {{
+                background: #2980b9;
             }}
-            
-            .nav a.active {{ 
-                background: #e74c3c; 
+            .nav a.active {{
+                background: #e74c3c;
             }}
-            
-            .stats {{ 
-                display: grid; 
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-                gap: 20px; 
-                margin-bottom: 30px; 
+            .stats {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
             }}
-            
-            .stat-box {{ 
-                text-align: center; 
-                padding: 25px; 
-                background: white; 
-                border-radius: 8px; 
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            .stat-box {{
+                text-align: center;
+                padding: 25px;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                 transition: transform 0.2s;
             }}
-            
             .stat-box:hover {{
                 transform: translateY(-2px);
             }}
-            
-            .stat-number {{ 
-                font-size: 2.5em; 
-                font-weight: bold; 
-                color: #2c3e50; 
+            .stat-number {{
+                font-size: 2.5em;
+                font-weight: bold;
+                color: #2c3e50;
                 margin-bottom: 10px;
             }}
-            
-            .stat-label {{ 
-                color: #666; 
+            .stat-label {{
+                color: #666;
                 font-size: 14px;
                 text-transform: uppercase;
                 letter-spacing: 1px;
             }}
-            
             .health-stats {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
                 gap: 15px;
                 margin-bottom: 30px;
             }}
-            
             .health-stat {{
                 text-align: center;
                 padding: 20px;
@@ -529,59 +499,51 @@ class AdminPanel:
                 color: white;
                 font-weight: bold;
             }}
-            
             .critical {{ background: #e74c3c; }}
             .warning {{ background: #f39c12; }}
             .normal {{ background: #27ae60; }}
             .no-data {{ background: #95a5a6; }}
-            
-            .card {{ 
-                background: white; 
-                padding: 25px; 
-                margin-bottom: 20px; 
-                border-radius: 8px; 
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            .card {{
+                background: white;
+                padding: 25px;
+                margin-bottom: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             }}
-            
-            .alert {{ 
-                background: #e74c3c; 
-                color: white; 
-                padding: 15px; 
-                border-radius: 6px; 
-                margin: 10px 0; 
+            .alert {{
+                background: #e74c3c;
+                color: white;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 10px 0;
             }}
-            
-            .success {{ 
-                background: #27ae60; 
-                color: white; 
-                padding: 15px; 
-                border-radius: 6px; 
-                margin: 10px 0; 
+            .success {{
+                background: #27ae60;
+                color: white;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 10px 0;
             }}
-            
-            .info {{ 
-                background: #3498db; 
-                color: white; 
-                padding: 15px; 
-                border-radius: 6px; 
-                margin: 10px 0; 
+            .info {{
+                background: #3498db;
+                color: white;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 10px 0;
             }}
-            
-            .warning-notice {{ 
-                background: #f39c12; 
-                color: white; 
-                padding: 15px; 
-                border-radius: 6px; 
-                margin: 10px 0; 
+            .warning-notice {{
+                background: #f39c12;
+                color: white;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 10px 0;
             }}
-            
             .quick-actions {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
                 gap: 20px;
                 margin-top: 20px;
             }}
-            
             .action-card {{
                 background: white;
                 padding: 20px;
@@ -589,7 +551,6 @@ class AdminPanel:
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                 text-align: center;
             }}
-            
             .action-btn {{
                 background: #3498db;
                 color: white;
@@ -600,28 +561,25 @@ class AdminPanel:
                 margin-top: 10px;
                 transition: background 0.3s;
             }}
-            
             .action-btn:hover {{
                 background: #2980b9;
             }}
-            
             .system-status {{
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                 gap: 15px;
                 margin-top: 20px;
             }}
-            
             .service-status {{
                 padding: 15px;
                 border-radius: 6px;
                 text-align: center;
                 font-weight: bold;
             }}
-            
             .service-online {{ background: #d4edda; color: #155724; }}
             .service-offline {{ background: #f8d7da; color: #721c24; }}
-            
+            .service-warning {{ background: #fff3cd; color: #856404; }}
+            .service-unknown {{ background: #e2e3e5; color: #383d41; }}
             .refresh-info {{
                 text-align: center;
                 color: #666;
@@ -630,10 +588,7 @@ class AdminPanel:
             }}
         </style>
         <script>
-            // Auto-refresh every 30 seconds
             setTimeout(function(){{ location.reload(); }}, 30000);
-            
-            // Update timestamp
             function updateTime() {{
                 const now = new Date();
                 document.getElementById('current-time').textContent = now.toLocaleString();
@@ -656,7 +611,6 @@ class AdminPanel:
             <a href="/reports">Generate Reports</a>
         </div>
         
-        <!-- System Statistics -->
         <div class="stats">
             <div class="stat-box">
                 <div class="stat-number">{total_patients}</div>
@@ -676,7 +630,6 @@ class AdminPanel:
             </div>
         </div>
         
-        <!-- Health Status Overview -->
         <div class="card">
             <h2>Patient Health Status Overview</h2>
             <div class="health-stats">
@@ -699,44 +652,21 @@ class AdminPanel:
             </div>
         </div>
         
-        <!-- Critical Alerts -->
         <div class="card">
             <h2>Critical Health Alerts ({alert_count})</h2>
             {critical_alerts}
         </div>
         
-        <!-- System Status -->
         <div class="card">
             <h2>System Status</h2>
+            <div class="{system_health_class}">
+                <strong>System Health:</strong> {system_health_text}
+            </div>
             <div class="system-status">
-                <div class="service-status service-online">
-                    <div>Catalog Service</div>
-                    <div>Online</div>
-                </div>
-                <div class="service-status service-online">
-                    <div>Database Adapter</div>
-                    <div>Connected</div>
-                </div>
-                <div class="service-status service-online">
-                    <div>Data Ingestion</div>
-                    <div>Active</div>
-                </div>
-                <div class="service-status service-online">
-                    <div>Notification Service</div>
-                    <div>Running</div>
-                </div>
-                <div class="service-status service-online">
-                    <div>MQTT Broker</div>
-                    <div>Connected</div>
-                </div>
-                <div class="service-status service-online">
-                    <div>Admin Panel</div>
-                    <div>Online</div>
-                </div>
+                {system_status_html}
             </div>
         </div>
         
-        <!-- Quick Actions -->
         <div class="card">
             <h2>Quick Actions</h2>
             <div class="quick-actions">
@@ -746,19 +676,16 @@ class AdminPanel:
                     <a href="/doctor_registration" class="action-btn">Register Doctor</a>
                     <a href="/manage_doctors" class="action-btn">Manage Doctors</a>
                 </div>
-                
                 <div class="action-card">
                     <h3>Patient Monitoring</h3>
                     <p>View patient data and health monitoring information</p>
                     <a href="/patient_overview" class="action-btn">Patient Overview</a>
                 </div>
-                
                 <div class="action-card">
                     <h3>Reports & Analytics</h3>
                     <p>Generate comprehensive reports and system analytics</p>
                     <a href="/reports" class="action-btn">Generate Reports</a>
                 </div>
-                
                 <div class="action-card">
                     <h3>System Monitoring</h3>
                     <p>Monitor system health and performance metrics</p>
@@ -767,24 +694,18 @@ class AdminPanel:
             </div>
         </div>
         
-        <!-- Recent Activity (if you want to add this in the future) -->
         <div class="card">
             <h2>System Information</h2>
             <div class="info">
-                <strong>System Performance:</strong> All services operational
+                <strong>System Performance:</strong> {int(system_health_percentage)}% of services operational
             </div>
-            
             {('<div class="warning-notice"><strong>Notice:</strong> ' + str(unassigned_patients) + ' patients need doctor assignment</div>') if unassigned_patients > 0 else ''}
-            
             {('<div class="alert"><strong>Alert:</strong> ' + str(critical_patients) + ' patients in critical condition require immediate attention</div>') if critical_patients > 0 else ''}
-            
-            <div class="success">
-                <strong>System Status:</strong> Health monitoring system is fully operational
-            </div>
+            {('<div class="success"><strong>System Status:</strong> Health monitoring system is fully operational</div>') if system_health_percentage == 100 else ''}
         </div>
         
         <div class="refresh-info">
-            Dashboard automatically refreshes every 30 seconds | 
+            Dashboard automatically refreshes every 30 seconds |
             <a href="javascript:location.reload()" style="color: #3498db;">Refresh Now</a>
         </div>
     </body>
@@ -800,7 +721,7 @@ class AdminPanel:
         <style>
             body {{ font-family: Arial, sans-serif; margin: 50px; }}
             .error {{ background: #f8d7da; color: #721c24; padding: 20px; border-radius: 8px; }}
-            .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }}
+            .nav a {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 5px; display: inline-block; }}
         </style>
     </head>
     <body>
@@ -815,14 +736,14 @@ class AdminPanel:
                 <li>Network connectivity problems</li>
             </ul>
         </div>
-        <div style="margin-top: 20px;">
+        <div>
             <a href="/" class="nav">← Back to Main Menu</a>
             <a href="/dashboard" class="nav">Retry Dashboard</a>
         </div>
     </body>
     </html>
             """
-        
+            
     @cherrypy.expose
     def manage_doctors(self):
         self.require_auth()
@@ -1267,40 +1188,6 @@ class AdminPanel:
             </div>
         </div>
         
-        <div class="card">
-            <h2>Custom Reports</h2>
-            <form method="get" action="/generate_custom_report">
-                <div class="form-group">
-                    <label for="report_type">Report Type:</label>
-                    <select id="report_type" name="report_type">
-                        <option value="patient_health">Patient Health Data</option>
-                        <option value="doctor_performance">Doctor Performance</option>
-                        <option value="system_usage">System Usage</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="time_range">Time Range:</label>
-                    <select id="time_range" name="time_range">
-                        <option value="24h">Last 24 Hours</option>
-                        <option value="7d">Last 7 Days</option>
-                        <option value="30d">Last 30 Days</option>
-                        <option value="90d">Last 90 Days</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="format">Export Format:</label>
-                    <select id="format" name="format">
-                        <option value="html">HTML (View in Browser)</option>
-                        <option value="json">JSON (Raw Data)</option>
-                        <option value="csv">CSV (Spreadsheet)</option>
-                    </select>
-                </div>
-                
-                <button type="submit" class="btn">Generate Custom Report</button>
-            </form>
-        </div>
     </div>
 </body>
 </html>
@@ -1498,79 +1385,174 @@ class AdminPanel:
         except Exception as e:
             return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
 
-    @cherrypy.expose 
+
+    @cherrypy.expose
     def generate_system_report(self):
         self.require_auth()
+        
+        # Helper function to check service health
+        def check_service_health(service_url, timeout=5):
+            try:
+                response = requests.get(service_url, timeout=timeout)
+                return {
+                    'status': 'online' if response.status_code == 200 else 'error',
+                    'response_time': response.elapsed.total_seconds(),
+                    'status_code': response.status_code
+                }
+            except requests.exceptions.Timeout:
+                return {'status': 'timeout', 'response_time': timeout, 'status_code': None}
+            except requests.exceptions.ConnectionError:
+                return {'status': 'offline', 'response_time': None, 'status_code': None}
+            except Exception as e:
+                return {'status': 'error', 'response_time': None, 'status_code': None, 'error': str(e)}
+        
         try:
+            # Check all services
+            services_to_check = {
+                'Catalog Service': 'http://catalog:5001/',
+                'Database Adapter': 'http://database_adapter:3000/',
+                'Notification Service': 'http://notification:1500/',
+                'Monitor Service': 'http://monitor:3500/',
+                'Data Ingestion Service': 'http://data_ingestion:2500/'
+            }
+            
+            service_statuses = {}
+            for service_name, url in services_to_check.items():
+                service_statuses[service_name] = check_service_health(url)
+            
+            # Get user statistics
             users_response = requests.get("http://catalog:5001/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
-            
             total_users = len(users)
             doctors = [u for u in users if u.get('user_type') == 'doctor']
             patients = [u for u in users if u.get('user_type') != 'doctor']
             
+            # Check database connection
+            db_status = check_service_health('http://database_adapter:3000/info')
+            
+            # Generate status CSS class
+            def get_status_class(status_info):
+                status = status_info.get('status', 'unknown')
+                if status == 'online':
+                    return 'success'
+                elif status == 'timeout':
+                    return 'warning'
+                else:
+                    return 'alert'
+            
+            def get_status_text(status_info):
+                status = status_info.get('status', 'unknown')
+                if status == 'online':
+                    response_time = status_info.get('response_time', 0)
+                    return f"Online ({response_time:.2f}s)"
+                elif status == 'timeout':
+                    return "Timeout"
+                elif status == 'offline':
+                    return "Offline"
+                else:
+                    return f"Error: {status_info.get('error', 'Unknown')}"
+            
+            # Build service status HTML
+            service_status_html = ""
+            for service_name, status_info in service_statuses.items():
+                status_class = get_status_class(status_info)
+                status_text = get_status_text(status_info)
+                service_status_html += f'<li><strong>{service_name}:</strong> <span class="{status_class}">{status_text}</span></li>\n'
+            
+            # Overall system health
+            all_services_online = all(s.get('status') == 'online' for s in service_statuses.values())
+            system_status_class = 'success' if all_services_online else 'warning'
+            system_status_text = 'All Systems Operational' if all_services_online else 'Some Services Degraded'
+            
+            # Database status
+            db_class = get_status_class(db_status)
+            db_text = get_status_text(db_status)
+            
             return f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>System Health Report</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        .header {{ background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }}
-        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }}
-        .stat-box {{ text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .stat-number {{ font-size: 2em; font-weight: bold; color: #2c3e50; }}
-        .alert {{ background: #e74c3c; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
-        .warning {{ background: #f39c12; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
-        .success {{ background: #27ae60; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
-        .print-btn {{ background: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>System Health Report</h1>
-        <p>System Status Overview - Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
-    </div>
-    
-    <div class="stats">
-        <div class="stat-box">
-            <div class="stat-number">{total_users}</div>
-            <div>Total System Users</div>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>System Health Report</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .header {{ background: #2c3e50; color: white; padding: 20px; margin: -20px -20px 20px -20px; }}
+            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }}
+            .stat-box {{ text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+            .stat-number {{ font-size: 2em; font-weight: bold; color: #2c3e50; }}
+            .alert {{ background: #e74c3c; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
+            .warning {{ background: #f39c12; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
+            .success {{ background: #27ae60; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
+            .unknown {{ background: #95a5a6; color: white; padding: 10px; margin: 5px 0; border-radius: 5px; }}
+            .print-btn {{ background: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }}
+            .refresh-btn {{ background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 5px; }}
+            ul li {{ margin: 10px 0; }}
+            ul li .success {{ display: inline-block; padding: 3px 8px; font-size: 0.9em; }}
+            ul li .warning {{ display: inline-block; padding: 3px 8px; font-size: 0.9em; }}
+            ul li .alert {{ display: inline-block; padding: 3px 8px; font-size: 0.9em; }}
+        </style>
+        <script>
+            // Auto-refresh every 30 seconds
+            setTimeout(function() {{
+                location.reload();
+            }}, 30000);
+        </script>
+    </head>
+    <body>
+        <div class="header">
+            <h1>System Health Report</h1>
+            <p>Live System Status - Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+            <p><small>Auto-refresh in 30 seconds</small></p>
         </div>
-        <div class="stat-box">
-            <div class="stat-number">{len(doctors)}</div>
-            <div>Registered Doctors</div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number">{total_users}</div>
+                <div>Total System Users</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">{len(doctors)}</div>
+                <div>Registered Doctors</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">{len(patients)}</div>
+                <div>Active Patients</div>
+            </div>
         </div>
-        <div class="stat-box">
-            <div class="stat-number">{len(patients)}</div>
-            <div>Active Patients</div>
-        </div>
-    </div>
-    
-    <a href="/reports">← Back to Reports</a>
-    <a href="javascript:window.print()" class="print-btn">Print Report</a>
-    
-    <h2>Recent System Activity</h2>
-    <div class="success">System Status: Operational</div>
-    <div class="success">Database: Connected</div>
-    <div class="success">MQTT Broker: Active</div>
-    <div class="warning">Monitoring Service: Normal Load</div>
-
-    <h2>Service Status</h2>
-    <ul>
-        <li><strong>Catalog Service:</strong> Online</li>
-        <li><strong>Database Adapter:</strong> Online</li>
-        <li><strong>Data Ingestion:</strong> Online</li>
-        <li><strong>Monitor Service:</strong> Online</li>
-        <li><strong>Admin Panel:</strong> Online</li>
-        <li><strong>Notification Service:</strong> Online</li>
-    </ul>
-</body>
-</html>
+        
+        <a href="/reports">← Back to Reports</a>
+        <a href="javascript:location.reload()" class="refresh-btn">Refresh Now</a>
+        <a href="javascript:window.print()" class="print-btn">Print Report</a>
+        
+        <h2>System Status Overview</h2>
+        <div class="{system_status_class}">{system_status_text}</div>
+        <div class="{db_class}">Database: {db_text}</div>
+        
+        <h2>Service Health Status</h2>
+        <ul>
+            {service_status_html}
+        </ul>
+        
+        <h2>Performance Metrics</h2>
+        <ul>
+            <li><strong>Average Response Time:</strong> {sum(s.get('response_time', 0) for s in service_statuses.values() if s.get('response_time')) / len([s for s in service_statuses.values() if s.get('response_time')]):.3f}s</li>
+            <li><strong>Services Online:</strong> {sum(1 for s in service_statuses.values() if s.get('status') == 'online')}/{len(service_statuses)}</li>
+        </ul>
+    </body>
+    </html>
             """
+            
         except Exception as e:
-            return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
-    
+            return f"""
+    <!DOCTYPE html>
+    <html>
+    <head><title>System Report Error</title></head>
+    <body>
+        <h1>Error Generating System Report</h1>
+        <p>Error: {str(e)}</p>
+        <a href="/reports">← Back to Reports</a>
+    </body>
+    </html>
+            """
     @cherrypy.expose
     def sensorInfo(self, user_id, hours=24):
         self.require_auth()

@@ -585,7 +585,10 @@
             "url": "http://data_ingestion",
             "port": 2500,
             "endpoints": {
-                "GET /getUserData/<id>": "get user data from db"
+                "GET /getUserData/<id>": "get user data from db",
+                "GET /database/info": "get database adapter information",
+                "POST /database/switch": "switch database adapter",
+                "GET /database/adapters": "list available database adapters"
             }
         },
         "adminPanel": {
@@ -606,7 +609,7 @@
             ]
         },
         "sensor": {
-            "url": "http://monitor:3500/read/",
+            "url": "http://monitor",
             "port": 3500,
             "endpoints": {
                 "GET /read/<id>": "read sensor value from device",

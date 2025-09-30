@@ -21,7 +21,6 @@ class HumanHealthCatalog:
         with open(self.json_file, 'w') as f:
             json.dump(data, f, indent=4)
     
-    # Updated API documentation in index method
     @cherrypy.expose
     def index(self):
         cherrypy.response.headers['Content-Type'] = 'application/json'
@@ -246,7 +245,7 @@ class HumanHealthCatalog:
                 {"id": 2, "name": "oxygen"}, 
                 {"id": 3, "name": "heart_rate"}
             ],
-            "doctor_id": None,  # Will be assigned when patient adds doctor
+            "doctor_id": None,  
             "user_type": "patient"  
         }
         

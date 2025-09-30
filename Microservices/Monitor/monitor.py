@@ -23,6 +23,7 @@ class Monitor:
             "message": "Sensor API",
             "endpoints": {
                 "GET /read/<id>": "read sensor value from device",
+                "GET /stop/<id>": "stop sensor monitoring for user"
             }
         }).encode('utf-8')
     
@@ -71,16 +72,16 @@ class Monitor:
     def stop(self, chat_id):
         cherrypy.response.headers['Content-Type'] = 'application/json'
 
-        print(f"DEBUG: Stop request received for user {chat_id}")
-        print(f"DEBUG: Active monitors: {list(self.active_monitors.keys())}")
-        print(f"DEBUG: Stop events: {list(self.stop_events.keys())}")
+        #print(f"DEBUG: Stop request received for user {chat_id}")
+        #print(f"DEBUG: Active monitors: {list(self.active_monitors.keys())}")
+        #print(f"DEBUG: Stop events: {list(self.stop_events.keys())}")
 
         try:
             user_id = int(chat_id)
             if user_id in self.stop_events:
                 # Signal the monitoring thread to stop
                 self.stop_events[user_id].set()
-                print(f"DEBUG: Set stop event for user {user_id}")
+                #print(f"DEBUG: Set stop event for user {user_id}")
                 
                 # DON'T delete the stop event here - let the monitoring thread clean up
                 # The monitoring thread will clean up when it sees the stop flag
@@ -187,7 +188,7 @@ if __name__ == "__main__":
         f"http://catalog:5001/services/",
         json={
             "sensor": {
-            "url": "http://monitor:3500/read/",
+            "url": "http://monitor",
             "port": 3500,
             "endpoints": {
                 "GET /read/<id>": "read sensor value from device",

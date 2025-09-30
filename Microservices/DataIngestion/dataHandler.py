@@ -31,7 +31,6 @@ class DataHandler:
             print(f"Warning: Could not load ML model: {e}")
             self.predict = MockPredictor()
         
-        # use HTTP service calls
         self.database_service_url = "http://database_adapter:3000"
         
         # Test database service availability
@@ -56,7 +55,7 @@ class DataHandler:
         cherrypy.response.headers['Content-Type'] = 'application/json'
         
         # Get database info for status
-        db_info = self.database.get_database_info()
+        #db_info = self.database.get_database_info()
         
         return json.dumps({
             "message": "Data handler API - MQTT subscriber running",
@@ -65,7 +64,7 @@ class DataHandler:
                 "GET /database/info": "get database adapter information",
                 "POST /database/switch": "switch database adapter"
             },
-            "database_info": db_info
+            #"database_info": db_info
         }).encode('utf-8')
     
     def _get_user_data(self, user_id: str) -> tuple[bool, list]:
@@ -98,7 +97,7 @@ class DataHandler:
     
     @cherrypy.expose 
     def database(self, action=None):
-        """Database management endpoint - proxy to database service"""
+        """ Database management endpoint """
         cherrypy.response.headers['Content-Type'] = 'application/json'
         
         if action == "info":
@@ -164,9 +163,7 @@ class DataHandler:
         """Process incoming MQTT messages using the database adapter"""
         try:
             json_message = json.loads(message)
-            measurement = topic.split("/")[-1]
-            
-            #print(f"Processing {measurement}: {json_message}")
+            measurement = topic.split("/")[-1] #DEBUG
             
             # Extract sensor values with flexible matching
             available_sensors = {sensor["name"]: sensor for sensor in json_message["sensors"]}

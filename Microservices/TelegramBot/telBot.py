@@ -162,7 +162,16 @@ def _sensor_service_url():
         logger.warning("Sensor service not found in catalog")
         return None
     # normalize trailing slash
-    return svc["url"].rstrip("/")
+    url = svc["url"].rstrip("/")
+    port = svc.get("port")
+    
+    if port:
+        full_url = f"{url}:{port}"
+    else:
+        full_url = url
+    
+    logger.info(f"DEBUG: Sensor service full URL: {full_url}")
+    return full_url
 
 def _database_adapter_service():
     """
@@ -218,12 +227,12 @@ def start_recording_for(user_id: int):
         return False, "Failed to verify user type."
     
     # Now, try to start recording
-    base = _sensor_service_url()
-    if not base:
+    base_url = _sensor_service_url()
+    if not base_url:
         return False, "Sensor service not found."
 
     try:
-        url = f"{base}/{user_id}"
+        url = f"{base_url}/read/{user_id}"
         logger.info(f"Starting recording for user {user_id} at {url}")
         r = requests.get(url, timeout=10)
         if r.status_code == 200:
