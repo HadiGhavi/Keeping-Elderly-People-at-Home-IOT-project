@@ -8,8 +8,9 @@ import cherrypy
 import json
 import pandas as pd
 from datetime import datetime, timedelta
-from config import Config
-
+from Microservices.Common.config import Config
+from Microservices.Common.utils import (
+    register_service_with_catalog)
 class DatabaseAdapterService:
     """ Main CherryPy web service that exposes REST endpoints """
     def __init__(self):
@@ -116,21 +117,21 @@ class DatabaseAdapterService:
                     end_time_dt = datetime.now()
                     start_time_dt = end_time_dt - timedelta(hours=hours_int)
                     time_range = {"start": start_time_dt, "end": end_time_dt}
-                    print(f"DEBUG: Time range created: {start_time_dt} to {end_time_dt}")
+                    #print(f"DEBUG: Time range created: {start_time_dt} to {end_time_dt}")
                 except ValueError as e:
-                    print(f"DEBUG: Hours parameter error: {e}")
+                    #print(f"DEBUG: Hours parameter error: {e}")
                     return json.dumps({
                         "success": False,
                         "message": f"Invalid hours parameter: {hours}",
                         "data": []
                     }).encode('utf-8')
             
-            print(f"DEBUG: Calling get_user_health_data with user_id={user_id}, time_range={time_range}")
+            #print(f"DEBUG: Calling get_user_health_data with user_id={user_id}, time_range={time_range}")
             
             # Get filtered data from database
             success, data = self.database.get_user_health_data(user_id, time_range)
             
-            print(f"DEBUG: Database response: success={success}, data_count={len(data) if isinstance(data, list) else 'N/A'}")
+            #print(f"DEBUG: Database response: success={success}, data_count={len(data) if isinstance(data, list) else 'N/A'}")
             
             return json.dumps({
                 "success": success,
@@ -141,7 +142,6 @@ class DatabaseAdapterService:
             }).encode('utf-8')
             
         except Exception as e:
-            print(f"DEBUG: Exception in read method: {e}")
             import traceback
             traceback.print_exc()
             return json.dumps({
@@ -277,13 +277,6 @@ class DatabaseAdapterService:
                     # Return the state with the highest weighted score
                     best_state = max(weighted_scores.keys(), key=lambda state: weighted_scores[state])
                     
-                    """ # Debug info when there are multiple states
-                    if len(weighted_scores) > 1:
-                        score_info = {state: f"{count}x{STATE_WEIGHTS[state]}={score}" 
-                                    for state, score in weighted_scores.items() 
-                                    for count in [state_counts[state]]}
-                        print(f"Weighted scoring: {score_info} → chose '{best_state}'") """
-                    
                     return best_state
                 
                 try:
@@ -319,7 +312,6 @@ class DatabaseAdapterService:
             }).encode('utf-8')
             
         except Exception as e:
-            print(f"DEBUG: Exception in aggregated method: {e}")
             import traceback
             traceback.print_exc()
             return json.dumps({
@@ -429,25 +421,20 @@ class DatabaseAdapterService:
 
 if __name__ == "__main__":
     #Register the service
-    response = requests.post(
-                "http://catalog:5001/services/",
-                json={
-                    "databaseAdapter": {
-                        "url": "http://database_adapter",
-                        "port": 3000,
-                        "endpoints": {
-                            "POST /write": "write health data to database",
-                            "GET /users": "get all users with health data", 
-                            "GET /read/<user_id>": "get user health data",
-                            "GET /aggregated/<user_id>": "get aggregated user health data for charts",
-                            "DELETE /delete/<user_id>": "delete user data",
-                            "GET /info": "get database adapter information",
-                            "POST /switch": "switch database adapter",
-                            "GET /adapters": "list available adapters"
-                        }
-                    }
-                }
-            )
+    
+    register_service_with_catalog(service_name="databaseAdapter",
+                                  url="http://database_adapter", 
+                                  port=3000,
+                                  endpoints={
+                                      "POST /write": "write health data to database",
+                                      "GET /users": "get all users with health data",
+                                      "GET /read/<user_id>": "get user health data",
+                                      "GET /aggregated/<user_id>": "get aggregated user health data for charts",
+                                      "DELETE /delete/<user_id>": "delete user data",
+                                      "GET /info": "get database adapter information",
+                                      "POST /switch": "switch database adapter",
+                                      "GET /adapters": "list available adapters"
+                                  })
     
     # Configure CherryPy
     cherrypy.config.update({

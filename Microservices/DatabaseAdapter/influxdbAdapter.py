@@ -196,9 +196,6 @@ class InfluxDBAdapter(TimeSeriesAdapter):
             
             flux_query = '\n'.join(query_parts)
             
-            # DEBUG: Print the generated query
-            print(f"DEBUG: Generated Flux query:\n{flux_query}")
-            
             # Execute query
             result = self.query_api.query(flux_query)
             
@@ -286,17 +283,13 @@ class InfluxDBAdapter(TimeSeriesAdapter):
     def get_user_data(self, user_id: str,
                   time_range: Optional[Dict[str, datetime]] = None) -> tuple[bool, Union[List[Dict], str]]:
         """Get all sensor data for a specific user"""
-        print(f"DEBUG: InfluxDBAdapter.get_user_data called with user_id={user_id}, time_range={time_range}")
         
         filters = {"UserId": user_id}
         success, data = self.query_data("value", filters=filters, time_range=time_range)
-        
-        print(f"DEBUG: query_data returned: success={success}, data_type={type(data)}")
-        
+                
         if success and isinstance(data, list):
             # Ensure all datetime objects are serialized
             data = self._serialize_datetime_objects(data)
-            print(f"DEBUG: Serialized data count: {len(data)}")
         
         return success, data
     

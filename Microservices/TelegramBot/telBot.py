@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
 import html
 import json
 import requests
@@ -15,6 +19,8 @@ from telegram.ext import (
 import logging
 import sys
 import traceback
+from Microservices.Common.config import Config
+from Microservices.Common.utils import register_service_with_catalog, ServiceRegistry
 
 try:
     import matplotlib
@@ -51,14 +57,18 @@ print(f"Charts enabled: {CHARTS_AVAILABLE}")
 # =========================
 # Config
 # =========================
-REST_API_URL = "http://catalog:5001"
+catalog_service =  Config.SERVICES["catalog_url"]
 
-TELEGRAM_TOKEN = "6605276431:AAHoPhbbqSSPR7z1VS56c7Cddp34xzvT2Og"
+registry = ServiceRegistry()
+database_service_url = registry.get_service_url("databaseAdapter")
+monitoring_service_url = registry.get_service_url("sensor")
+
+TELEGRAM_TOKEN = Config.TELEGRAM_TOKEN
 
 # Admins (Telegram user IDs)
-ADMINS = [6378242947, 650295422, 6605276431, 548805315]
+#ADMINS = [6378242947, 650295422, 6605276431, 548805315]
 
-print(f"🔧 Configuration loaded. REST API: {REST_API_URL}")
+ADMINS = [int(uid) for uid in Config.ADMIN_USERS.keys()]
 
 
 def is_admin(user_id: int) -> bool:
@@ -85,7 +95,7 @@ def get_doctor_patients(doctor_id: int):
 # ==============
 def api_get(endpoint):
     try:
-        url = f"{REST_API_URL}/{endpoint}"
+        url = f"{catalog_service}/{endpoint}"
         logger.info(f"API GET: {url}")
         r = requests.get(url, timeout=10)
         if r.status_code == 200:
@@ -103,7 +113,7 @@ def api_get(endpoint):
 
 def api_post(endpoint, data):
     try:
-        url = f"{REST_API_URL}/{endpoint}"
+        url = f"{catalog_service}/{endpoint}"
         logger.info(f"API POST: {url}")
         r = requests.post(url, json=data, timeout=10)
         success = r.status_code in (200, 201)
@@ -117,7 +127,7 @@ def api_post(endpoint, data):
 
 def api_put(endpoint, data):
     try:
-        url = f"{REST_API_URL}/{endpoint}"
+        url = f"{catalog_service}/{endpoint}"
         logger.info(f"API PUT: {url}")
         r = requests.put(url, json=data, timeout=10)
         success = r.status_code == 200
@@ -131,7 +141,7 @@ def api_put(endpoint, data):
 
 def api_delete(endpoint):
     try:
-        url = f"{REST_API_URL}/{endpoint}"
+        url = f"{catalog_service}/{endpoint}"
         logger.info(f"API DELETE: {url}")
         r = requests.delete(url, timeout=10)
         success = r.status_code == 200
@@ -147,14 +157,6 @@ def api_delete(endpoint):
 # Service helpers
 # =========================
 
-def _catalog_service():
-    """
-    Get catalog service configuration
-    """
-    return {
-        "url": "http://catalog",
-        "port": 5001
-    }
 
 def _sensor_service_url():
     svc = api_get("services/sensor")
@@ -173,33 +175,6 @@ def _sensor_service_url():
     logger.info(f"DEBUG: Sensor service full URL: {full_url}")
     return full_url
 
-def _database_adapter_service():
-    """
-    Get database adapter service configuration from catalog
-    """
-    try:
-        # Get catalog service info
-        catalog_service = _catalog_service()
-        if not catalog_service:
-            return None
-        
-        catalog_url = catalog_service["url"]
-        catalog_port = catalog_service.get("port")
-        catalog_full_url = f"{catalog_url}:{catalog_port}/services/databaseAdapter" if catalog_port else f"{catalog_url}/services/databaseAdapter"
-        
-        response = requests.get(catalog_full_url, timeout=10)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            logger.warning(f"Failed to get database adapter service info: {response.status_code}")
-            return None
-            
-    except Exception as e:
-        logger.error(f"Error getting database adapter service info: {e}")
-        return None
-
-
 
 def start_recording_for(user_id: int):
     """
@@ -207,7 +182,7 @@ def start_recording_for(user_id: int):
     """
     # First, check if user exists and is a patient
     try:
-        user_response = requests.get(f"http://catalog:5001/users/{user_id}", timeout=5)
+        user_response = requests.get(f"{catalog_service}/users/{user_id}", timeout=5)
         if user_response.status_code != 200:
             logger.warning(f"User {user_id} not found in catalog")
             return False, "User not found in the system."
@@ -278,17 +253,8 @@ def stop_recording_for(user_id: int):
 def get_report_for(user_id: int, max_hours: int = 24):
     """Fetch user report through the database adapter service"""
     try:
-        adapter_service = _database_adapter_service()
-        if not adapter_service:
-            return False, "Database adapter service not found."
-        
-        url = adapter_service["url"]
-        port = adapter_service.get("port")
-        endpoint = f"/read/{user_id}"
-        
-        # Add time filtering 
         params = {"hours": max_hours}
-        full_url = f"{url}:{port}{endpoint}" if port else f"{url}{endpoint}"
+        full_url = f"{database_service_url}/read/{user_id}"
         
         logger.info(f"Fetching report from database adapter: {full_url} (last {max_hours} hours)")
         
@@ -431,18 +397,8 @@ def get_aggregated_chart_data_for(user_id: int, max_hours: int = 24):
         return False, "Chart functionality not available - missing dependencies.", None
         
     try:
-        adapter_service = _database_adapter_service()
-        if not adapter_service:
-            return False, "Database adapter service not found.", None
-        
-        url = adapter_service["url"]
-        port = adapter_service.get("port")
-        
-        # Use the new aggregated endpoint
-        endpoint = f"/aggregated/{user_id}"
         params = {"hours": max_hours}
-        full_url = f"{url}:{port}{endpoint}" if port else f"{url}{endpoint}"
-        
+        full_url = f"{database_service_url}/aggregated/{user_id}"
         logger.info(f"Fetching aggregated chart data: {full_url} (last {max_hours} hours)")
         
         response = requests.get(full_url, params=params, timeout=15)
@@ -740,7 +696,9 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             if CHARTS_AVAILABLE:
                 keyboard.append([InlineKeyboardButton("📈 Get my chart", callback_data="get_chart")])
-            keyboard.append([InlineKeyboardButton("🗑 Remove my profile", callback_data="delete_profile")])
+            keyboard.extend([
+                [InlineKeyboardButton("🗑 Remove my profile", callback_data="delete_profile")]
+            ])
             text = "🛠 Admin Menu:"
         else:
             # Patient menu
@@ -761,6 +719,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in menu command: {e}")
         logger.error(traceback.format_exc())
+
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1604,34 +1563,6 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 
-    """ def test_connectivity():
-        #Test basic connectivity before starting bot
-        print("🔍 Testing connectivity...")
-        
-        # Test catalog service
-        try:
-            response = requests.get(f"{REST_API_URL}/", timeout=5)
-            print(f"✅ Catalog service reachable: {response.status_code}")
-        except Exception as e:
-            print(f"❌ Cannot reach catalog service: {e}")
-            return False
-        
-        # Test Telegram API
-        try:
-            test_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe"
-            response = requests.get(test_url, timeout=5)
-            if response.status_code == 200:
-                bot_info = response.json()
-                print(f"✅ Telegram bot authenticated: {bot_info.get('result', {}).get('username')}")
-            else:
-                print(f"❌ Telegram authentication failed: {response.status_code}")
-                return False
-        except Exception as e:
-            print(f"❌ Cannot reach Telegram API: {e}")
-            return False
-        
-        return True """
-
 
 def main():
     try:
@@ -1650,7 +1581,7 @@ def main():
 
         # Single callback handler drives the whole UI
         application.add_handler(CallbackQueryHandler(button_handler))
-
+        
         # Error handler
         application.add_error_handler(error_handler)
 

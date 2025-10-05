@@ -4,13 +4,17 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from ClassificationAlgorithm.HealthStatePredictor import HealthStatePredictor
 from Microservices.DataIngestion.mqttConnector import MQTTService
-from Microservices.DataIngestion.config import Config
+from Microservices.Common.config import Config
 import time
 import json
 import cherrypy
 import requests
 import threading
 import webbrowser
+from Microservices.Common.utils import (
+    register_service_with_catalog,
+    ServiceRegistry
+)
 
 class MockPredictor:
     """Simple mock predictor for testing"""
@@ -22,18 +26,39 @@ class MockPredictor:
             return "risky"
         else:
             return "normal"
+
         
 class DataHandler:
     def __init__(self):
+        """Initialize DataHandler with service discovery"""
+        # Store catalog URL
+        self.catalog_url = Config.SERVICES["catalog_url"]
+        
+        self.registry = ServiceRegistry()
+        # Discover service URLs at initialization
+        self.database_service_url = self.registry.get_service_url("databaseAdapter")
+        self.notification_service_url = self.registry.get_service_url("notification")
+        
+        # Get full MQTT service info 
+        self.mqtt_service_info = self.registry.get_service_info("mqtt")
+        
+        # Load ML model
         try:
             self.predict = HealthStatePredictor(Config.CLASSIFICATION["TRAINMODEL"])
         except (FileNotFoundError, ImportError) as e:
             print(f"Warning: Could not load ML model: {e}")
             self.predict = MockPredictor()
         
-        self.database_service_url = "http://database_adapter:3000"
+        # Test database connection
+        self._test_database_connection()
         
-        # Test database service availability
+        # Start MQTT automatically
+        print("Starting MQTT subscriber...")
+        background_thread = threading.Thread(target=self.main, daemon=True)
+        background_thread.start()
+    
+    def _test_database_connection(self):
+        """Test connection to database service"""
         try:
             response = requests.get(f"{self.database_service_url}/info", timeout=5)
             if response.status_code == 200:
@@ -43,19 +68,10 @@ class DataHandler:
                 print(f"Database service responded with status {response.status_code}")
         except Exception as e:
             print(f"Database service not available: {e}")
-        
-        # Start MQTT automatically
-        print("Starting MQTT subscriber...")
-        background_thread = threading.Thread(target=self.main, daemon=True)
-        background_thread.start()
-        
     
     @cherrypy.expose
     def index(self):
         cherrypy.response.headers['Content-Type'] = 'application/json'
-        
-        # Get database info for status
-        #db_info = self.database.get_database_info()
         
         return json.dumps({
             "message": "Data handler API - MQTT subscriber running",
@@ -64,7 +80,6 @@ class DataHandler:
                 "GET /database/info": "get database adapter information",
                 "POST /database/switch": "switch database adapter"
             },
-            #"database_info": db_info
         }).encode('utf-8')
     
     def _get_user_data(self, user_id: str) -> tuple[bool, list]:
@@ -91,13 +106,13 @@ class DataHandler:
         success, data = self._get_user_data(user_id)
         
         if success:
-            return json.dumps(json.dumps(data)).encode('utf-8')  # Double JSON encoding for compatibility
+            return json.dumps(json.dumps(data)).encode('utf-8')
         else:
             return json.dumps([]).encode('utf-8')
     
     @cherrypy.expose 
     def database(self, action=None):
-        """ Database management endpoint """
+        """Database management endpoint"""
         cherrypy.response.headers['Content-Type'] = 'application/json'
         
         if action == "info":
@@ -109,7 +124,6 @@ class DataHandler:
                 
         elif action == "switch" and cherrypy.request.method == "POST":
             try:
-                # Forward the request to database service
                 request_data = cherrypy.request.body.read()
                 response = requests.post(
                     f"{self.database_service_url}/switch",
@@ -129,7 +143,6 @@ class DataHandler:
         
         return json.dumps({"error": "Invalid action"}).encode('utf-8')
     
-
     def _write_health_data(self, user_id: str, user_name: str, temp: float, 
                           heart_rate: int, oxygen: float, state: str) -> tuple[bool, str]:
         """Write health data using the database service"""
@@ -157,13 +170,12 @@ class DataHandler:
                 
         except Exception as e:
             return False, f"Error calling database service: {str(e)}"
-        
-
+    
     def process(self, topic: str, message):
         """Process incoming MQTT messages using the database adapter"""
         try:
             json_message = json.loads(message)
-            measurement = topic.split("/")[-1] #DEBUG
+            measurement = topic.split("/")[-1]
             
             # Extract sensor values with flexible matching
             available_sensors = {sensor["name"]: sensor for sensor in json_message["sensors"]}
@@ -203,7 +215,7 @@ class DataHandler:
                 print("INFO: No heart rate sensor configured for this user") 
                 heart_rate_value = 75
 
-            print(f"Final values - temp: {temp_value} (float), oxygen: {oxygen_value} (float), heart_rate: {heart_rate_value} (int)")
+            print(f"Final values - temp: {temp_value}, oxygen: {oxygen_value}, heart_rate: {heart_rate_value}")
             
             # Predict health state
             predicted_state = self.predict.predict_state(temp_value, heart_rate_value, oxygen_value)
@@ -214,7 +226,7 @@ class DataHandler:
                 print(f"Alert triggered: User {json_message['user_id']} ({json_message['user_name']}) - State: {predicted_state}")
                 
                 try:
-                    user_response = requests.get(f"http://catalog:5001/users/{json_message['user_id']}")
+                    user_response = requests.get(f"{self.catalog_url}/users/{json_message['user_id']}")
                     if user_response.status_code == 200:
                         user_info = user_response.json()
                         assigned_doctor_id = user_info.get('doctor_id')
@@ -230,19 +242,26 @@ class DataHandler:
                             "heartRate": heart_rate_value
                         }
                         
-                        # Send notifications
-                        notif_services = requests.get("http://catalog:5001/services/notification")
-                        json_notif = notif_services.json()
-                        
                         # Patient notification
                         patient_notification = {**notification_data, "recipient_type": "patient"}
-                        response = requests.post(f"{json_notif['url']}:{json_notif['port']}/sendNotif", json=patient_notification)
+                        response = requests.post(
+                            f"{self.notification_service_url}/sendNotif", 
+                            json=patient_notification
+                        )                        
                         print(f"Patient notification sent to {json_message['user_id']} - Status: {response.status_code}")
                         
                         # Doctor notification if assigned
                         if assigned_doctor_id:
-                            doctor_notification = {**notification_data, "recipient_type": "doctor", "doctor_id": assigned_doctor_id, "patient_name": json_message["user_name"]}
-                            doctor_response = requests.post(f"{json_notif['url']}:{json_notif['port']}/sendNotif", json=doctor_notification)
+                            doctor_notification = {
+                                **notification_data, 
+                                "recipient_type": "doctor", 
+                                "doctor_id": assigned_doctor_id, 
+                                "patient_name": json_message["user_name"]
+                            }
+                            doctor_response = requests.post(
+                                f"{self.notification_service_url}/sendNotif", 
+                                json=doctor_notification
+                            )                           
                             print(f"Doctor notification sent to {assigned_doctor_id} - Status: {doctor_response.status_code}")
                         else:
                             print("No doctor assigned to this patient")
@@ -272,17 +291,15 @@ class DataHandler:
             return False
 
     def main(self):
-        mqtt_service = requests.get("http://catalog:5001/services/mqtt")
-        json_mqtt = mqtt_service.json()
-
+        """Main MQTT subscriber loop"""
         mqtt_subscriber = MQTTService(
-            host=json_mqtt["url"],
-            port=json_mqtt["port"],
+            host=self.mqtt_service_info["url"],
+            port=self.mqtt_service_info["port"],
             auth=None
         )
         
         mqtt_subscriber.subscribe(
-            topics=json_mqtt["topics"],
+            topics=self.mqtt_service_info["topics"],
             message_handler=self.process
         )
         
@@ -295,22 +312,16 @@ class DataHandler:
 
 
 if __name__ == "__main__":
-    # Register the service
-    response = requests.post(
-        f"http://catalog:5001/services/",
-        json={
-            "dataIngestion": {
-                "url": "http://data_ingestion",
-                "port": 2500,
-                "endpoints": {
-                    "GET /getUserData/<id>": "get user data from database",
-                    "GET /database/info": "get database adapter information",
-                    "POST /database/switch": "switch database adapter",
-                    "GET /database/adapters": "list available database adapters"
-                }
-            }
-        }
-    )
+    # Register the service with catalog 
+    register_service_with_catalog(service_name="dataIngestion",
+                                  url="http://data_ingestion",
+                                  port=2500,
+                                  endpoints={
+                                      "GET /getUserData/<id>": "get user data from database",
+                                      "GET /database/info": "get database adapter information",
+                                      "POST /database/switch": "switch database adapter",
+                                      "GET /database/adapters": "list available database adapters"
+                                  })
     
     cherrypy.config.update({
         'server.socket_host': '0.0.0.0',

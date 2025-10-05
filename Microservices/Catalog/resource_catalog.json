@@ -556,85 +556,92 @@
             "user_type": "patient"
         }
     ],
-    "services": {
-        "catalog": {
-            "url": "http://catalog",
-            "port": 5001,
-            "endpoints": {
-                "GET /project": "get project info",
-                "PUT /project": "update project info",
-                "GET /services/<service_name>": "get service by name",
-                "POST /services/": "add new service",
-                "GET /users": "Get all users",
-                "GET /users/<user_chat_id>": "Get specific user details",
-                "POST /users": "Create a new user entry",
-                "PUT /users/<user_chat_id>": "Update a user",
-                "DELETE /users/<user_chat_id>": "Delete a user",
-                "GET /sensors/<user_chat_id>": "Get all sensors for a user",
-                "GET /sensors/<user_chat_id>/<sensor_id>": "Get specific sensor",
-                "POST /sensors/<user_chat_id>": "Add sensor to user (requires: id, name)",
-                "PUT /sensors/<user_chat_id>/<sensor_id>": "Update sensor name",
-                "DELETE /sensors/<user_chat_id>/<sensor_id>": "Remove sensor",
-                "POST /assign_patient": "Assign a patient to a doctor",
-                "GET /doctors": "Get all doctors",
-                "GET /doctors/<doctor_id>": "Get patients for a specific doctor",
-                "POST /doctors": "Register a new doctor"
-            }
-        },
-        "dataIngestion": {
-            "url": "http://data_ingestion",
-            "port": 2500,
-            "endpoints": {
-                "GET /getUserData/<id>": "get user data from db",
-                "GET /database/info": "get database adapter information",
-                "POST /database/switch": "switch database adapter",
-                "GET /database/adapters": "list available database adapters"
-            }
-        },
-        "adminPanel": {
-            "url": "http://admin_panel",
-            "port": 9000,
-            "endpoints": {
-                "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-                "GET /report/<userid>": "get user sensor data by id => json",
-                "GET /doctor_registration": "doctor registration web form",
-                "POST /register_doctor_web": "process doctor registration form"
-            }
-        },
-        "mqtt": {
-            "url": "broker.hivemq.com",
-            "port": 1883,
-            "topics": [
-                "iot_user_sensor/#"
-            ]
-        },
-        "sensor": {
-            "url": "http://monitor",
-            "port": 3500,
-            "endpoints": {
-                "GET /read/<id>": "read sensor value from device",
-                "GET /stop/<id>": "stop sensor monitoring for user"
-            }
-        },
-        "notification": {
-            "url": "http://notification",
-            "port": 1500,
-            "endpoints": {
-                "POST /sendNotif/": "Send notification",
-                "GET /": "service information"
-            }
-        },
-        "databaseAdapter": {
-            "url": "http://database_adapter",
-            "port": 3000,
-            "endpoints": {
-                "POST /write": "write health data to database",
-                "GET /read/<user_id>": "get user health data",
-                "DELETE /delete/<user_id>": "delete user data",
-                "GET /info": "get database adapter information",
-                "POST /switch": "switch database adapter",
-                "GET /adapters": "list available adapters"
-            }
+    "services": [
+    {
+        "name": "catalog",
+        "url": "http://catalog",
+        "port": 5001,
+        "endpoints": {
+            "GET /project": "get project info",
+            "PUT /project": "update project info",
+            "GET /services/<service_name>": "get service by name",
+            "POST /services/": "add new service",
+            "GET /users": "Get all users",
+            "GET /users/<user_chat_id>": "Get specific user details",
+            "POST /users": "Create a new user entry",
+            "PUT /users/<user_chat_id>": "Update a user",
+            "DELETE /users/<user_chat_id>": "Delete a user",
+            "GET /sensors/<user_chat_id>": "Get all sensors for a user",
+            "GET /sensors/<user_chat_id>/<sensor_id>": "Get specific sensor",
+            "POST /sensors/<user_chat_id>": "Add sensor to user (requires: id, name)",
+            "PUT /sensors/<user_chat_id>/<sensor_id>": "Update sensor name",
+            "DELETE /sensors/<user_chat_id>/<sensor_id>": "Remove sensor",
+            "POST /assign_patient": "Assign a patient to a doctor",
+            "GET /doctors": "Get all doctors",
+            "GET /doctors/<doctor_id>": "Get patients for a specific doctor",
+            "POST /doctors": "Register a new doctor"
+        }
+    },
+    {
+        "name": "dataIngestion",
+        "url": "http://data_ingestion",
+        "port": 2500,
+        "endpoints": {
+            "GET /getUserData/<id>": "get user data from db",
+            "GET /database/info": "get database adapter information",
+            "POST /database/switch": "switch database adapter",
+            "GET /database/adapters": "list available database adapters"
+        }
+    },
+    {
+        "name": "adminPanel",
+        "url": "http://admin_panel",
+        "port": 9000,
+        "endpoints": {
+            "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
+            "GET /report/<userid>": "get user sensor data by id => json",
+            "GET /doctor_registration": "doctor registration web form",
+            "POST /register_doctor_web": "process doctor registration form"
+        }
+    },
+    {
+        "name": "mqtt",
+        "url": "broker.hivemq.com",
+        "port": 1883,
+        "topics": [
+            "iot_user_sensor/#"
+        ]
+    },
+    {
+        "name": "sensor",
+        "url": "http://monitor",
+        "port": 3500,
+        "endpoints": {
+            "GET /read/<id>": "read sensor value from device",
+            "GET /stop/<id>": "stop sensor monitoring for user"
+        }
+    },
+    {
+        "name": "notification",
+        "url": "http://notification",
+        "port": 1500,
+        "endpoints": {
+            "POST /sendNotif/": "Send notification",
+            "GET /": "service information"
+        }
+    },
+    {
+        "name": "databaseAdapter",
+        "url": "http://database_adapter",
+        "port": 3000,
+        "endpoints": {
+            "POST /write": "write health data to database",
+            "GET /read/<user_id>": "get user health data",
+            "DELETE /delete/<user_id>": "delete user data",
+            "GET /info": "get database adapter information",
+            "POST /switch": "switch database adapter",
+            "GET /adapters": "list available adapters"
         }
     }
+]
 }

@@ -1,16 +1,44 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
 import cherrypy
 import requests
 import json
 from datetime import datetime, timedelta
 from itertools import groupby
 import secrets
+import logging
+from Microservices.Common.config import Config
+from Microservices.Common.utils import (ServiceRegistry,
+                   register_service_with_catalog)
+
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('telegram_bot.log', mode='a')
+    ]
+)
+logger = logging.getLogger(__name__)
 class AdminPanel:
     def __init__(self):
-        self.authorized_users = {
+
+        self.catalog_url = Config.SERVICES["catalog_url"]
+
+        self.registry = ServiceRegistry()
+
+        self.database_service_url = self.registry.get_service_url("databaseAdapter")
+        self.notification_service_url = self.registry.get_service_url("notification")
+        self.data_ingestion_url = self.registry.get_service_url("dataIngestion")
+
+        """ self.authorized_users = {
             "6378242947": "admin_password_1", 
-            "650295422": "admin_password_2",
-            "548805315": "admin_password_3",
-        }
+            "548805315": "admin_password_3"
+        } """
+        self.authorized_users = Config.ADMIN_USERS
         # Session storage 
         self.active_sessions = {}
 
@@ -67,7 +95,7 @@ class AdminPanel:
                     
                     # Get user info for welcome message
                     try:
-                        user_response = requests.get(f"http://catalog:5001/users/{username}", timeout=5)
+                        user_response = requests.get(f"{self.catalog_url}/users/{username}", timeout=5)
                         if user_response.status_code == 200:
                             user_data = user_response.json()
                             cherrypy.session['user_name'] = user_data.get('full_name', 'Admin User')
@@ -296,16 +324,16 @@ class AdminPanel:
             
             # Check all services
             service_checks = {
-                'Catalog Service': check_service('http://catalog:5001/'),
-                'Database Adapter': check_service('http://database_adapter:3000/'),
-                'Data Ingestion': check_service('http://data_ingestion:2500/'),
-                'Notification Service': check_service('http://notification:1500/'),
+                'Catalog Service': check_service(self.catalog_url),
+                'Database Adapter': check_service(self.database_service_url),
+                'Data Ingestion': check_service(self.data_ingestion_url),
+                'Notification Service': check_service(self.notification_service_url),
                 'Admin Panel': {'status': 'online', 'response_time': 0}  # Current service
             }
             
             # Get system statistics
-            users_response = requests.get("http://catalog:5001/users", timeout=10)
-            doctors_response = requests.get("http://catalog:5001/doctors", timeout=10)
+            users_response = requests.get(f"{self.catalog_url}/users", timeout=10)
+            doctors_response = requests.get(f"{self.catalog_url}/doctors", timeout=10)
             
             users = users_response.json() if users_response.status_code == 200 else []
             doctors = doctors_response.json() if doctors_response.status_code == 200 else []
@@ -343,7 +371,7 @@ class AdminPanel:
                     doctor_name = "Unassigned"
                     if patient.get('doctor_id'):
                         try:
-                            doctor_response = requests.get(f"http://catalog:5001/users/{patient['doctor_id']}", timeout=5)
+                            doctor_response = requests.get(f"{self.catalog_url}/users/{patient['doctor_id']}", timeout=5)
                             if doctor_response.status_code == 200:
                                 doctor = doctor_response.json()
                                 doctor_name = doctor.get('full_name', 'Unknown')
@@ -749,13 +777,13 @@ class AdminPanel:
         self.require_auth()
         try:
             # Get all doctors from the catalog
-            response = requests.get("http://catalog:5001/doctors", timeout=10)
+            response = requests.get(f"{self.catalog_url}/doctors", timeout=10)
             doctors = response.json() if response.status_code == 200 else []
             
             doctor_rows = ""
             for doctor in doctors:
                 # Get patient count for each doctor
-                patients_response = requests.get(f"http://catalog:5001/doctors/{doctor['user_chat_id']}", timeout=10)
+                patients_response = requests.get(f"{self.catalog_url}/doctors/{doctor['user_chat_id']}", timeout=10)
                 patients = patients_response.json() if patients_response.status_code == 200 else []
                 patient_count = len(patients)
                 
@@ -819,11 +847,11 @@ class AdminPanel:
         self.require_auth()
         try:
             # Get doctor info
-            doctor_response = requests.get(f"http://catalog:5001/users/{doctor_id}", timeout=10)
+            doctor_response = requests.get(f"{self.catalog_url}/users/{doctor_id}", timeout=10)
             doctor = doctor_response.json() if doctor_response.status_code == 200 else {}
             
             # Get doctor's patients
-            patients_response = requests.get(f"http://catalog:5001/doctors/{doctor_id}", timeout=10)
+            patients_response = requests.get(f"{self.catalog_url}/doctors/{doctor_id}", timeout=10)
             patients = patients_response.json() if patients_response.status_code == 200 else []
             
             patient_rows = ""
@@ -916,7 +944,7 @@ class AdminPanel:
         self.require_auth()
         try:
             # Get all users
-            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            users_response = requests.get(f"{self.catalog_url}/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
             
             patient_rows = ""
@@ -924,7 +952,7 @@ class AdminPanel:
                 if user.get('user_type') != 'doctor':  # Only show patients
                     doctor_name = "Unassigned"
                     if user.get('doctor_id'):
-                        doctor_response = requests.get(f"http://catalog:5001/users/{user['doctor_id']}", timeout=5)
+                        doctor_response = requests.get(f"{self.catalog_url}/users/{user['doctor_id']}", timeout=5)
                         if doctor_response.status_code == 200:
                             doctor = doctor_response.json()
                             doctor_name = doctor.get('full_name', 'Unknown')
@@ -1012,21 +1040,8 @@ class AdminPanel:
 
     def get_patient_health_status(self, user_id):
         """Get patient's latest health status and last readings for all vital signs"""
-        try:
-            # Get database adapter service info from catalog
-            adapter_service = requests.get("http://catalog:5001/services/databaseAdapter", timeout=5)
-            if adapter_service.status_code != 200:
-                return "Unknown", "N/A"
-            
-            adapter_info = adapter_service.json()
-            adapter_url = adapter_info["url"]
-            adapter_port = adapter_info.get("port")
-            
-            # Build the URL for database adapter
-            if adapter_port:
-                full_url = f"{adapter_url}:{adapter_port}/read/{user_id}"
-            else:
-                full_url = f"{adapter_url}/read/{user_id}"
+        try: 
+            full_url = f"{self.database_service_url}/read/{user_id}"
             
             # Get recent data (last 24 hours)
             params = {"hours": 24}
@@ -1197,7 +1212,7 @@ class AdminPanel:
     def generate_patient_report(self):
         self.require_auth()
         try:
-            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            users_response = requests.get(f"{self.catalog_url}/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
             
             patients = [user for user in users if user.get('user_type') != 'doctor']
@@ -1208,7 +1223,7 @@ class AdminPanel:
                 doctor_specialization = "N/A"
                 
                 if patient.get('doctor_id'):
-                    doctor_response = requests.get(f"http://catalog:5001/users/{patient['doctor_id']}", timeout=5)
+                    doctor_response = requests.get(f"{self.catalog_url}/users/{patient['doctor_id']}", timeout=5)
                     if doctor_response.status_code == 200:
                         doctor = doctor_response.json()
                         doctor_name = doctor.get('full_name', 'Unknown')
@@ -1289,7 +1304,7 @@ class AdminPanel:
     def generate_doctor_report(self):
         self.require_auth()
         try:
-            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            users_response = requests.get(f"{self.catalog_url}/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
             
             doctors = [user for user in users if user.get('user_type') == 'doctor']
@@ -1409,11 +1424,11 @@ class AdminPanel:
         try:
             # Check all services
             services_to_check = {
-                'Catalog Service': 'http://catalog:5001/',
-                'Database Adapter': 'http://database_adapter:3000/',
-                'Notification Service': 'http://notification:1500/',
-                'Monitor Service': 'http://monitor:3500/',
-                'Data Ingestion Service': 'http://data_ingestion:2500/'
+                'Catalog Service': self.catalog_url,
+                'Database Adapter': self.database_service_url,
+                'Notification Service': self.notification_service_url,
+                'Monitor Service': self.monitor_service_url,
+                'Data Ingestion Service': self.data_ingestion_service_url,
             }
             
             service_statuses = {}
@@ -1421,14 +1436,14 @@ class AdminPanel:
                 service_statuses[service_name] = check_service_health(url)
             
             # Get user statistics
-            users_response = requests.get("http://catalog:5001/users", timeout=10)
+            users_response = requests.get(f"{self.catalog_url}/users", timeout=10)
             users = users_response.json() if users_response.status_code == 200 else []
             total_users = len(users)
             doctors = [u for u in users if u.get('user_type') == 'doctor']
             patients = [u for u in users if u.get('user_type') != 'doctor']
             
             # Check database connection
-            db_status = check_service_health('http://database_adapter:3000/info')
+            db_status = check_service_health(f'{self.database_service_url}/info')
             
             # Generate status CSS class
             def get_status_class(status_info):
@@ -1558,20 +1573,7 @@ class AdminPanel:
         self.require_auth()
         """Get user sensor data through database adapter with optional time filtering"""
         try:
-            # Get database adapter service info from catalog
-            adapter_service = requests.get("http://catalog:5001/services/databaseAdapter")
-            if adapter_service.status_code != 200:
-                return f"<h1>Service Error</h1><p>Could not reach database adapter service</p>"
-            
-            adapter_info = adapter_service.json()
-            adapter_url = adapter_info["url"]
-            adapter_port = adapter_info.get("port")
-            
-            # Build the URL for database adapter
-            if adapter_port:
-                full_url = f"{adapter_url}:{adapter_port}/read/{user_id}"
-            else:
-                full_url = f"{adapter_url}/read/{user_id}"
+            full_url = f"{self.database_service_url}/read/{user_id}"
             
             # Add time filtering parameter
             params = {"hours": hours}
@@ -1670,13 +1672,13 @@ class AdminPanel:
             
             # Get user info for better display
             try:
-                user_response = requests.get(f"http://catalog:5001/users/{user_id}", timeout=5)
+                user_response = requests.get(f"{self.catalog_url}/users/{user_id}", timeout=5)
                 if user_response.status_code == 200:
                     user_info = user_response.json()
                     user_name = user_info.get('full_name', f'User {user_id}')
                     doctor_info = ""
                     if user_info.get('doctor_id'):
-                        doctor_response = requests.get(f"http://catalog:5001/users/{user_info['doctor_id']}", timeout=5)
+                        doctor_response = requests.get(f"{self.catalog_url}/users/{user_info['doctor_id']}", timeout=5)
                         if doctor_response.status_code == 200:
                             doctor = doctor_response.json()
                             doctor_info = f"<p><strong>Assigned Doctor:</strong> {doctor.get('full_name', 'Unknown')} ({doctor.get('specialization', 'N/A')})</p>"
@@ -1780,24 +1782,7 @@ class AdminPanel:
         cherrypy.response.headers['Content-Type'] = 'application/json'
         
         try:
-            # Get database adapter service info from catalog
-            adapter_service = requests.get("http://catalog:5001/services/databaseAdapter", timeout=10)
-            if adapter_service.status_code != 200:
-                return json.dumps({
-                    "success": False,
-                    "error": "Could not reach database adapter service",
-                    "data": []
-                }).encode('utf-8')
-            
-            adapter_info = adapter_service.json()
-            adapter_url = adapter_info["url"]
-            adapter_port = adapter_info.get("port")
-            
-            # Build the URL for database adapter
-            if adapter_port:
-                full_url = f"{adapter_url}:{adapter_port}/read/{user_id}"
-            else:
-                full_url = f"{adapter_url}/read/{user_id}"
+            full_url = f"{self.database_service_url}/read/{user_id}"
             
             # Add time filtering parameter
             params = {"hours": hours}
@@ -1953,7 +1938,7 @@ class AdminPanel:
                 "hospital": hospital
             }
             
-            response = requests.post("http://catalog:5001/doctors", json=doctor_data)
+            response = requests.post(f"{self.catalog_url}/doctors", json=doctor_data)
             if response.status_code in [200, 201]:
                 return f"""
 <!DOCTYPE html>
@@ -2064,32 +2049,23 @@ class AdminPanel:
 
 if __name__ == "__main__":
     # Register the service
-    try:
-        response = requests.post(
-            f"http://catalog:5001/services/",
-            json={
-                "adminPanel": {
-                    "url": "http://admin_panel",
-                    "port": 9000,
-                    "endpoints": {
-                        "GET /": "Admin panel home page",
-                        "GET /login": "Admin login page",
-                        "POST /login": "Process admin login",
-                        "GET /logout": "Admin logout",
-                        "GET /dashboard": "System dashboard with statistics",
-                        "GET /doctor_registration": "Doctor registration form",
-                        "POST /register_doctor_web": "Process doctor registration",
-                        "GET /manage_doctors": "View and manage all doctors",
-                        "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
-                        "GET /patient_overview": "Overview of all patients",
-                        "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-                        "GET /report/<userid>": "get user sensor data by id => json"
-                    }
-                }
-            }
-        )
-    except:
-        pass
+    register_service_with_catalog(service_name="adminPanel", 
+                                  url="http://admin_panel", 
+                                  port=9000,
+                                  endpoints={
+                                      "GET /": "Admin panel home page",
+                                      "GET /login": "Admin login page",
+                                      "POST /login": "Process admin login",
+                                      "GET /logout": "Admin logout",
+                                      "GET /dashboard": "System dashboard with statistics",
+                                      "GET /doctor_registration": "Doctor registration form",
+                                      "POST /register_doctor_web": "Process doctor registration",
+                                      "GET /manage_doctors": "View and manage all doctors",
+                                      "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
+                                      "GET /patient_overview": "Overview of all patients",
+                                      "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
+                                      "GET /report/<userid>": "get user sensor data by id => json"
+                                  })
     
     cherrypy.config.update({
         "server.socket_host": "0.0.0.0",

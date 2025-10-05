@@ -1,19 +1,23 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 import cherrypy
 import requests
 import json
 import logging
 from datetime import datetime
-
+from Microservices.Common.config import Config
+from Microservices.Common.utils import register_service_with_catalog
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class NotificationService:
     def __init__(self):
-        self.telegram_token = "6605276431:AAHoPhbbqSSPR7z1VS56c7Cddp34xzvT2Og"
+        self.telegram_token = Config.TELEGRAM_TOKEN
         self.telegram_api_url = f"https://api.telegram.org/bot{self.telegram_token}"
         
-    
     
     @cherrypy.expose
     def index(self):
@@ -222,28 +226,13 @@ class NotificationService:
 
 
 if __name__ == "__main__":
-    # Register the service with the catalog
-    try:
-        response = requests.post(
-            "http://catalog:5001/services/",
-            json={
-                "notification": {
-                    "url": "http://notification",
-                    "port": 1500,
-                    "endpoints": {
-                        "POST /sendNotif": "Send notification",
-                        "GET /": "Service information"
-                    }
-                }
-            },
-            timeout=10
-        )
-        if response.status_code in [200, 201]:
-            logger.info("Service registered with catalog successfully")
-        else:
-            logger.warning(f"Failed to register with catalog: {response.status_code}")
-    except Exception as e:
-        logger.error(f"Error registering with catalog: {e}")
+    register_service_with_catalog(service_name="notification", 
+                                  url="http://notification",
+                                  port=1500,
+                                  endpoints={
+                                        "POST /sendNotif": "Send notification",
+                                        "GET /": "Service information"
+                                  })
     
     # Configure CherryPy
     cherrypy.config.update({

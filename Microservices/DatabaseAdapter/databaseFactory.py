@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from adapterInterface import TimeSeriesAdapter
 from influxdbAdapter import InfluxDBAdapter
+from Microservices.Common.config import Config
 
 class DatabaseConfig:
     """Manages database configuration from file or environment variables"""
@@ -104,18 +105,15 @@ class DatabaseAdapterFactory:
     
 class DatabaseService:
     def __init__(self, config=None):
-        print("=== DatabaseService.__init__ called ===")
-        print(f"Config parameter: {config}")
         
         if config is None:
             print("Loading config from Config.DATABASE")
-            from config import Config
             config = Config.DATABASE
             print(f"Loaded config: {config}")
         
         self.config_data = config
         self.adapter = None
-        print("About to call _initialize_adapter")
+        #print("About to call _initialize_adapter")
         self._initialize_adapter()
         print(f"Initialization complete. Adapter: {self.adapter}")
 
@@ -188,19 +186,19 @@ class DatabaseService:
         
     def get_user_health_data(self, user_id: str, time_range: Optional[Dict[str, datetime]] = None) -> tuple[bool, list]:
         """Get all health data for a user with optional time filtering"""
-        print(f"DEBUG: DatabaseService.get_user_health_data called with user_id={user_id}, time_range={time_range}")
+        #print(f"DEBUG: DatabaseService.get_user_health_data called with user_id={user_id}, time_range={time_range}")
         
         if not self.adapter:
-            print("DEBUG: No adapter available")
+            print("No adapter available")
             return False, []
         
         success, result = self.adapter.get_user_data(user_id, time_range)
-        print(f"DEBUG: Adapter returned: success={success}, result_type={type(result)}")
+        #print(f"DEBUG: Adapter returned: success={success}, result_type={type(result)}")
     
         if success:
             return True, result
         else:
-            print(f"DEBUG: Adapter failed with message: {result}")
+            print(f"Adapter failed with message: {result}")
             return False, []
     
     def delete_user_data(self, user_id: str) -> tuple[bool, str]:
@@ -227,7 +225,6 @@ class DatabaseService:
                 self.config_manager.set_active_adapter(adapter_name)
                 self._initialize_adapter()
             else:
-                # Direct config - can't switch dynamically
                 return False
             
             return self.adapter is not None

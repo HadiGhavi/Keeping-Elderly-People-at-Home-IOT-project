@@ -1,6 +1,7 @@
 version: '3.9'
 
 services:
+  # Catalog Service - Central service registry
   catalog:
     build:
       context: ./Microservices/Catalog
@@ -13,11 +14,14 @@ services:
     networks:
       - iot-network
 
+  # Database Adapter - Handles database operations
   database_adapter:
     build: ./Microservices/DatabaseAdapter
     container_name: database_adapter
     ports:
       - "3000:3000"
+    volumes:
+      - ./Microservices/Common:/app/Microservices/Common
     environment:
       - INFLUXDB_HOST=https://eu-central-1-1.aws.cloud2.influxdata.com
       - INFLUXDB_TOKEN=WaCTN7nEqIMjNSsl-Yzry1iz6Os2F4xskPWrdrA5JQe49JmxT0MiUtOgvAHtz94cTkVolVrcplxYXfaYxqPf-g==
@@ -29,6 +33,7 @@ services:
     networks:
       - iot-network
 
+  # Data Ingestion - Processes MQTT sensor data
   data_ingestion:
     build:
       context: .
@@ -39,6 +44,7 @@ services:
     volumes:
       - ./Microservices/DataIngestion:/app/Microservices/DataIngestion
       - ./ClassificationAlgorithm:/app/ClassificationAlgorithm
+      - ./Microservices/Common:/app/Microservices/Common
     environment:
       - BASE_DIR=/app/ClassificationAlgorithm
     depends_on:
@@ -49,6 +55,8 @@ services:
     networks:
       - iot-network
 
+
+  # Monitor 
   monitor:
     build:
       context: .
@@ -56,24 +64,30 @@ services:
     container_name: monitor_service
     ports:
       - "3500:3500"
+    volumes:
+      - ./Microservices/Common:/app/Microservices/Common
     depends_on:
       - catalog
     restart: always
     networks:
       - iot-network
 
+  # Notification Service - Sends alerts via Telegram
   notification:
     build:
       context: ./Microservices/Notification
     container_name: notification_service
     ports:
       - "1500:1500"
+    volumes:
+      - ./Microservices/Common:/app/Microservices/Common
     depends_on:
       - catalog
     restart: always
     networks:
       - iot-network
 
+  # Admin Panel - Web interface for monitoring
   admin_panel:
     build:
       context: .
@@ -81,6 +95,8 @@ services:
     container_name: admin_panel_service
     ports:
       - "9000:9000"
+    volumes:
+      - ./Microservices/Common:/app/Microservices/Common
     depends_on:
       - catalog
       - data_ingestion
@@ -88,12 +104,15 @@ services:
     networks:
       - iot-network
 
+  # Telegram Bot - User interface and sensor registration
   telegram_bot:
     build:
       context: ./Microservices/TelegramBot
     container_name: telegram_bot_service
     ports:
       - "8000:8000"
+    volumes:
+      - ./Microservices/Common:/app/Microservices/Common
     restart: unless-stopped
     depends_on:
       - catalog

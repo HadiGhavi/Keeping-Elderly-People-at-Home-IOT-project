@@ -4,14 +4,20 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from Microservices.Monitor.sensor_generator import GenerateSensor
 from Microservices.Monitor.mqttConnector import MQTTService
+from Microservices.Common.utils import ServiceRegistry,register_service_with_catalog
+from Microservices.Common.config import Config
 import time
 import cherrypy
 import requests
 import json
 import threading
 
+
 class Monitor:
     def __init__(self):
+        self.catalog_url = Config.SERVICES["catalog_url"]
+        self.registry = ServiceRegistry()
+        self.mqtt_info = self.registry.get_service_info("mqtt")
         self.sensor = GenerateSensor()
         self.active_monitors = {}  # Track active monitoring threads
         self.stop_events = {}      # Track stop events for each user
@@ -40,9 +46,7 @@ class Monitor:
                 }).encode('utf-8')
             
             # Get user info from catalog
-            catalog_services = requests.get("http://catalog:5001/services/catalog")
-            json_catalog = catalog_services.json()
-            user_info = requests.get(json_catalog["url"] + ":" + str(json_catalog["port"]) + "/users/" + chat_id)
+            user_info = requests.get(self.catalog_url + "/users/" + chat_id)
             
             # Create stop event for this user
             self.stop_events[user_id] = threading.Event()
@@ -162,12 +166,10 @@ class Monitor:
     
     def read_and_publish(self,data):
         if data is not None:
-            mqtt_service=requests.get("http://catalog:5001/services/mqtt")
-            json_mqtt=mqtt_service.json()
-            print(json_mqtt)
+            
             mqtt = MQTTService(
-                host=json_mqtt["url"],
-                port=json_mqtt["port"],
+                host=self.mqtt_info["url"],
+                port=self.mqtt_info["port"],
                 auth=None
             )
             print(data)
@@ -184,19 +186,14 @@ class Monitor:
             print("Failed to read temperature")
 
 if __name__ == "__main__":
-    response = requests.post(
-        f"http://catalog:5001/services/",
-        json={
-            "sensor": {
-            "url": "http://monitor",
-            "port": 3500,
-            "endpoints": {
-                "GET /read/<id>": "read sensor value from device",
-                "GET /stop/<id>": "stop sensor monitoring for user"
-              }
-            }
-        }
-    )
+
+    register_service_with_catalog(service_name="sensor",
+                                  url="http://monitor",
+                                  port=3500,
+                                  endpoints={
+                                      "GET /read/<id>": "read sensor value from device",
+                                      "GET /stop/<id>": "stop sensor monitoring for user"
+                                  })
     
     cherrypy.config.update({
         'server.socket_host': '0.0.0.0',

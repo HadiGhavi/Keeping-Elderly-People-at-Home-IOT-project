@@ -2,6 +2,7 @@ import os
 import json
 import cherrypy
 from datetime import datetime
+
 class HumanHealthCatalog:
     def __init__(self, json_file='resource_catalog.json'):
         self.json_file = json_file
@@ -10,7 +11,8 @@ class HumanHealthCatalog:
                 json.dump({
                     "project_name": "Human Health",
                     "project_owner": ["Hadi"],
-                    "users": []
+                    "users": [],
+                    "services": []  # Changed to list
                 }, f, indent=4)
     
     def _read_data(self):
@@ -73,12 +75,16 @@ class HumanHealthCatalog:
             raise cherrypy.HTTPError(500, str(e))
     
     @cherrypy.expose
-    def services(self, service_name=None,**params):
+    def services(self, service_name=None, **params):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         try:
             if cherrypy.request.method == "GET":
                 if service_name:
                     return json.dumps(self._find_service_by_name(service_name)).encode('utf-8')
+                else:
+                    # Return all services
+                    data = self._read_data()
+                    return json.dumps(data.get("services", [])).encode('utf-8')
             elif cherrypy.request.method == "POST":
                 try:
                     service_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
@@ -88,7 +94,6 @@ class HumanHealthCatalog:
         except Exception as e:
             raise cherrypy.HTTPError(500, str(e))
     
-
     @cherrypy.expose
     def users(self, user_chat_id=None, **params):
         cherrypy.response.headers['Content-Type'] = 'application/json'
@@ -181,37 +186,48 @@ class HumanHealthCatalog:
         except Exception as e:
             raise cherrypy.HTTPError(500, str(e))
            
-    # Helper methods
+    # Helper methods - UPDATED FOR LIST-BASED SERVICES
   
     def _find_service_by_name(self, servicename):
+        """Find a service by name in the services list"""
         data = self._read_data()
-        #print(data)
-        services = data.get("services",{})
-        if servicename in services:
-            return services[servicename]
+        services = data.get("services", [])
+        
+        # Search through the list for matching service name
+        for service in services:
+            if service.get("name") == servicename:
+                return service
+        
+        raise cherrypy.HTTPError(404, f"Service '{servicename}' not found")
      
-    def _add_service(self,service_data):
-        print(service_data)
-        # Validate we have the service name and basic structure
+    def _add_service(self, service_data):
+        """Add a new service to the services list"""
+        # Validate service data structure
         if not isinstance(service_data, dict):
             raise cherrypy.HTTPError(400, "Service data must be an object")
         
+        # Validate required fields
+        required_fields = ['name', 'url', 'port']
+        if not all(field in service_data for field in required_fields):
+            raise cherrypy.HTTPError(400, f"Missing required fields: {required_fields}")
+        
         config = self._read_data()
         
-        # Add each service from the posted data
-        for service_name, service_config in service_data.items():
-            if service_name in config['services']:
-                raise cherrypy.HTTPError(400, f"Service {service_name} already exists")
-            
-            # Validate required fields
-            if 'url' not in service_config or 'port' not in service_config:
-                raise cherrypy.HTTPError(400, f"Service {service_name} missing required fields (url, port)")
-            
-            config['services'][service_name] = service_config
+        # Ensure services is a list
+        if 'services' not in config:
+            config['services'] = []
+        
+        # Check if service with this name already exists
+        for service in config['services']:
+            if service.get('name') == service_data['name']:
+                raise cherrypy.HTTPError(400, f"Service '{service_data['name']}' already exists")
+        
+        # Add the new service
+        config['services'].append(service_data)
         
         self._write_data(config)
         cherrypy.response.status = 201
-        return json.dumps({"message": "Services added successfully", "services": service_data}).encode('utf-8')
+        return {"message": "Service added successfully", "service": service_data}
      
     def _get_all_users(self):
         data = self._read_data()
@@ -285,7 +301,6 @@ class HumanHealthCatalog:
         self._write_data(data)
         return {"message": "User deleted successfully"}
     
-    
     def _register_doctor(self, doctor_data):
         required_fields = ['user_chat_id', 'full_name', 'specialization']
         if not all(field in doctor_data for field in required_fields):
@@ -307,18 +322,18 @@ class HumanHealthCatalog:
                     # Remove patient-specific fields and add doctor fields
                     user.pop('sensors', None)
                     user.pop('doctor_id', None)
-                    user['patients'] = []  # Add empty patients list
+                    user['patients'] = []
                     self._write_data(data)
                     return user
         
-        # Create new doctor with proper structure
+        # Create new doctor
         new_doctor = {
             "user_chat_id": doctor_chat_id,
             "full_name": doctor_data['full_name'],
             "user_type": "doctor",
             "specialization": doctor_data['specialization'],
             "hospital": doctor_data.get('hospital', ''),
-            "patients": []  # List of patient IDs assigned to this doctor
+            "patients": []
         }
         
         data['users'].append(new_doctor)
@@ -338,7 +353,6 @@ class HumanHealthCatalog:
         raise cherrypy.HTTPError(404, "Sensor not found")
     
     def _add_sensor(self, user_chat_id, sensor_data):
-        # Updated to require id and name - no min/max alert levels
         required_fields = ['id', 'name']
         if not all(field in sensor_data for field in required_fields):
             raise cherrypy.HTTPError(400, "Missing required fields (id, name)")
@@ -348,7 +362,7 @@ class HumanHealthCatalog:
         
         for user in data['users']:
             if user['user_chat_id'] == user_chat_id:
-                # Check if sensor ID already exists for this user
+                # Check if sensor ID already exists
                 for sensor in user['sensors']:
                     if sensor['id'] == sensor_id:
                         raise cherrypy.HTTPError(400, "Sensor with this ID already exists for this user")
@@ -371,7 +385,6 @@ class HumanHealthCatalog:
             if user['user_chat_id'] == user_chat_id:
                 for sensor in user['sensors']:
                     if sensor['id'] == sensor_id:
-                        # Only allow updating the name now
                         if 'name' in update_data:
                             sensor['name'] = update_data['name']
                         updated = True
@@ -420,7 +433,7 @@ class HumanHealthCatalog:
         if not doctor:
             return []
         
-        # Get patient details from the doctor's patients list
+        # Get patient details
         patients = []
         patient_ids = doctor.get('patients', [])
         
@@ -447,7 +460,7 @@ class HumanHealthCatalog:
         patient_found = False
         for user in data['users']:
             if user['user_chat_id'] == patient_id and user.get('user_type') != 'doctor':
-                # Remove from previous doctor's list if assigned to another doctor
+                # Remove from previous doctor's list
                 old_doctor_id = user.get('doctor_id')
                 if old_doctor_id:
                     for old_doc in data['users']:
@@ -457,10 +470,10 @@ class HumanHealthCatalog:
                                 old_doc['patients'].remove(patient_id)
                             break
                 
-                # Assign patient to new doctor
+                # Assign to new doctor
                 user['doctor_id'] = doctor_id
                 
-                # Add patient to doctor's list if not already there
+                # Add to doctor's list
                 if patient_id not in doctor.get('patients', []):
                     if 'patients' not in doctor:
                         doctor['patients'] = []
