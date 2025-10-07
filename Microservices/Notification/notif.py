@@ -1,248 +1,358 @@
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
-import cherrypy
 import requests
+import cherrypy
 import json
-import logging
-from datetime import datetime
+import threading
+import time
+
+from datetime import datetime, timedelta
 from Microservices.Common.config import Config
-from Microservices.Common.utils import register_service_with_catalog
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from Microservices.Common.utils import register_service_with_catalog, ServiceRegistry
+import logging
+# Configure logging at module level
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('notification_service.log')
+    ]
+)
+logger = logging.getLogger('NotificationService')
 
 class NotificationService:
     def __init__(self):
+        self.catalog_url = Config.SERVICES["catalog_url"]
+        self.registry = ServiceRegistry()
+        self.database_service_url = self.registry.get_service_url("databaseAdapter")
         self.telegram_token = Config.TELEGRAM_TOKEN
-        self.telegram_api_url = f"https://api.telegram.org/bot{self.telegram_token}"
         
+        # Track last notification time per user to avoid spam
+        self.last_notification = {}  # user_id -> {"state": state, "timestamp": time}
+        self.notification_cooldown = 300  # 5 minutes between similar notifications
+        
+        # Track last processed timestamp to avoid re-processing
+        self.last_check_time = datetime.now() - timedelta(minutes=5)
+        
+        # Start monitoring thread
+        logger.info("🔔 Starting notification monitoring service...")
+        monitor_thread = threading.Thread(target=self.monitor_health_states, daemon=True)
+        monitor_thread.start()
     
     @cherrypy.expose
     def index(self):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({
-            "message": "Notification Service API",
+            "message": "Notification Service",
+            "status": "monitoring",
             "endpoints": {
-                "POST /sendNotif": "Send notification to user or doctor"            },
-            "status": "active"
+                "POST /sendNotif": "Manual notification (legacy)",
+                "GET /status": "Get service status"
+            }
         }).encode('utf-8')
     
-    
     @cherrypy.expose
-    @cherrypy.tools.json_in()
     def sendNotif(self):
-        """Send notification via Telegram"""
+        """Legacy manual notification endpoint (kept for backward compatibility)"""
         cherrypy.response.headers['Content-Type'] = 'application/json'
         
         if cherrypy.request.method != "POST":
             raise cherrypy.HTTPError(405, "Method Not Allowed")
         
         try:
-            # Get the JSON data from the request
-            data = cherrypy.request.json
-            logger.info(f"Received notification request: {data}")
+            data = json.loads(cherrypy.request.body.read().decode('utf-8'))
             
-            # Validate required fields
-            required_fields = ['user_id', 'user_name', 'state', 'temp', 'oxygen', 'heartRate']
-            if not all(field in data for field in required_fields):
-                logger.error(f"Missing required fields. Required: {required_fields}, Received: {list(data.keys())}")
-                return json.dumps({
-                    "success": False,
-                    "message": f"Missing required fields: {required_fields}"
-                }).encode('utf-8')
+            user_id = data.get("user_id")
+            recipient_type = data.get("recipient_type", "patient")
             
-            recipient_type = data.get('recipient_type', 'patient')
-            
-            if recipient_type == 'patient':
-                # Send notification to patient
-                success, message = self.send_patient_notification(data)
-            elif recipient_type == 'doctor':
-                # Send notification to doctor
-                success, message = self.send_doctor_notification(data)
+            if recipient_type == "patient":
+                success = self._send_patient_notification(data)
+            elif recipient_type == "doctor":
+                success = self._send_doctor_notification(data)
             else:
-                logger.error(f"Unknown recipient type: {recipient_type}")
-                return json.dumps({
-                    "success": False,
-                    "message": f"Unknown recipient type: {recipient_type}"
-                }).encode('utf-8')
+                return json.dumps({"success": False, "message": "Invalid recipient_type"}).encode('utf-8')
             
             return json.dumps({
                 "success": success,
-                "message": message,
-                "timestamp": datetime.now().isoformat()
+                "message": "Notification sent" if success else "Failed to send notification"
             }).encode('utf-8')
             
         except Exception as e:
-            logger.error(f"Error in sendNotif: {e}")
-            import traceback
-            traceback.print_exc()
-            return json.dumps({
-                "success": False,
-                "message": f"Internal error: {str(e)}"
-            }).encode('utf-8')
+            logger.info(f"Error in sendNotif: {e}")
+            return json.dumps({"success": False, "message": str(e)}).encode('utf-8')
     
-    def send_patient_notification(self, data):
-        """Send health alert notification to patient"""
+    @cherrypy.expose
+    def status(self):
+        """Get notification service status"""
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        
+        return json.dumps({
+            "status": "running",
+            "last_check": self.last_check_time.isoformat(),
+            "tracked_users": len(self.last_notification),
+            "cooldown_seconds": self.notification_cooldown
+        }).encode('utf-8')
+    
+    def monitor_health_states(self):
+        """Continuously monitor database for critical health states"""
+        logger.info("🔔 Notification monitoring started")
+        
+        while True:
+            try:
+                # Check every 30 seconds
+                time.sleep(30)
+                
+                # Get all users from catalog
+                users_response = requests.get(f"{self.catalog_url}/users", timeout=5)
+                if users_response.status_code != 200:
+                    logger.info("⚠️ Could not fetch users from catalog")
+                    continue
+                
+                users = users_response.json()
+                patients = [u for u in users if u.get("user_type") == "patient"]
+                
+                logger.info(f"🔍 Checking health states for {len(patients)} patients...")
+                
+                # Check each patient's recent data
+                for patient in patients:
+                    user_id = patient["user_chat_id"]
+                    
+                    # Get latest health data (last 2 minutes)
+                    try:
+                        data_response = requests.get(
+                            f"{self.database_service_url}/read/{user_id}",
+                            params={"hours": 1},  # Check last hour
+                            timeout=10
+                        )
+                        
+                        if data_response.status_code != 200:
+                            continue
+                        
+                        result = data_response.json()
+                        if not result.get("success") or not result.get("data"):
+                            continue
+                        
+                        # Get most recent state
+                        data = result["data"]
+                        state_entries = [d for d in data if d.get("field") == "state"]
+                        
+                        if not state_entries:
+                            continue
+                        
+                        # Sort by time and get latest
+                        state_entries.sort(key=lambda x: x.get("time", ""), reverse=True)
+                        latest_state_entry = state_entries[0]
+                        latest_state = latest_state_entry.get("value")
+                        
+                        # Check if this is a critical state
+                        if latest_state in ["risky", "dangerous"]:
+                            # Check if we should send notification
+                            if self._should_send_notification(user_id, latest_state):
+                                logger.info(f"🚨 Critical state detected for user {user_id}: {latest_state}")
+                                
+                                # Get other vital signs from same time period
+                                temp_entries = [d for d in data if d.get("field") == "temp"]
+                                hr_entries = [d for d in data if d.get("field") == "heart_rate"]
+                                oxygen_entries = [d for d in data if d.get("field") == "oxygen"]
+                                
+                                temp = temp_entries[0].get("value") if temp_entries else "N/A"
+                                heart_rate = hr_entries[0].get("value") if hr_entries else "N/A"
+                                oxygen = oxygen_entries[0].get("value") if oxygen_entries else "N/A"
+                                
+                                # Send notifications
+                                self._process_critical_state(
+                                    user_id=user_id,
+                                    user_name=patient.get("full_name", f"User {user_id}"),
+                                    state=latest_state,
+                                    temp=temp,
+                                    heart_rate=heart_rate,
+                                    oxygen=oxygen,
+                                    doctor_id=patient.get("doctor_id")
+                                )
+                                
+                    except Exception as e:
+                        logger.error(f"Error checking user {user_id}: {e}")
+                        continue
+                
+                # Update last check time
+                self.last_check_time = datetime.now()
+                
+            except Exception as e:
+                logger.error(f"Error in monitoring loop: {e}")
+                import traceback
+                traceback.print_exc()
+    
+    def _should_send_notification(self, user_id, current_state):
+        """Check if we should send a notification based on cooldown"""
+        current_time = time.time()
+        
+        if user_id not in self.last_notification:
+            return True
+        
+        last_notif = self.last_notification[user_id]
+        time_since_last = current_time - last_notif["timestamp"]
+        
+        # Send if:
+        # 1. State has changed (e.g., risky -> dangerous)
+        # 2. Cooldown period has passed for same state
+        if last_notif["state"] != current_state:
+            return True
+        
+        if time_since_last > self.notification_cooldown:
+            return True
+        
+        return False
+    
+    def _process_critical_state(self, user_id, user_name, state, temp, heart_rate, oxygen, doctor_id):
+        """Process and send notifications for critical health state"""
+        
+        # Prepare notification data
+        notification_data = {
+            "user_id": user_id,
+            "user_name": user_name,
+            "state": state,
+            "temp": temp,
+            "oxygen": oxygen,
+            "heartRate": heart_rate
+        }
+        
+        # Send patient notification
+        logger.info(f"📱 Sending patient notification to {user_id}")
+        patient_success = self._send_patient_notification(notification_data)
+        
+        # Send doctor notification if assigned
+        if doctor_id:
+            logger.info(f"👨‍⚕️ Sending doctor notification to {doctor_id}")
+            doctor_data = {
+                **notification_data,
+                "doctor_id": doctor_id,
+                "patient_name": user_name
+            }
+            doctor_success = self._send_doctor_notification(doctor_data)
+        
+        # Update last notification time
+        self.last_notification[user_id] = {
+            "state": state,
+            "timestamp": time.time()
+        }
+    
+    def _send_patient_notification(self, data):
+        """Send notification to patient via Telegram"""
         try:
-            user_id = data['user_id']
-            user_name = data['user_name']
-            state = data['state']
-            temp = data['temp']
-            oxygen = data['oxygen']
-            heart_rate = data['heartRate']
+            user_id = data["user_id"]
+            state = data["state"]
+            temp = data["temp"]
+            heart_rate = data["heartRate"]
+            oxygen = data["oxygen"]
             
-            # Create patient notification message
-            if state == 'dangerous':
+            # Determine emoji and severity
+            if state == "dangerous":
                 emoji = "🚨"
-                urgency = "CRITICAL ALERT"
-                message = f"{emoji} {urgency}\n\n"
-                message += f"Dear {user_name},\n\n"
-                message += f"Your health readings show concerning values:\n"
-                message += f"🌡️ Temperature: {temp}°C\n"
-                message += f"❤️ Heart Rate: {heart_rate} BPM\n"
-                message += f"🫁 Oxygen: {oxygen}%\n\n"
-                message += f"⚠️ Please seek immediate medical attention or contact your doctor.\n\n"
-                message += f"If this is an emergency, call emergency services immediately."
-            
-            elif state == 'risky':
+                severity = "CRITICAL"
+            elif state == "risky":
                 emoji = "⚠️"
-                urgency = "Health Warning"
-                message = f"{emoji} {urgency}\n\n"
-                message += f"Dear {user_name},\n\n"
-                message += f"Your health readings require attention:\n"
-                message += f"🌡️ Temperature: {temp}°C\n"
-                message += f"❤️ Heart Rate: {heart_rate} BPM\n"
-                message += f"🫁 Oxygen: {oxygen}%\n\n"
-                message += f"Please monitor your symptoms and consider contacting your doctor.\n"
-                message += f"Take care and rest if needed."
-            
+                severity = "WARNING"
             else:
-                # Normal state - usually don't send notifications for normal readings
-                return True, "Normal state - no notification sent"
+                return True  # Don't send for normal states
             
-            # Send the message via Telegram
-            return self.send_telegram_message(user_id, message)
+            message = (
+                f"{emoji} <b>Health Alert - {severity}</b>\n\n"
+                f"Your health status requires attention:\n\n"
+                f"Status: <b>{state.upper()}</b>\n"
+                f"🌡️ Temperature: {temp}°C\n"
+                f"❤️ Heart Rate: {heart_rate} BPM\n"
+                f"🫁 Oxygen: {oxygen}%\n\n"
+                f"Please monitor your condition carefully."
+            )
+            
+            url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
+            payload = {
+                "chat_id": user_id,
+                "text": message,
+                "parse_mode": "HTML"
+            }
+            
+            response = requests.post(url, json=payload, timeout=10)
+            return response.status_code == 200
             
         except Exception as e:
             logger.error(f"Error sending patient notification: {e}")
-            return False, f"Failed to send patient notification: {str(e)}"
+            return False
     
-    def send_doctor_notification(self, data):
-        """Send patient alert notification to doctor"""
+    def _send_doctor_notification(self, data):
+        """Send notification to doctor via Telegram"""
         try:
-            patient_name = data.get('patient_name', data['user_name'])
-            patient_id = data['user_id']
-            doctor_id = data['doctor_id']
-            state = data['state']
-            temp = data['temp']
-            oxygen = data['oxygen']
-            heart_rate = data['heartRate']
+            doctor_id = data["doctor_id"]
+            patient_name = data["patient_name"]
+            patient_id = data["user_id"]
+            state = data["state"]
+            temp = data["temp"]
+            heart_rate = data["heartRate"]
+            oxygen = data["oxygen"]
             
-            # Create doctor notification message
-            if state == 'dangerous':
+            # Determine emoji and severity
+            if state == "dangerous":
                 emoji = "🚨"
-                urgency = "CRITICAL PATIENT ALERT"
-                message = f"{emoji} {urgency}\n\n"
-                message += f"Doctor Alert - Immediate Attention Required\n\n"
-                message += f"Patient: {patient_name} (ID: {patient_id})\n"
-                message += f"Status: DANGEROUS\n\n"
-                message += f"Critical Vitals:\n"
-                message += f"🌡️ Temperature: {temp}°C\n"
-                message += f"❤️ Heart Rate: {heart_rate} BPM\n"
-                message += f"🫁 Oxygen: {oxygen}%\n\n"
-                message += f"⚠️ This patient requires immediate medical evaluation.\n"
-                message += f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            
-            elif state == 'risky':
+                severity = "CRITICAL"
+            elif state == "risky":
                 emoji = "⚠️"
-                urgency = "Patient Health Warning"
-                message = f"{emoji} {urgency}\n\n"
-                message += f"Patient: {patient_name} (ID: {patient_id})\n"
-                message += f"Status: RISKY\n\n"
-                message += f"Concerning Vitals:\n"
-                message += f"🌡️ Temperature: {temp}°C\n"
-                message += f"❤️ Heart Rate: {heart_rate} BPM\n"
-                message += f"🫁 Oxygen: {oxygen}%\n\n"
-                message += f"📞 Consider contacting this patient for follow-up.\n"
-                message += f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            
+                severity = "WARNING"
             else:
-                # Normal state - don't send notifications for normal readings
-                return True, "Normal state - no doctor notification sent"
+                return True
             
-            # Send the message to doctor via Telegram
-            return self.send_telegram_message(doctor_id, message)
+            message = (
+                f"{emoji} <b>Patient Alert - {severity}</b>\n\n"
+                f"Patient: <b>{patient_name}</b> (ID: {patient_id})\n"
+                f"Status: <b>{state.upper()}</b>\n\n"
+                f"Vital Signs:\n"
+                f"🌡️ Temperature: {temp}°C\n"
+                f"❤️ Heart Rate: {heart_rate} BPM\n"
+                f"🫁 Oxygen: {oxygen}%\n\n"
+                f"Immediate attention may be required."
+            )
+            
+            url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
+            payload = {
+                "chat_id": doctor_id,
+                "text": message,
+                "parse_mode": "HTML"
+            }
+            
+            response = requests.post(url, json=payload, timeout=10)
+            return response.status_code == 200
             
         except Exception as e:
             logger.error(f"Error sending doctor notification: {e}")
-            return False, f"Failed to send doctor notification: {str(e)}"
-    
-    def send_telegram_message(self, chat_id, message):
-        """Send message via Telegram Bot API"""
-        try:
-            url = f"{self.telegram_api_url}/sendMessage"
-            
-            payload = {
-                "chat_id": chat_id,
-                "text": message,
-                "parse_mode": "HTML",  # Allow HTML formatting if needed
-                "disable_web_page_preview": True
-            }
-            
-            logger.info(f"Sending Telegram message to {chat_id}")
-            logger.debug(f"Message payload: {payload}")
-            
-            response = requests.post(url, json=payload, timeout=10)
-            
-            logger.info(f"Telegram API response: {response.status_code}")
-            logger.debug(f"Response content: {response.text}")
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result.get("ok"):
-                    logger.info(f"Message sent successfully to {chat_id}")
-                    return True, "Message sent successfully"
-                else:
-                    error_msg = result.get("description", "Unknown error")
-                    logger.error(f"Telegram API error: {error_msg}")
-                    return False, f"Telegram API error: {error_msg}"
-            else:
-                logger.error(f"HTTP error: {response.status_code} - {response.text}")
-                return False, f"HTTP error: {response.status_code}"
-                
-        except requests.exceptions.Timeout:
-            logger.error("Telegram API request timed out")
-            return False, "Request timeout"
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error: {e}")
-            return False, f"Request error: {str(e)}"
-        except Exception as e:
-            logger.error(f"Unexpected error sending Telegram message: {e}")
-            import traceback
-            traceback.print_exc()
-            return False, f"Unexpected error: {str(e)}"
+            return False
 
 
 if __name__ == "__main__":
-    register_service_with_catalog(service_name="notification", 
-                                  url="http://notification",
-                                  port=1500,
-                                  endpoints={
-                                        "POST /sendNotif": "Send notification",
-                                        "GET /": "Service information"
-                                  })
+    # Register service
+    register_service_with_catalog(
+        service_name="notification",
+        url="http://notification",
+        port=1500,
+        endpoints={
+            "POST /sendNotif": "Send notification",
+            "GET /status": "Get service status"
+        }
+    )
     
     # Configure CherryPy
     cherrypy.config.update({
         'server.socket_host': '0.0.0.0',
         'server.socket_port': 1500,
         'tools.encode.on': True,
-        'tools.encode.encoding': 'utf-8'
+        'tools.encode.encoding': 'utf-8',
+        'log.screen': True,  # Enable console output
+        'log.access_file': '',  # Disable access log file
+        'log.error_file': ''   # Disable error log file
     })
     
-    # CORS configuration
+    # CORS
     def cors():
         cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
         cherrypy.response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
@@ -258,5 +368,5 @@ if __name__ == "__main__":
         }
     }
     
-    logger.info("Starting Notification Service on port 1500...")
+    logger.info("🔔 Starting Notification Service on port 1500...")
     cherrypy.quickstart(NotificationService(), '/', conf)

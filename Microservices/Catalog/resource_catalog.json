@@ -12,7 +12,7 @@
         {
             "id": "temp_548805315_1759758744",
             "type": "temp",
-            "last_update": "2025-10-07T08:49:43Z"
+            "last_update": "2025-10-07T15:52:46Z"
         },
         {
             "id": "heart_rate_548805315_1759761185",
@@ -22,12 +22,87 @@
         {
             "id": "heart_rate_548805315_1759761237",
             "type": "heart_rate",
-            "last_update": "2025-10-07T08:49:43Z"
+            "last_update": "2025-10-07T15:53:46Z"
         },
         {
             "id": "oxygen_548805315_1759761260",
             "type": "oxygen",
-            "last_update": "2025-10-07T08:50:08Z"
+            "last_update": "2025-10-07T15:51:45Z"
+        },
+        {
+            "id": "temp_222333444_1759800001",
+            "type": "temp",
+            "last_update": "2025-10-07T15:52:15Z"
+        },
+        {
+            "id": "heart_rate_222333444_1759800002",
+            "type": "heart_rate",
+            "last_update": "2025-10-07T15:53:16Z"
+        },
+        {
+            "id": "oxygen_222333444_1759800003",
+            "type": "oxygen",
+            "last_update": "2025-10-07T15:51:15Z"
+        },
+        {
+            "id": "temp_333444555_1759800004",
+            "type": "temp",
+            "last_update": "2025-10-07T15:53:46Z"
+        },
+        {
+            "id": "heart_rate_333444555_1759800005",
+            "type": "heart_rate",
+            "last_update": "2025-10-07T15:51:45Z"
+        },
+        {
+            "id": "oxygen_333444555_1759800006",
+            "type": "oxygen",
+            "last_update": "2025-10-07T15:52:46Z"
+        },
+        {
+            "id": "temp_555666777_1759800007",
+            "type": "temp",
+            "last_update": "2025-10-07T15:53:16Z"
+        },
+        {
+            "id": "heart_rate_555666777_1759800008",
+            "type": "heart_rate",
+            "last_update": "2025-10-07T15:53:16Z"
+        },
+        {
+            "id": "oxygen_555666777_1759800009",
+            "type": "oxygen",
+            "last_update": "2025-10-07T15:53:46Z"
+        },
+        {
+            "id": "temp_666777888_1759800010",
+            "type": "temp",
+            "last_update": "2025-10-07T15:53:46Z"
+        },
+        {
+            "id": "heart_rate_666777888_1759800011",
+            "type": "heart_rate",
+            "last_update": "2025-10-07T15:52:46Z"
+        },
+        {
+            "id": "oxygen_666777888_1759800012",
+            "type": "oxygen",
+            "last_update": "2025-10-07T15:53:46Z"
+        },
+        {
+            "id": "temp_888999111_1759800013",
+            "type": "temp",
+            "last_update": "2025-10-07T15:52:46Z"
+        },
+        {
+            "id": "heart_rate_888999111_1759800014",
+            "type": "heart_rate",
+            "last_update": "2025-10-07T15:52:46Z"
+        },
+        {
+            "id": "oxygen_888999111_1759800015",
+            "type": "oxygen",
+            "last_update": "2025-10-07T15:53:16Z"
         }
     ],
     "users": [
@@ -37,7 +112,9 @@
             "user_type": "doctor",
             "specialization": "Pediatrics",
             "hospital": "Children's Medical Center",
-            "patients": []
+            "patients": [
+                222333444
+            ]
         },
         {
             "user_chat_id": 111222333,
@@ -45,7 +122,9 @@
             "user_type": "doctor",
             "specialization": "Internal Medicine",
             "hospital": "City General Hospital",
-            "patients": []
+            "patients": [
+                333444555
+            ]
         },
         {
             "user_chat_id": 444555666,
@@ -53,7 +132,9 @@
             "user_type": "doctor",
             "specialization": "Emergency Medicine",
             "hospital": "Metro Emergency Center",
-            "patients": []
+            "patients": [
+                555666777
+            ]
         },
         {
             "user_chat_id": 777888999,
@@ -70,7 +151,8 @@
             "specialization": "Pulmonology",
             "hospital": "Respiratory Health Institute",
             "patients": [
-                548805315
+                548805315,
+                888999111
             ]
         },
         {
@@ -87,7 +169,9 @@
             "user_type": "doctor",
             "specialization": "Cardiology",
             "hospital": "Heart & Vascular Institute",
-            "patients": []
+            "patients": [
+                666777888
+            ]
         },
         {
             "user_chat_id": 147258369,
@@ -115,6 +199,61 @@
             "specialization": "Other",
             "hospital": "",
             "patients": []
+        },
+        {
+            "user_chat_id": 222333444,
+            "full_name": "John Smith",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_222333444_1759800001",
+                "heart_rate_222333444_1759800002",
+                "oxygen_222333444_1759800003"
+            ]
+        },
+        {
+            "user_chat_id": 333444555,
+            "full_name": "Maria Garcia",
+            "user_type": "patient",
+            "doctor_id": 111222333,
+            "devices": [
+                "temp_333444555_1759800004",
+                "heart_rate_333444555_1759800005",
+                "oxygen_333444555_1759800006"
+            ]
+        },
+        {
+            "user_chat_id": 555666777,
+            "full_name": "Wei Chen",
+            "user_type": "patient",
+            "doctor_id": 444555666,
+            "devices": [
+                "temp_555666777_1759800007",
+                "heart_rate_555666777_1759800008",
+                "oxygen_555666777_1759800009"
+            ]
+        },
+        {
+            "user_chat_id": 666777888,
+            "full_name": "Sarah Johnson",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_666777888_1759800010",
+                "heart_rate_666777888_1759800011",
+                "oxygen_666777888_1759800012"
+            ]
+        },
+        {
+            "user_chat_id": 888999111,
+            "full_name": "Michael Brown",
+            "user_type": "patient",
+            "doctor_id": 159357258,
+            "devices": [
+                "temp_888999111_1759800013",
+                "heart_rate_888999111_1759800014",
+                "oxygen_888999111_1759800015"
+            ]
         }
     ],
     "services": [
@@ -192,7 +331,7 @@
             "port": 1500,
             "endpoints": {
                 "POST /sendNotif/": "Send notification",
-                "GET /": "service information"
+                "GET /status": "Get service status"
             }
         },
         {

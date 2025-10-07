@@ -37,7 +37,6 @@ class DataHandler:
         self.registry = ServiceRegistry()
         # Discover service URLs at initialization
         self.database_service_url = self.registry.get_service_url("databaseAdapter")
-        self.notification_service_url = self.registry.get_service_url("notification")
         
         # Get full MQTT service info 
         self.mqtt_service_info = self.registry.get_service_info("mqtt")
@@ -246,54 +245,6 @@ class DataHandler:
             # Predict health state
             predicted_state = self.predict.predict_state(temp_value, heart_rate_value, oxygen_value)
             print(f"Predicted state: {predicted_state}")
-
-            # Send notifications if needed
-            if predicted_state in ["risky", "dangerous"]:
-                print(f"Alert triggered: User {user_id} ({user_name}) - State: {predicted_state}")
-                
-                try:
-                    user_response = requests.get(f"{self.catalog_url}/users/{user_id}")
-                    if user_response.status_code == 200:
-                        user_info = user_response.json()
-                        assigned_doctor_id = user_info.get('doctor_id')
-                        print(f"Patient {user_id} assigned doctor: {assigned_doctor_id}")
-                        
-                        # Prepare notification data
-                        notification_data = {
-                            "user_id": user_id,
-                            "user_name": user_name,
-                            "state": predicted_state,
-                            "temp": temp_value,
-                            "oxygen": oxygen_value,
-                            "heartRate": heart_rate_value
-                        }
-                        
-                        # Patient notification
-                        patient_notification = {**notification_data, "recipient_type": "patient"}
-                        response = requests.post(
-                            f"{self.notification_service_url}/sendNotif", 
-                            json=patient_notification
-                        )                        
-                        print(f"Patient notification sent to {user_id} - Status: {response.status_code}")
-                        
-                        # Doctor notification if assigned
-                        if assigned_doctor_id:
-                            doctor_notification = {
-                                **notification_data, 
-                                "recipient_type": "doctor", 
-                                "doctor_id": assigned_doctor_id, 
-                                "patient_name": user_name
-                            }
-                            doctor_response = requests.post(
-                                f"{self.notification_service_url}/sendNotif", 
-                                json=doctor_notification
-                            )                           
-                            print(f"Doctor notification sent to {assigned_doctor_id} - Status: {doctor_response.status_code}")
-                        else:
-                            print("No doctor assigned to this patient")
-                            
-                except Exception as e:
-                    print(f"Error sending notifications: {e}")
 
             # Store in database using the service
             print("Writing to database...")
