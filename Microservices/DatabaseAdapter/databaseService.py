@@ -14,8 +14,8 @@ from Microservices.Common.utils import (
 class DatabaseAdapterService:
     """ Main CherryPy web service that exposes REST endpoints """
     def __init__(self):
-        self.database = DatabaseService(Config.DATABASE)
-
+        self.database = DatabaseService()
+    
     @cherrypy.expose
     def index(self):
         cherrypy.response.headers['Content-Type'] = 'application/json'

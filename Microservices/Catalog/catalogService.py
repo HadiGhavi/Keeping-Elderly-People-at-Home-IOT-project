@@ -11,8 +11,10 @@ class HumanHealthCatalog:
                 json.dump({
                     "project_name": "Human Health",
                     "project_owner": ["Hadi"],
+                    "device_types": ["temp", "heart_rate", "oxygen"],
+                    "devices": [],
                     "users": [],
-                    "services": []  # Changed to list
+                    "services": []
                 }, f, indent=4)
     
     def _read_data(self):
@@ -33,16 +35,24 @@ class HumanHealthCatalog:
                 "PUT /project": "update project info",
                 "GET /services/<service_name>": "get service by name",
                 "POST /services/": "add new service",
+                "GET /device_types": "Get available device types (temp, heart_rate, oxygen)",
+                "GET /devices": "Get all registered devices",
+                "GET /devices/<device_id>": "Get specific device",
+                "POST /devices": "Register a new device (requires: id, type)",
+                "PUT /devices/<device_id>": "Update device last_update",
+                "DELETE /devices/<device_id>": "Delete a device",
                 "GET /users": "Get all users",
                 "GET /users/<user_chat_id>": "Get specific user details",
                 "POST /users": "Create a new user entry",
                 "PUT /users/<user_chat_id>": "Update a user",
                 "DELETE /users/<user_chat_id>": "Delete a user",
-                "GET /sensors/<user_chat_id>": "Get all sensors for a user",
-                "GET /sensors/<user_chat_id>/<sensor_id>": "Get specific sensor",
-                "POST /sensors/<user_chat_id>": "Add sensor to user (requires: id, name)",
-                "PUT /sensors/<user_chat_id>/<sensor_id>": "Update sensor name",
-                "DELETE /sensors/<user_chat_id>/<sensor_id>": "Remove sensor"
+                "GET /user_devices/<user_chat_id>": "Get all devices assigned to user",
+                "POST /user_devices/<user_chat_id>": "Assign device to user (requires: device_id)",
+                "DELETE /user_devices/<user_chat_id>/<device_id>": "Remove device from user",
+                "GET /doctors": "Get all doctors",
+                "GET /doctors/<doctor_id>": "Get patients for a specific doctor",
+                "POST /doctors": "Register a new doctor",
+                "POST /assign_patient": "Assign a patient to a doctor"
             }
         }).encode('utf-8')
     
@@ -82,7 +92,6 @@ class HumanHealthCatalog:
                 if service_name:
                     return json.dumps(self._find_service_by_name(service_name)).encode('utf-8')
                 else:
-                    # Return all services
                     data = self._read_data()
                     return json.dumps(data.get("services", [])).encode('utf-8')
             elif cherrypy.request.method == "POST":
@@ -91,6 +100,47 @@ class HumanHealthCatalog:
                 except:
                     raise cherrypy.HTTPError(400, "Invalid JSON data")
                 return json.dumps(self._add_service(service_data)).encode('utf-8')
+        except Exception as e:
+            raise cherrypy.HTTPError(500, str(e))
+    
+    @cherrypy.expose
+    def device_types(self, **params):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        try:
+            if cherrypy.request.method == "GET":
+                data = self._read_data()
+                return json.dumps(data.get("device_types", [])).encode('utf-8')
+        except Exception as e:
+            raise cherrypy.HTTPError(500, str(e))
+    
+    @cherrypy.expose
+    def devices(self, device_id=None, **params):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        try:
+            if cherrypy.request.method == "GET":
+                if device_id:
+                    return json.dumps(self._get_device(device_id)).encode('utf-8')
+                else:
+                    data = self._read_data()
+                    return json.dumps(data.get("devices", [])).encode('utf-8')
+            elif cherrypy.request.method == "POST":
+                try:
+                    device_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
+                except:
+                    raise cherrypy.HTTPError(400, "Invalid JSON data")
+                return json.dumps(self._register_device(device_data)).encode('utf-8')
+            elif cherrypy.request.method == "PUT":
+                if not device_id:
+                    raise cherrypy.HTTPError(400, "Device ID is required")
+                try:
+                    update_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
+                except:
+                    raise cherrypy.HTTPError(400, "Invalid JSON data")
+                return json.dumps(self._update_device(device_id, update_data)).encode('utf-8')
+            elif cherrypy.request.method == "DELETE":
+                if not device_id:
+                    raise cherrypy.HTTPError(400, "Device ID is required")
+                return json.dumps(self._delete_device(device_id)).encode('utf-8')
         except Exception as e:
             raise cherrypy.HTTPError(500, str(e))
     
@@ -125,36 +175,28 @@ class HumanHealthCatalog:
             raise cherrypy.HTTPError(500, str(e))
     
     @cherrypy.expose
-    def sensors(self, user_chat_id=None, sensor_id=None, **params):
+    def user_devices(self, user_chat_id=None, device_id=None, **params):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         try:
             if cherrypy.request.method == "GET":
                 if not user_chat_id:
                     raise cherrypy.HTTPError(400, "User chat ID is required")
-                if sensor_id:
-                    return json.dumps(self._get_sensor(int(user_chat_id), int(sensor_id))).encode('utf-8')
-                else:
-                    return json.dumps(self._get_user_sensors(int(user_chat_id))).encode('utf-8')
+                return json.dumps(self._get_user_devices(int(user_chat_id))).encode('utf-8')
             elif cherrypy.request.method == "POST":
                 if not user_chat_id:
                     raise cherrypy.HTTPError(400, "User chat ID is required")
                 try:
-                    sensor_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
+                    data = json.loads(cherrypy.request.body.read().decode('utf-8'))
+                    device_id = data.get('device_id')
+                    if not device_id:
+                        raise cherrypy.HTTPError(400, "device_id is required in request body")
                 except:
                     raise cherrypy.HTTPError(400, "Invalid JSON data")
-                return json.dumps(self._add_sensor(int(user_chat_id), sensor_data)).encode('utf-8')
-            elif cherrypy.request.method == "PUT":
-                if not user_chat_id or not sensor_id:
-                    raise cherrypy.HTTPError(400, "User chat ID and sensor ID are required")
-                try:
-                    update_data = json.loads(cherrypy.request.body.read().decode('utf-8'))
-                except:
-                    raise cherrypy.HTTPError(400, "Invalid JSON data")
-                return json.dumps(self._update_sensor(int(user_chat_id), int(sensor_id), update_data)).encode('utf-8')
+                return json.dumps(self._assign_device_to_user(int(user_chat_id), device_id)).encode('utf-8')
             elif cherrypy.request.method == "DELETE":
-                if not user_chat_id or not sensor_id:
-                    raise cherrypy.HTTPError(400, "User chat ID and sensor ID are required")
-                return json.dumps(self._delete_sensor(int(user_chat_id), int(sensor_id))).encode('utf-8')
+                if not user_chat_id or not device_id:
+                    raise cherrypy.HTTPError(400, "User chat ID and device ID are required")
+                return json.dumps(self._remove_device_from_user(int(user_chat_id), device_id)).encode('utf-8')
         except Exception as e:
             raise cherrypy.HTTPError(500, str(e))
 
@@ -186,14 +228,13 @@ class HumanHealthCatalog:
         except Exception as e:
             raise cherrypy.HTTPError(500, str(e))
            
-    # Helper methods - UPDATED FOR LIST-BASED SERVICES
+    # Helper methods - SERVICE MANAGEMENT
   
     def _find_service_by_name(self, servicename):
         """Find a service by name in the services list"""
         data = self._read_data()
         services = data.get("services", [])
         
-        # Search through the list for matching service name
         for service in services:
             if service.get("name") == servicename:
                 return service
@@ -202,32 +243,105 @@ class HumanHealthCatalog:
      
     def _add_service(self, service_data):
         """Add a new service to the services list"""
-        # Validate service data structure
         if not isinstance(service_data, dict):
             raise cherrypy.HTTPError(400, "Service data must be an object")
         
-        # Validate required fields
         required_fields = ['name', 'url', 'port']
         if not all(field in service_data for field in required_fields):
             raise cherrypy.HTTPError(400, f"Missing required fields: {required_fields}")
         
         config = self._read_data()
         
-        # Ensure services is a list
         if 'services' not in config:
             config['services'] = []
         
-        # Check if service with this name already exists
         for service in config['services']:
             if service.get('name') == service_data['name']:
                 raise cherrypy.HTTPError(400, f"Service '{service_data['name']}' already exists")
         
-        # Add the new service
         config['services'].append(service_data)
         
         self._write_data(config)
         cherrypy.response.status = 201
         return {"message": "Service added successfully", "service": service_data}
+    
+    # Helper methods - DEVICE MANAGEMENT
+    
+    def _get_device(self, device_id):
+        """Get a specific device by ID"""
+        data = self._read_data()
+        for device in data.get('devices', []):
+            if device['id'] == device_id:
+                return device
+        raise cherrypy.HTTPError(404, "Device not found")
+    
+    def _register_device(self, device_data):
+        """Register a new device in the global devices list"""
+        required_fields = ['id', 'type']
+        if not all(field in device_data for field in required_fields):
+            raise cherrypy.HTTPError(400, "Missing required fields (id, type)")
+        
+        data = self._read_data()
+        
+        # Validate device type
+        if device_data['type'] not in data.get('device_types', []):
+            raise cherrypy.HTTPError(400, f"Invalid device type. Must be one of: {data.get('device_types', [])}")
+        
+        # Check if device ID already exists
+        for device in data.get('devices', []):
+            if device['id'] == device_data['id']:
+                raise cherrypy.HTTPError(400, "Device ID already exists")
+        
+        new_device = {
+            "id": device_data['id'],
+            "type": device_data['type'],
+            "last_update": datetime.utcnow().isoformat() + 'Z'
+        }
+        
+        if 'devices' not in data:
+            data['devices'] = []
+        
+        data['devices'].append(new_device)
+        self._write_data(data)
+        cherrypy.response.status = 201
+        return new_device
+    
+    def _update_device(self, device_id, update_data):
+        """Update device information (mainly last_update timestamp)"""
+        data = self._read_data()
+        
+        for device in data.get('devices', []):
+            if device['id'] == device_id:
+                if 'last_update' in update_data:
+                    device['last_update'] = update_data['last_update']
+                else:
+                    device['last_update'] = datetime.utcnow().isoformat() + 'Z'
+                
+                self._write_data(data)
+                return device
+        
+        raise cherrypy.HTTPError(404, "Device not found")
+    
+    def _delete_device(self, device_id):
+        """Delete a device from global list and remove from all users"""
+        data = self._read_data()
+        initial_length = len(data.get('devices', []))
+        
+        # Remove device from global list
+        data['devices'] = [d for d in data.get('devices', []) if d['id'] != device_id]
+        
+        if len(data.get('devices', [])) == initial_length:
+            raise cherrypy.HTTPError(404, "Device not found")
+        
+        # Remove device from all users
+        for user in data.get('users', []):
+            if 'devices' in user and device_id in user['devices']:
+                user['devices'].remove(device_id)
+        
+        self._write_data(data)
+        return {"message": "Device deleted successfully"}
+    
+    # Helper methods - USER MANAGEMENT
      
     def _get_all_users(self):
         data = self._read_data()
@@ -256,11 +370,7 @@ class HumanHealthCatalog:
         new_user = {
             "user_chat_id": user_chat_id,
             "full_name": user_data['full_name'],
-            "sensors": [
-                {"id": 1, "name": "temp"},
-                {"id": 2, "name": "oxygen"}, 
-                {"id": 3, "name": "heart_rate"}
-            ],
+            "devices": [],  # Empty device list - user will register their own
             "doctor_id": None,  
             "user_type": "patient"  
         }
@@ -278,8 +388,8 @@ class HumanHealthCatalog:
             if user['user_chat_id'] == user_chat_id:
                 if 'full_name' in update_data:
                     user['full_name'] = update_data['full_name']
-                if 'sensors' in update_data:
-                    user['sensors'] = update_data['sensors']
+                if 'devices' in update_data:
+                    user['devices'] = update_data['devices']
                 updated = True
                 break
         
@@ -301,6 +411,65 @@ class HumanHealthCatalog:
         self._write_data(data)
         return {"message": "User deleted successfully"}
     
+    # Helper methods - USER-DEVICE RELATIONSHIP
+    
+    def _get_user_devices(self, user_chat_id):
+        """Get full device objects for all devices assigned to a user"""
+        user = self._get_user(user_chat_id)
+        device_ids = user.get('devices', [])
+        
+        data = self._read_data()
+        user_devices = []
+        
+        for device_id in device_ids:
+            for device in data.get('devices', []):
+                if device['id'] == device_id:
+                    user_devices.append(device)
+                    break
+        
+        return user_devices
+    
+    def _assign_device_to_user(self, user_chat_id, device_id):
+        """Assign an existing device to a user"""
+        data = self._read_data()
+        
+        # Check if device exists
+        device_exists = any(d['id'] == device_id for d in data.get('devices', []))
+        if not device_exists:
+            raise cherrypy.HTTPError(404, "Device not found")
+        
+        # Find user and assign device
+        for user in data.get('users', []):
+            if user['user_chat_id'] == user_chat_id:
+                if 'devices' not in user:
+                    user['devices'] = []
+                
+                if device_id in user['devices']:
+                    raise cherrypy.HTTPError(400, "Device already assigned to this user")
+                
+                user['devices'].append(device_id)
+                self._write_data(data)
+                return {"message": "Device assigned successfully", "device_id": device_id}
+        
+        raise cherrypy.HTTPError(404, "User not found")
+    
+    def _remove_device_from_user(self, user_chat_id, device_id):
+        """Remove a device assignment from a user"""
+        data = self._read_data()
+        
+        for user in data.get('users', []):
+            if user['user_chat_id'] == user_chat_id:
+                if 'devices' not in user or device_id not in user['devices']:
+                    raise cherrypy.HTTPError(404, "Device not assigned to this user")
+                
+                user['devices'].remove(device_id)
+                self._write_data(data)
+                return {"message": "Device removed from user"}
+        
+        raise cherrypy.HTTPError(404, "User not found")
+    
+    # Helper methods - DOCTOR MANAGEMENT
+    
     def _register_doctor(self, doctor_data):
         required_fields = ['user_chat_id', 'full_name', 'specialization']
         if not all(field in doctor_data for field in required_fields):
@@ -320,7 +489,7 @@ class HumanHealthCatalog:
                     user['specialization'] = doctor_data['specialization']
                     user['hospital'] = doctor_data.get('hospital', '')
                     # Remove patient-specific fields and add doctor fields
-                    user.pop('sensors', None)
+                    user.pop('devices', None)
                     user.pop('doctor_id', None)
                     user['patients'] = []
                     self._write_data(data)
@@ -340,80 +509,6 @@ class HumanHealthCatalog:
         self._write_data(data)
         cherrypy.response.status = 201
         return new_doctor
-    
-    def _get_user_sensors(self, user_chat_id):
-        user = self._get_user(user_chat_id)
-        return user['sensors']
-    
-    def _get_sensor(self, user_chat_id, sensor_id):
-        sensors = self._get_user_sensors(user_chat_id)
-        for sensor in sensors:
-            if sensor['id'] == sensor_id:
-                return sensor
-        raise cherrypy.HTTPError(404, "Sensor not found")
-    
-    def _add_sensor(self, user_chat_id, sensor_data):
-        required_fields = ['id', 'name']
-        if not all(field in sensor_data for field in required_fields):
-            raise cherrypy.HTTPError(400, "Missing required fields (id, name)")
-        
-        data = self._read_data()
-        sensor_id = int(sensor_data['id'])
-        
-        for user in data['users']:
-            if user['user_chat_id'] == user_chat_id:
-                # Check if sensor ID already exists
-                for sensor in user['sensors']:
-                    if sensor['id'] == sensor_id:
-                        raise cherrypy.HTTPError(400, "Sensor with this ID already exists for this user")
-                
-                user['sensors'].append({
-                    "id": sensor_id,
-                    "name": sensor_data['name']
-                })
-                break
-        
-        self._write_data(data)
-        cherrypy.response.status = 201
-        return {"id": sensor_id, "name": sensor_data['name']}
-
-    def _update_sensor(self, user_chat_id, sensor_id, update_data):
-        data = self._read_data()
-        updated = False
-        
-        for user in data['users']:
-            if user['user_chat_id'] == user_chat_id:
-                for sensor in user['sensors']:
-                    if sensor['id'] == sensor_id:
-                        if 'name' in update_data:
-                            sensor['name'] = update_data['name']
-                        updated = True
-                        break
-                break
-        
-        if not updated:
-            raise cherrypy.HTTPError(404, "Sensor not found")
-        
-        self._write_data(data)
-        return self._get_sensor(user_chat_id, sensor_id)
-    
-    def _delete_sensor(self, user_chat_id, sensor_id):
-        data = self._read_data()
-        deleted = False
-        
-        for user in data['users']:
-            if user['user_chat_id'] == user_chat_id:
-                initial_length = len(user['sensors'])
-                user['sensors'] = [sensor for sensor in user['sensors'] if sensor['id'] != sensor_id]
-                if len(user['sensors']) < initial_length:
-                    deleted = True
-                break
-        
-        if not deleted:
-            raise cherrypy.HTTPError(404, "Sensor not found")
-        
-        self._write_data(data)
-        return {"message": "Sensor deleted successfully"}
     
     def _get_all_doctors(self):
         data = self._read_data()

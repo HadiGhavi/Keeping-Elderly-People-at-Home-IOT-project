@@ -19,8 +19,16 @@ class Monitor:
         self.registry = ServiceRegistry()
         self.mqtt_info = self.registry.get_service_info("mqtt")
         self.sensor = GenerateSensor()
-        self.active_monitors = {}  # Track active monitoring threads
-        self.stop_events = {}      # Track stop events for each user
+        
+        # Track device threads (one thread per device)
+        self.device_threads = {}  # device_id -> thread
+        self.device_stop_events = {}  # device_id -> stop_event
+        
+        # Track which devices belong to which user
+        self.user_devices = {}  # user_id -> [device_ids]
+        
+        # Thread lock for concurrent access
+        self.lock = threading.Lock()
 
     @cherrypy.expose
     def index(self):
@@ -39,34 +47,83 @@ class Monitor:
         try:
             user_id = int(chat_id)
             
-            # Check if already monitoring this user
-            if user_id in self.active_monitors and self.active_monitors[user_id].is_alive():
+            # Get user info from catalog
+            user_response = requests.get(f"{self.catalog_url}/users/{chat_id}", timeout=5)
+            
+            if user_response.status_code != 200:
                 return json.dumps({
-                    "message": f"Already monitoring user {user_id}"
+                    "error": "User not found"
                 }).encode('utf-8')
             
-            # Get user info from catalog
-            user_info = requests.get(self.catalog_url + "/users/" + chat_id)
+            user_info = user_response.json()
+            user_device_ids = user_info.get("devices", [])
             
-            # Create stop event for this user
-            self.stop_events[user_id] = threading.Event()
+            if not user_device_ids:
+                return json.dumps({
+                    "error": "User has no devices registered"
+                }).encode('utf-8')
             
-            # Start monitoring thread
-            background_thread = threading.Thread(
-                target=self.run, 
-                args=(user_info.json(), user_id), 
-                daemon=True
-            )
-            background_thread.start()
+            # Fetch device details from catalog
+            devices_data = []
+            for device_id in user_device_ids:
+                try:
+                    device_response = requests.get(
+                        f"{self.catalog_url}/devices/{device_id}",
+                        timeout=5
+                    )
+                    if device_response.status_code == 200:
+                        devices_data.append(device_response.json())
+                except Exception as e:
+                    print(f"Error fetching device {device_id}: {e}")
             
-            # Track the thread
-            self.active_monitors[user_id] = background_thread
+            if not devices_data:
+                return json.dumps({
+                    "error": "Could not fetch device information"
+                }).encode('utf-8')
+            
+            # Start a separate thread for each device
+            started_devices = []
+            already_running = []
+            
+            with self.lock:
+                for device in devices_data:
+                    device_id = device['id']
+                    
+                    # Check if device thread is already running
+                    if device_id in self.device_threads and self.device_threads[device_id].is_alive():
+                        already_running.append(device_id)
+                        continue
+                    
+                    # Create stop event for this device
+                    self.device_stop_events[device_id] = threading.Event()
+                    
+                    # Start device monitoring thread
+                    device_thread = threading.Thread(
+                        target=self.run_device,
+                        args=(device, user_info),
+                        daemon=True
+                    )
+                    device_thread.start()
+                    
+                    # Track the thread
+                    self.device_threads[device_id] = device_thread
+                    started_devices.append(device_id)
+                
+                # Track user's devices
+                self.user_devices[user_id] = user_device_ids
+            
+            message = f"Started monitoring {len(started_devices)} device(s)"
+            if already_running:
+                message += f". {len(already_running)} device(s) already running"
             
             return json.dumps({
-                "message": "RUNNING SENSORS"
+                "message": message,
+                "started": started_devices,
+                "already_running": already_running
             }).encode('utf-8')
             
         except Exception as e:
+            print(f"Error in read endpoint: {e}")
             return json.dumps({
                 "error": f"Failed to start monitoring: {str(e)}"
             }).encode('utf-8')
@@ -76,114 +133,138 @@ class Monitor:
     def stop(self, chat_id):
         cherrypy.response.headers['Content-Type'] = 'application/json'
 
-        #print(f"DEBUG: Stop request received for user {chat_id}")
-        #print(f"DEBUG: Active monitors: {list(self.active_monitors.keys())}")
-        #print(f"DEBUG: Stop events: {list(self.stop_events.keys())}")
-
         try:
             user_id = int(chat_id)
-            if user_id in self.stop_events:
-                # Signal the monitoring thread to stop
-                self.stop_events[user_id].set()
-                #print(f"DEBUG: Set stop event for user {user_id}")
+            
+            with self.lock:
+                # Get all devices for this user
+                device_ids = self.user_devices.get(user_id, [])
                 
-                # DON'T delete the stop event here - let the monitoring thread clean up
-                # The monitoring thread will clean up when it sees the stop flag
+                if not device_ids:
+                    return json.dumps({
+                        "message": f"No active monitoring found for user {user_id}"
+                    }).encode('utf-8')
+                
+                # Stop all device threads for this user
+                stopped_devices = []
+                for device_id in device_ids:
+                    if device_id in self.device_stop_events:
+                        self.device_stop_events[device_id].set()
+                        stopped_devices.append(device_id)
+                
+                # Remove user tracking
+                if user_id in self.user_devices:
+                    del self.user_devices[user_id]
                 
                 return json.dumps({
-                    "message": f"Stop signal sent to user {user_id}"
-                }).encode('utf-8')
-            else:
-                return json.dumps({
-                    "message": f"No active monitoring found for user {user_id}"
+                    "message": f"Stop signal sent to {len(stopped_devices)} device(s)",
+                    "stopped_devices": stopped_devices
                 }).encode('utf-8')
                 
         except Exception as e:
+            print(f"Error in stop endpoint: {e}")
             return json.dumps({
                 "error": f"Failed to stop monitoring: {str(e)}"
             }).encode('utf-8')
 
-    def run(self, user_info, user_id):
+    def run_device(self, device, user_info):
+        """
+        Run a single device as an independent MQTT client.
+        Each device has its own thread and MQTT connection.
+        """
+        device_id = device['id']
+        device_type = device['type']
+        user_id = user_info['user_chat_id']
+        user_name = user_info['full_name']
+        
+        mqtt_client = None
+        
         try:
-            while True:
-                # Check if stop was requested
-                if user_id in self.stop_events and self.stop_events[user_id].is_set():
-                    print(f"Stopping monitoring for user {user_id}")
-                    break
-
-                #print(f"User info received: {user_info}")  # Debug line
-                #print(f"Number of sensors configured: {len(user_info['sensors'])}")  # Debug line
-                
-                publish_data = {
-                    "user_id": user_info["user_chat_id"],
-                    "user_name": user_info["full_name"],
-                    "sensors": []
-                }
-            
-                for i, sensor in enumerate(user_info["sensors"]):
-                    print(f"Processing sensor {i+1}: {sensor}")  # Debug line
-                    try:
-                        # The new generator automatically produces realistic values based on sensor name
-                        sensor_value = self.sensor.read_value(
-                        min_value=0,  # Dummy values - generator uses realistic ranges internally
-                        max_value=100, 
-                        sensor_name=sensor['name']  # Pass sensor name for intelligent detection
-                        )
-                        print(f"Generated value for {sensor['name']}: {sensor_value}")  # Debug line
-                        
-                        if sensor_value is not None:  # Add this check
-
-                            publish_data["sensors"].append({
-                                "id": sensor["id"],
-                                "name": sensor['name'],
-                                "value": sensor_value
-                            })
-                        else:
-                            print(f"Sensor {sensor['name']} returned None value")
-            
-                    except Exception as e:
-                        print(f"Error generating sensor value for {sensor['name']}: {e}")
-                        continue
-            
-                print(f"Final publish_data: {publish_data}")  # Debug line
-                
-                if len(publish_data["sensors"]) == 0:
-                    print("No sensor data generated, skipping publish")
-                    continue
-                    
-                self.read_and_publish(publish_data)
-                time.sleep(30)
-                
-        except KeyboardInterrupt:
-            print("Program stopped by user")
-        finally:
-            # Clean up when the thread exits
-            print(f"Monitoring stopped for user {user_id}")
-            if user_id in self.stop_events:
-                del self.stop_events[user_id]
-            if user_id in self.active_monitors:
-                del self.active_monitors[user_id]
-    
-    def read_and_publish(self,data):
-        if data is not None:
-            
-            mqtt = MQTTService(
+            # Create dedicated MQTT client for this device
+            mqtt_client = MQTTService(
                 host=self.mqtt_info["url"],
                 port=self.mqtt_info["port"],
                 auth=None
             )
-            print(data)
-            success = mqtt.publish(
-                "iot_user_sensor/value",
-                payload=json.dumps(data),
-                retain=False
-            )
-            if success:
-                print("Published successfully")
-            else:
-                print("Failed to publish")
-        else:
-            print("Failed to read temperature")
+            print(f"Device {device_id} ({device_type}) - MQTT client connected")
+            
+            while True:
+                # Check if stop was requested
+                if device_id in self.device_stop_events and self.device_stop_events[device_id].is_set():
+                    print(f"Stopping device {device_id}")
+                    break
+                
+                try:
+                    # Generate sensor value based on device type
+                    sensor_value = self.sensor.read_value(
+                        min_value=0,
+                        max_value=100,
+                        sensor_name=device_type
+                    )
+                    
+                    if sensor_value is not None:
+                        # Prepare data for this specific device
+                        publish_data = {
+                            "user_id": user_id,
+                            "user_name": user_name,
+                            "sensors": [{
+                                "id": device_id,
+                                "name": device_type,
+                                "value": sensor_value
+                            }]
+                        }
+                        
+                        # Publish data
+                        print(f"Device {device_id} ({device_type}) - Publishing value: {sensor_value}")
+                        success = mqtt_client.publish(
+                            "iot_user_sensor/value",
+                            payload=json.dumps(publish_data),
+                            retain=False
+                        )
+                        
+                        if success:
+                            # Update device timestamp in catalog
+                            try:
+                                requests.put(
+                                    f"{self.catalog_url}/devices/{device_id}",
+                                    json={"last_update": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                                    timeout=3
+                                )
+                            except Exception as update_error:
+                                print(f"Device {device_id} - Could not update timestamp: {update_error}")
+                        else:
+                            print(f"Device {device_id} - Failed to publish")
+                    else:
+                        print(f"Device {device_id} - Generated None value, skipping")
+                
+                except Exception as e:
+                    print(f"Device {device_id} - Error generating/publishing value: {e}")
+                
+                # Wait before next reading (30 seconds)
+                time.sleep(30)
+                
+        except KeyboardInterrupt:
+            print(f"Device {device_id} - Stopped by user")
+        except Exception as e:
+            print(f"Device {device_id} - Error in monitoring loop: {e}")
+        finally:
+            # Clean up MQTT connection
+            if mqtt_client:
+                try:
+                    mqtt_client.disconnect()
+                    print(f"Device {device_id} - MQTT client disconnected")
+                except Exception as e:
+                    print(f"Device {device_id} - Error disconnecting MQTT: {e}")
+            
+            # Clean up thread tracking
+            with self.lock:
+                if device_id in self.device_stop_events:
+                    del self.device_stop_events[device_id]
+                if device_id in self.device_threads:
+                    del self.device_threads[device_id]
+            
+            print(f"Device {device_id} - Monitoring stopped")
+
 
 if __name__ == "__main__":
 

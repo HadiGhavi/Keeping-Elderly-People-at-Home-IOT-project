@@ -9,57 +9,6 @@ from adapterInterface import TimeSeriesAdapter
 from influxdbAdapter import InfluxDBAdapter
 from Microservices.Common.config import Config
 
-class DatabaseConfig:
-    """Manages database configuration from file or environment variables"""
-    
-    def __init__(self, config_file: str = "database_config.json"):
-        self.config_file = config_file
-        self.config = self._load_config()
-    
-    def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from file or create default"""
-        if os.path.exists(self.config_file):
-            with open(self.config_file, 'r') as f:
-                return json.load(f)
-        else:
-            # Create default configuration
-            default_config = {
-                "active_adapter": "influxdb",
-                "adapters": {
-                    "influxdb": {
-                        "host": "https://eu-central-1-1.aws.cloud2.influxdata.com",
-                        "token": "WaCTN7nEqIMjNSsl-Yzry1iz6Os2F4xskPWrdrA5JQe49JmxT0MiUtOgvAHtz94cTkVolVrcplxYXfaYxqPf-g==",
-                        "org": "Dev Team",
-                        "bucket": "iot_health"
-                    }
-                }
-            }
-            self._save_config(default_config)
-            return default_config
-    
-    def _save_config(self, config: Dict[str, Any]):
-        """Save configuration to file"""
-        with open(self.config_file, 'w') as f:
-            json.dump(config, f, indent=4)
-    
-    def get_active_adapter_config(self) -> tuple[str, Dict[str, Any]]:
-        """Get the configuration for the currently active adapter"""
-        active_adapter = self.config.get("active_adapter", "influxdb")
-        adapter_config = self.config.get("adapters", {}).get(active_adapter, {})
-        return active_adapter, adapter_config
-    
-    def set_active_adapter(self, adapter_name: str):
-        """Change the active adapter"""
-        if adapter_name in self.config.get("adapters", {}):
-            self.config["active_adapter"] = adapter_name
-            self._save_config(self.config)
-        else:
-            raise ValueError(f"Adapter '{adapter_name}' not configured")
-    
-    def get_available_adapters(self) -> list[str]:
-        """Get list of configured adapter names"""
-        return list(self.config.get("adapters", {}).keys())
-
 
 class DatabaseAdapterFactory:
     """Factory class to create appropriate database adapter instances"""
@@ -104,20 +53,20 @@ class DatabaseAdapterFactory:
 
     
 class DatabaseService:
-    def __init__(self, config=None):
+    """Database service that uses Config.DATABASE for all configuration"""
+    
+    def __init__(self):
+        """Initialize database service using Config.DATABASE"""
+        print("Initializing DatabaseService from Config.DATABASE")
+        self.config_data = Config.DATABASE
+        print(f"Loaded config: {self.config_data}")
         
-        if config is None:
-            print("Loading config from Config.DATABASE")
-            config = Config.DATABASE
-            print(f"Loaded config: {config}")
-        
-        self.config_data = config
         self.adapter = None
-        #print("About to call _initialize_adapter")
         self._initialize_adapter()
         print(f"Initialization complete. Adapter: {self.adapter}")
 
     def _initialize_adapter(self):
+        """Initialize the database adapter from config"""
         print("DatabaseService: _initialize_adapter called")
         adapter_name = self.config_data.get("active_adapter")
         print(f"DatabaseService: Active adapter: {adapter_name}")
@@ -152,6 +101,7 @@ class DatabaseService:
     
     def write_health_data(self, user_id: str, user_name: str, 
                         temp: float, heart_rate: int, oxygen: float, state: str) -> tuple[bool, str]:
+        """Write health data to database"""
         print(f"write_health_data called, adapter status: {self.adapter is not None}")
         
         if not self.adapter:
@@ -186,14 +136,11 @@ class DatabaseService:
         
     def get_user_health_data(self, user_id: str, time_range: Optional[Dict[str, datetime]] = None) -> tuple[bool, list]:
         """Get all health data for a user with optional time filtering"""
-        #print(f"DEBUG: DatabaseService.get_user_health_data called with user_id={user_id}, time_range={time_range}")
-        
         if not self.adapter:
             print("No adapter available")
             return False, []
         
         success, result = self.adapter.get_user_data(user_id, time_range)
-        #print(f"DEBUG: Adapter returned: success={success}, result_type={type(result)}")
     
         if success:
             return True, result
@@ -215,30 +162,9 @@ class DatabaseService:
         
         return self.adapter.get_database_info()
     
-    def switch_adapter(self, adapter_name: str) -> bool:
-        """Switch to a different database adapter"""
-        try:
-            if self.adapter:
-                self.adapter.disconnect()
-            
-            if self.config_manager:
-                self.config_manager.set_active_adapter(adapter_name)
-                self._initialize_adapter()
-            else:
-                return False
-            
-            return self.adapter is not None
-            
-        except Exception as e:
-            print(f"Error switching to {adapter_name}: {e}")
-            return False
-
     def get_available_adapters(self) -> list[str]:
-        """Get list of available database adapters"""
-        if self.config_manager:
-            return self.config_manager.get_available_adapters()
-        else:
-            return list(self.config_data.get("adapters", {}).keys())
+        """Get list of available database adapters from config"""
+        return list(self.config_data.get("adapters", {}).keys())
 
 
 # Example usage and testing

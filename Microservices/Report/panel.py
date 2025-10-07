@@ -33,11 +33,7 @@ class AdminPanel:
         self.database_service_url = self.registry.get_service_url("databaseAdapter")
         self.notification_service_url = self.registry.get_service_url("notification")
         self.data_ingestion_url = self.registry.get_service_url("dataIngestion")
-
-        """ self.authorized_users = {
-            "6378242947": "admin_password_1", 
-            "548805315": "admin_password_3"
-        } """
+        self.monitor_service_url = self.registry.get_service_url("sensor")
         self.authorized_users = Config.ADMIN_USERS
         # Session storage 
         self.active_sessions = {}
@@ -328,6 +324,7 @@ class AdminPanel:
                 'Database Adapter': check_service(self.database_service_url),
                 'Data Ingestion': check_service(self.data_ingestion_url),
                 'Notification Service': check_service(self.notification_service_url),
+                'Monitor Service': check_service(self.monitor_service_url),
                 'Admin Panel': {'status': 'online', 'response_time': 0}  # Current service
             }
             
@@ -1229,7 +1226,7 @@ class AdminPanel:
                         doctor_name = doctor.get('full_name', 'Unknown')
                         doctor_specialization = doctor.get('specialization', 'N/A')
                 
-                sensor_count = len(patient.get('sensors', []))
+                sensor_count = len(patient.get('devices', []))
                 
                 report_rows += f"""
                 <tr>
@@ -1428,7 +1425,7 @@ class AdminPanel:
                 'Database Adapter': self.database_service_url,
                 'Notification Service': self.notification_service_url,
                 'Monitor Service': self.monitor_service_url,
-                'Data Ingestion Service': self.data_ingestion_service_url,
+                'Data Ingestion Service': self.data_ingestion_url,
             }
             
             service_statuses = {}
@@ -1877,7 +1874,7 @@ class AdminPanel:
             <div class="form-group">
                 <label for="full_name">Full Name:</label>
                 <input type="text" id="full_name" name="full_name" required 
-                    placeholder="Dr. Sarah Johnson">
+                    placeholder="Sarah Johnson">
             </div>
             
             <div class="form-group">

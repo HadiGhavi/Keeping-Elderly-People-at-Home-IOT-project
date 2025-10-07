@@ -49,6 +49,11 @@ class DataHandler:
             print(f"Warning: Could not load ML model: {e}")
             self.predict = MockPredictor()
         
+        # Cache for storing latest sensor values per user
+        self.user_sensor_cache = {}  # user_id -> {sensor_type: {"value": val, "timestamp": time}}
+        self.cache_timeout = 120  # Cache values for 2 minutes
+        self.cache_lock = threading.Lock()
+        
         # Test database connection
         self._test_database_connection()
         
@@ -172,50 +177,71 @@ class DataHandler:
             return False, f"Error calling database service: {str(e)}"
     
     def process(self, topic: str, message):
-        """Process incoming MQTT messages using the database adapter"""
+        """Process incoming MQTT messages - aggregates sensor data before prediction"""
         try:
             json_message = json.loads(message)
             measurement = topic.split("/")[-1]
+            user_id = str(json_message["user_id"])
+            user_name = json_message["user_name"]
             
-            # Extract sensor values with flexible matching
-            available_sensors = {sensor["name"]: sensor for sensor in json_message["sensors"]}
+            current_time = time.time()
             
-            temp_value = None
-            oxygen_value = None
-            heart_rate_value = None
-            
-            # Look for temperature sensor
-            for sensor_name, sensor_data in available_sensors.items():
-                if "temp" in sensor_name.lower():
-                    temp_value = float(sensor_data["value"])
-                    break
-            
-            # Look for oxygen sensor  
-            for sensor_name, sensor_data in available_sensors.items():
-                if "oxygen" in sensor_name.lower() or "spo2" in sensor_name.lower():
-                    oxygen_value = float(sensor_data["value"])
-                    break
+            # Update cache with new sensor values
+            with self.cache_lock:
+                if user_id not in self.user_sensor_cache:
+                    self.user_sensor_cache[user_id] = {}
+                
+                # Process each sensor in the message
+                for sensor in json_message["sensors"]:
+                    sensor_type = sensor["name"]  # "temp", "heart_rate", or "oxygen"
+                    sensor_value = sensor["value"]
                     
-            # Look for heart rate sensor
-            for sensor_name, sensor_data in available_sensors.items():
-                if "heart" in sensor_name.lower() or "pulse" in sensor_name.lower():
-                    heart_rate_value = int(float(sensor_data["value"]))
-                    break
-
-            # Use realistic defaults only if sensors are completely missing
-            if temp_value is None:
-                print("INFO: No temperature sensor configured for this user")
-                temp_value = 36.5
+                    self.user_sensor_cache[user_id][sensor_type] = {
+                        "value": sensor_value,
+                        "timestamp": current_time
+                    }
+                    print(f"Updated cache for user {user_id}: {sensor_type} = {sensor_value}")
                 
-            if oxygen_value is None:
-                print("INFO: No oxygen sensor configured for this user")
-                oxygen_value = 98.0
+                # Get cached values
+                cached_data = self.user_sensor_cache[user_id]
                 
-            if heart_rate_value is None:
-                print("INFO: No heart rate sensor configured for this user") 
-                heart_rate_value = 75
-
-            print(f"Final values - temp: {temp_value}, oxygen: {oxygen_value}, heart_rate: {heart_rate_value}")
+                # Check if we have all three sensor types with recent values
+                required_sensors = ["temp", "heart_rate", "oxygen"]
+                available_sensors = {}
+                missing_sensors = []
+                stale_sensors = []
+                
+                for sensor_type in required_sensors:
+                    if sensor_type in cached_data:
+                        # Check if value is still fresh
+                        age = current_time - cached_data[sensor_type]["timestamp"]
+                        if age <= self.cache_timeout:
+                            available_sensors[sensor_type] = cached_data[sensor_type]["value"]
+                        else:
+                            stale_sensors.append(sensor_type)
+                    else:
+                        missing_sensors.append(sensor_type)
+                
+                # Only proceed with prediction if we have all three values
+                if len(available_sensors) == 3:
+                    temp_value = float(available_sensors["temp"])
+                    heart_rate_value = int(float(available_sensors["heart_rate"]))
+                    oxygen_value = float(available_sensors["oxygen"])
+                    
+                    print(f"Processing prediction for user {user_id}:")
+                    print(f"  Temp: {temp_value}°C")
+                    print(f"  Heart Rate: {heart_rate_value} BPM")
+                    print(f"  Oxygen: {oxygen_value}%")
+                    
+                else:
+                    # Not enough data for prediction yet
+                    print(f"Waiting for more sensors for user {user_id}:")
+                    print(f"  Available: {list(available_sensors.keys())}")
+                    if missing_sensors:
+                        print(f"  Missing: {missing_sensors}")
+                    if stale_sensors:
+                        print(f"  Stale (>{self.cache_timeout}s): {stale_sensors}")
+                    return False
             
             # Predict health state
             predicted_state = self.predict.predict_state(temp_value, heart_rate_value, oxygen_value)
@@ -223,19 +249,19 @@ class DataHandler:
 
             # Send notifications if needed
             if predicted_state in ["risky", "dangerous"]:
-                print(f"Alert triggered: User {json_message['user_id']} ({json_message['user_name']}) - State: {predicted_state}")
+                print(f"Alert triggered: User {user_id} ({user_name}) - State: {predicted_state}")
                 
                 try:
-                    user_response = requests.get(f"{self.catalog_url}/users/{json_message['user_id']}")
+                    user_response = requests.get(f"{self.catalog_url}/users/{user_id}")
                     if user_response.status_code == 200:
                         user_info = user_response.json()
                         assigned_doctor_id = user_info.get('doctor_id')
-                        print(f"Patient {json_message['user_id']} assigned doctor: {assigned_doctor_id}")
+                        print(f"Patient {user_id} assigned doctor: {assigned_doctor_id}")
                         
                         # Prepare notification data
                         notification_data = {
-                            "user_id": json_message["user_id"],
-                            "user_name": json_message["user_name"],
+                            "user_id": user_id,
+                            "user_name": user_name,
                             "state": predicted_state,
                             "temp": temp_value,
                             "oxygen": oxygen_value,
@@ -248,7 +274,7 @@ class DataHandler:
                             f"{self.notification_service_url}/sendNotif", 
                             json=patient_notification
                         )                        
-                        print(f"Patient notification sent to {json_message['user_id']} - Status: {response.status_code}")
+                        print(f"Patient notification sent to {user_id} - Status: {response.status_code}")
                         
                         # Doctor notification if assigned
                         if assigned_doctor_id:
@@ -256,7 +282,7 @@ class DataHandler:
                                 **notification_data, 
                                 "recipient_type": "doctor", 
                                 "doctor_id": assigned_doctor_id, 
-                                "patient_name": json_message["user_name"]
+                                "patient_name": user_name
                             }
                             doctor_response = requests.post(
                                 f"{self.notification_service_url}/sendNotif", 
@@ -270,10 +296,10 @@ class DataHandler:
                     print(f"Error sending notifications: {e}")
 
             # Store in database using the service
-            print("Starting database write...")
+            print("Writing to database...")
             success, message = self._write_health_data(
-                user_id=json_message["user_id"],
-                user_name=json_message["user_name"],
+                user_id=user_id,
+                user_name=user_name,
                 temp=temp_value,
                 heart_rate=heart_rate_value,
                 oxygen=oxygen_value,
@@ -283,13 +309,15 @@ class DataHandler:
             print(f"Database write result: {message}")
             return success
             
-        except ValueError:
-            print(f"Invalid message format: {message}")
+        except ValueError as e:
+            print(f"Invalid message format: {message} - Error: {e}")
             return False
         except Exception as e:
             print(f"Processing error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-
+    
     def main(self):
         """Main MQTT subscriber loop"""
         mqtt_subscriber = MQTTService(

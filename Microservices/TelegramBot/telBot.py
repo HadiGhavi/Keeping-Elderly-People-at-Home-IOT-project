@@ -65,11 +65,9 @@ monitoring_service_url = registry.get_service_url("sensor")
 
 TELEGRAM_TOKEN = Config.TELEGRAM_TOKEN
 
-# Admins (Telegram user IDs)
-#ADMINS = [6378242947, 650295422, 6605276431, 548805315]
-
 ADMINS = [int(uid) for uid in Config.ADMIN_USERS.keys()]
 
+DEVICE_TYPE = range(1)
 
 def is_admin(user_id: int) -> bool:
     # Check if user is in global admin list
@@ -152,11 +150,38 @@ def api_delete(endpoint):
         logger.error(f"API DELETE error: {e}")
         return False
 
+# =========================
+# Device Management helpers
+# =========================
+
+def get_device_types():
+    """Get available device types from catalog"""
+    return api_get("device_types") or []
+
+def get_user_devices(user_id: int):
+    """Get all devices assigned to a user"""
+    return api_get(f"user_devices/{user_id}") or []
+
+def register_new_device(device_id: str, device_type: str):
+    """Register a new device in the global devices list"""
+    device_data = {
+        "id": device_id,
+        "type": device_type
+    }
+    return api_post("devices", device_data)
+
+def assign_device_to_user(user_id: int, device_id: str):
+    """Assign an existing device to a user"""
+    data = {"device_id": device_id}
+    return api_post(f"user_devices/{user_id}", data)
+
+def remove_device_from_user(user_id: int, device_id: str):
+    """Remove device assignment from user"""
+    return api_delete(f"user_devices/{user_id}/{device_id}")
 
 # =========================
 # Service helpers
 # =========================
-
 
 def _sensor_service_url():
     svc = api_get("services/sensor")
@@ -626,6 +651,92 @@ async def send_chart_to_user(update, context, user_id: int, max_hours: int = 24)
         logger.error(traceback.format_exc())
         await update.callback_query.edit_message_text(f"❌ Failed to send chart: {str(e)}")
 
+
+# =========================
+# Device Registration Conversation Handlers
+# =========================
+
+async def start_device_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start the device registration - show device types immediately"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Get available device types
+    device_types = get_device_types()
+    
+    if not device_types:
+        await query.edit_message_text(
+            "Error: Could not retrieve device types. Please try again later."
+        )
+        return ConversationHandler.END
+    
+    # Create inline keyboard with device types
+    keyboard = []
+    for dtype in device_types:
+        display_name = dtype.replace('_', ' ').title()
+        keyboard.append([InlineKeyboardButton(display_name, callback_data=f"devtype_{dtype}")])
+    keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel_device_reg")])
+    
+    await query.edit_message_text(
+        "📱 <b>Device Registration</b>\n\n"
+        "Select the type of device you want to register:\n\n"
+        "<i>The device ID will be automatically generated.</i>",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+    
+    return DEVICE_TYPE
+
+async def receive_device_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle device type selection and auto-generate device ID"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "cancel_device_reg":
+        await query.edit_message_text("Device registration cancelled.")
+        return ConversationHandler.END
+    
+    device_type = query.data.replace("devtype_", "")
+    chat_id = query.message.chat_id
+    
+    # Auto-generate device ID: Type_UserID_Timestamp
+    import time
+    timestamp = int(time.time())
+    device_id = f"{device_type}_{chat_id}_{timestamp}"
+    
+    # Register device in catalog
+    if not register_new_device(device_id, device_type):
+        await query.edit_message_text(
+            f"Failed to register device. Please try again.\n\n"
+            f"Use /menu to continue."
+        )
+        return ConversationHandler.END
+    
+    # Assign device to user
+    if not assign_device_to_user(chat_id, device_id):
+        await query.edit_message_text(
+            "Device registered but failed to assign to your account.\n\n"
+            "Please contact support."
+        )
+        return ConversationHandler.END
+    
+    # Success!
+    device_type_display = device_type.replace('_', ' ').title()
+    await query.edit_message_text(
+        f"<b>Device Registered Successfully!</b>\n\n"
+        f"📱 Device ID: <code>{html.escape(device_id)}</code>\n"
+        f"📋 Type: {device_type_display}\n\n"
+        f"Your device is now active and will be monitored.\n"
+        f"Use /menu to continue.",
+        parse_mode="HTML"
+    )
+    
+    return ConversationHandler.END
+
+async def cancel_device_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel device registration"""
+    await update.message.reply_text("Device registration cancelled.")
+    return ConversationHandler.END
 # =========================
 # Telegram Handlers
 # =========================
@@ -660,7 +771,9 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         full_name = " ".join(context.args)
         if api_post("users", {"user_chat_id": chat_id, "full_name": full_name}):
-            await update.message.reply_text(f"✅ Registered, {html.escape(full_name)}.\nUse /menu.")
+            await update.message.reply_text(
+                f"✅ Registered, {html.escape(full_name)}.\n\n"
+                f"Next step: Register your health monitoring devices using /menu → My Devices.")        
         else:
             await update.message.reply_text("❌ Registration failed. Try again.")
     except Exception as e:
@@ -692,6 +805,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("⏹ Stop all", callback_data="admin_stop_all")],
                 [InlineKeyboardButton("📊 Monitor all", callback_data="admin_monitor_all")],
                 [InlineKeyboardButton("👥 Manage users", callback_data="admin_user_list")],
+                [InlineKeyboardButton("📱 My Devices", callback_data="my_devices")], 
                 [InlineKeyboardButton("📄 Get my report", callback_data="get_report")],
             ]
             if CHARTS_AVAILABLE:
@@ -703,6 +817,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             # Patient menu
             keyboard = [
+                [InlineKeyboardButton("📱 My Devices", callback_data="my_devices")], 
                 [InlineKeyboardButton("▶️ Start monitoring", callback_data="start_recording")],
                 [InlineKeyboardButton("📄 Get report", callback_data="get_report")],
                 [InlineKeyboardButton("👨‍⚕️ Assign Doctor", callback_data="assign_doctor")]
@@ -738,6 +853,128 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         admin_mode = is_admin(chat_id)
 
+        # ===== Device Management Buttons =====
+        if query.data == "register_new_device":
+            # Trigger the conversation handler
+            await start_device_registration(update, context)
+            return
+
+        elif query.data == "my_devices":
+            devices = get_user_devices(chat_id)
+            
+            if not devices:
+                keyboard = [[InlineKeyboardButton("➕ Register New Device", callback_data="register_new_device")]]
+                await query.edit_message_text(
+                    "📱 You don't have any devices registered yet.\n\n"
+                    "Register your first device to start monitoring your health!",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                return
+            
+            # Format devices list
+            device_lines = ["📱 <b>Your Registered Devices:</b>\n"]
+            for device in devices:
+                device_type = device.get('type', 'unknown').replace('_', ' ').title()
+                device_id = device.get('id', 'unknown')
+                last_update = device.get('last_update', 'Never')
+                
+                device_lines.append(
+                    f"• <b>{device_type}</b>\n"
+                    f"  ID: <code>{html.escape(device_id)}</code>\n"
+                    f"  Last Update: {last_update}\n"
+                )
+            
+            keyboard = [
+                [InlineKeyboardButton("➕ Register New Device", callback_data="register_new_device")],
+                [InlineKeyboardButton("🗑 Remove Device", callback_data="remove_device_menu")],
+                [InlineKeyboardButton("⬅️ Back to Menu", callback_data="back_to_menu")]
+            ]
+            
+            await query.edit_message_text(
+                "\n".join(device_lines),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+
+        elif query.data == "remove_device_menu":
+            devices = get_user_devices(chat_id)
+            
+            if not devices:
+                await query.edit_message_text("You don't have any devices to remove.")
+                return
+            
+            keyboard = []
+            for device in devices:
+                device_type = device.get('type', 'unknown').replace('_', ' ').title()
+                device_id = device.get('id', 'unknown')
+                keyboard.append([InlineKeyboardButton(
+                    f"🗑 {device_type} ({device_id})",
+                    callback_data=f"confirm_remove_device_{device_id}"
+                )])
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="my_devices")])
+            
+            await query.edit_message_text(
+                "🗑 Select a device to remove:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+        elif query.data.startswith("confirm_remove_device_"):
+            device_id = query.data.replace("confirm_remove_device_", "")
+            
+            if remove_device_from_user(chat_id, device_id):
+                await query.edit_message_text(
+                    f"✅ Device removed successfully!\n\n"
+                    f"Device ID: {device_id}\n\n"
+                    f"Use /menu to continue."
+                )
+            else:
+                await query.edit_message_text(
+                    f"❌ Failed to remove device. Please try again."
+                )
+
+        elif query.data == "back_to_menu":
+            # Redirect back to appropriate menu based on user type
+            user_type = user.get('user_type', 'patient')
+            
+            if user_type == 'doctor':
+                keyboard = [
+                    [InlineKeyboardButton("👥 My Patients", callback_data="doctor_patients")],
+                    [InlineKeyboardButton("📊 Monitor All Patients", callback_data="doctor_monitor_all")],
+                    [InlineKeyboardButton("👤 My Profile", callback_data="doctor_profile")]
+                ]
+                text = "👨‍⚕️ Doctor Menu:"
+            elif chat_id in ADMINS:
+                keyboard = [
+                    [InlineKeyboardButton("▶️ Start all", callback_data="admin_start_all")],
+                    [InlineKeyboardButton("⏹ Stop all", callback_data="admin_stop_all")],
+                    [InlineKeyboardButton("📊 Monitor all", callback_data="admin_monitor_all")],
+                    [InlineKeyboardButton("👥 Manage users", callback_data="admin_user_list")],
+                    [InlineKeyboardButton("📱 My Devices", callback_data="my_devices")],
+                    [InlineKeyboardButton("📄 Get my report", callback_data="get_report")],
+                ]
+                if CHARTS_AVAILABLE:
+                    keyboard.append([InlineKeyboardButton("📈 Get my chart", callback_data="get_chart")])
+                keyboard.extend([
+                    [InlineKeyboardButton("🗑 Remove my profile", callback_data="delete_profile")]
+                ])
+                text = "🛠 Admin Menu:"
+            else:
+                keyboard = [
+                    [InlineKeyboardButton("📱 My Devices", callback_data="my_devices")],
+                    [InlineKeyboardButton("▶️ Start monitoring", callback_data="start_recording")],
+                    [InlineKeyboardButton("📄 Get report", callback_data="get_report")],
+                    [InlineKeyboardButton("👨‍⚕️ Assign Doctor", callback_data="assign_doctor")]
+                ]
+                if CHARTS_AVAILABLE:
+                    keyboard.append([InlineKeyboardButton("📈 Get chart", callback_data="get_chart")])
+                keyboard.extend([
+                    [InlineKeyboardButton("⏹ Stop monitoring", callback_data="stop_recording")],
+                    [InlineKeyboardButton("🗑 Remove profile", callback_data="delete_profile")]
+                ])
+                text = "📋 Patient Menu:"
+            
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+            
         # ===== Normal user buttons =====
         if query.data == "start_recording":
             ok, msg = start_recording_for(chat_id)
@@ -758,7 +995,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("📊 Last 48 hours", callback_data=f"get_chart_48h_{chat_id}")],
                 [InlineKeyboardButton("📊 Last 72 hours", callback_data=f"get_chart_72h_{chat_id}")],
                 [InlineKeyboardButton("📊 Last week", callback_data=f"get_chart_week_{chat_id}")],
-                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+                [InlineKeyboardButton("❌ Back to Menu", callback_data="back_to_menu")]
             ]
             await query.edit_message_text(
                 "📈 Select chart time period:",
@@ -805,31 +1042,75 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("Profile deletion cancelled.")
 
         elif query.data == "assign_doctor":
+            # Get current user info to check if already has a doctor
+            user_data = api_get(f"users/{chat_id}")
+            current_doctor_id = user_data.get('doctor_id') if user_data else None
+            
             # Get list of available doctors
             doctors = api_get("doctors") or []
             if not doctors:
                 await query.edit_message_text("No doctors are currently registered in the system. Please contact system administrator.")
                 return
             
+            # Build message header based on current doctor status
+            if current_doctor_id:
+                # User already has a doctor - get doctor info
+                current_doctor = None
+                for doc in doctors:
+                    if doc['user_chat_id'] == current_doctor_id:
+                        current_doctor = doc
+                        break
+                
+                if current_doctor:
+                    header_text = (
+                        f"Currently assigned to: <b>Dr. {html.escape(current_doctor['full_name'])}</b>\n"
+                        f"Specialization: {html.escape(current_doctor.get('specialization', 'Not specified'))}\n\n"
+                        f"Select a new doctor to change, or cancel to keep current doctor:\n"
+                    )
+                else:
+                    header_text = (
+                        f"You have a doctor assigned (ID: {current_doctor_id}), but their profile is not available.\n\n"
+                        f"Select a new doctor:\n"
+                    )
+            else:
+                header_text = "You don't have a doctor assigned yet.\n\nSelect a doctor:\n"
+            
+            # Build keyboard with doctor list
             keyboard = []
             for doctor in doctors:
                 doctor_info = f"Dr. {doctor['full_name']}"
                 if 'specialization' in doctor:
                     doctor_info += f" ({doctor['specialization']})"
+                
+                # Mark current doctor if applicable
+                if current_doctor_id and doctor['user_chat_id'] == current_doctor_id:
+                    doctor_info += " [Current]"
+                
                 keyboard.append([InlineKeyboardButton(
                     doctor_info, 
                     callback_data=f"select_doctor_{doctor['user_chat_id']}"
                 )])
             
-            keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])
+            keyboard.append([InlineKeyboardButton("Back to menu", callback_data="back_to_menu")])
             
             await query.edit_message_text(
-                "Select your doctor:",
-                reply_markup=InlineKeyboardMarkup(keyboard)
+                header_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
             )
-
         elif query.data.startswith("select_doctor_"):
             doctor_id = int(query.data.split("_")[-1])
+            
+            # Check if selecting the same doctor they already have
+            user_data = api_get(f"users/{chat_id}")
+            current_doctor_id = user_data.get('doctor_id') if user_data else None
+            
+            if current_doctor_id == doctor_id:
+                await query.edit_message_text(
+                    f"You are already assigned to this doctor.\n\n"
+                    f"Use /menu to continue."
+                )
+                return
             
             # Assign patient to doctor
             assignment_data = {
@@ -841,15 +1122,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 doctor = api_get(f"users/{doctor_id}")
                 doctor_name = doctor.get('full_name', 'Unknown') if doctor else 'Unknown'
                 
-                await query.edit_message_text(
-                    f"✅ You have been assigned to {doctor_name}.\n\n"
-                    f"Your doctor will now receive alerts when your health status becomes risky or dangerous, "
-                    f"and can monitor your health data.\n\n"
-                    f"Use /menu to continue."
-                )
+                # Different message for reassignment vs first assignment
+                if current_doctor_id:
+                    message = (
+                        f"Doctor changed successfully!\n\n"
+                        f"You are now assigned to {doctor_name}.\n\n"
+                        f"Your new doctor will now receive alerts when your health status becomes risky or dangerous, "
+                        f"and can monitor your health data.\n\n"
+                        f"Use /menu to continue."
+                    )
+                else:
+                    message = (
+                        f"You have been assigned to {doctor_name}.\n\n"
+                        f"Your doctor will now receive alerts when your health status becomes risky or dangerous, "
+                        f"and can monitor your health data.\n\n"
+                        f"Use /menu to continue."
+                    )
+                
+                await query.edit_message_text(message)
             else:
                 await query.edit_message_text("Failed to assign doctor. Please try again.")
-
         # ===== Doctor buttons =====
         elif query.data == "doctor_patients" and is_doctor(chat_id):
             patients = get_doctor_patients(chat_id)
@@ -1184,7 +1476,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                       callback_data=f"admin_user_{u['user_chat_id']}")]
                 for u in users
             ]
-            keyboard.append([InlineKeyboardButton("Cancel", callback_data="cancel")])
+            keyboard.append([InlineKeyboardButton("Back to Menu", callback_data="back_to_menu")])
             await query.edit_message_text(
                 "👥 User list — choose one:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
@@ -1579,6 +1871,15 @@ def main():
         application.add_handler(CommandHandler("update_doctor_specialization", update_doctor_specialization))
         application.add_handler(CommandHandler("update_doctor_hospital", update_doctor_hospital))
 
+        device_conv_handler = ConversationHandler(
+            entry_points=[CallbackQueryHandler(start_device_registration, pattern="^register_new_device$")],
+            states={
+                DEVICE_TYPE: [CallbackQueryHandler(receive_device_type, pattern="^(devtype_|cancel_device_reg)")],
+            },
+            fallbacks=[CommandHandler("cancel", cancel_device_registration)],
+        )
+        application.add_handler(device_conv_handler)
+        
         # Single callback handler drives the whole UI
         application.add_handler(CallbackQueryHandler(button_handler))
         

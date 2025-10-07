@@ -3,645 +3,210 @@
     "project_owner": [
         "Hadi"
     ],
+    "device_types": [
+        "temp",
+        "heart_rate",
+        "oxygen"
+    ],
+    "devices": [
+        {
+            "id": "temp_548805315_1759758744",
+            "type": "temp",
+            "last_update": "2025-10-07T08:49:43Z"
+        },
+        {
+            "id": "heart_rate_548805315_1759761185",
+            "type": "heart_rate",
+            "last_update": "2025-10-06T14:33:05.372063Z"
+        },
+        {
+            "id": "heart_rate_548805315_1759761237",
+            "type": "heart_rate",
+            "last_update": "2025-10-07T08:49:43Z"
+        },
+        {
+            "id": "oxygen_548805315_1759761260",
+            "type": "oxygen",
+            "last_update": "2025-10-07T08:50:08Z"
+        }
+    ],
     "users": [
         {
-            "user_chat_id": 567890123,
-            "full_name": "James Thompson",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 444555666,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 678901234,
-            "full_name": "Patricia Wilson",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 444555666,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 123456789,
-            "full_name": "John Smith",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 111222333,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 234567890,
-            "full_name": "Linda Johnson",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 111222333,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 345678901,
-            "full_name": "Michael Brown",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 111222333,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 789012345,
-            "full_name": "Elizabeth Garcia",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 987654321,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 890123456,
-            "full_name": "Robert Miller",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 901234567,
-            "full_name": "Jennifer Davis",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 135792468,
-            "full_name": "Kevin Martinez",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 777888999,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 246813579,
-            "full_name": "Amanda Taylor",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 777888999,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 456789012,
-            "full_name": "Sarah Chen",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 987654321,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 357924680,
-            "full_name": "David Anderson",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 159357258,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 468013579,
-            "full_name": "Maria Rodriguez",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 159357258,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 579124680,
-            "full_name": "Thomas Lee",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 258741369,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 680235791,
-            "full_name": "Nancy White",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 258741369,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 791346802,
-            "full_name": "Christopher Harris",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 258741369,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 802457913,
-            "full_name": "Jessica Moore",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 369852147,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 913568024,
-            "full_name": "William Jackson",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 369852147,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 204679135,
-            "full_name": "Barbara Martin",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 147258369,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 135780246,
-            "full_name": "Richard Thompson",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 147258369,
-            "user_type": "patient"
-        },
-        {
-            "user_chat_id": 246891357,
-            "full_name": "Susan Lewis",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": 147258369,
-            "user_type": "patient"
-        },
-        {
             "user_chat_id": 987654321,
-            "full_name": "Dr. Emily Carter",
+            "full_name": "Emily Carter",
             "user_type": "doctor",
             "specialization": "Pediatrics",
             "hospital": "Children's Medical Center",
-            "patients": [
-                789012345,
-                456789012
-            ]
+            "patients": []
         },
         {
             "user_chat_id": 111222333,
-            "full_name": "Dr. Mark Stevens",
+            "full_name": "Mark Stevens",
             "user_type": "doctor",
             "specialization": "Internal Medicine",
             "hospital": "City General Hospital",
-            "patients": [
-                123456789,
-                234567890,
-                345678901
-            ]
+            "patients": []
         },
         {
             "user_chat_id": 444555666,
-            "full_name": "Dr. Anna Kowalski",
+            "full_name": "Anna Kowalski",
             "user_type": "doctor",
             "specialization": "Emergency Medicine",
             "hospital": "Metro Emergency Center",
-            "patients": [
-                567890123,
-                678901234
-            ]
+            "patients": []
         },
         {
             "user_chat_id": 777888999,
-            "full_name": "Dr. Ahmed Hassan",
+            "full_name": "Ahmed Hassan",
             "user_type": "doctor",
             "specialization": "Geriatrics",
             "hospital": "Senior Care Medical Center",
-            "patients": [
-                135792468,
-                246813579
-            ]
+            "patients": []
         },
         {
             "user_chat_id": 159357258,
-            "full_name": "Dr. Sophie Dubois",
+            "full_name": "Sophie Dubois",
             "user_type": "doctor",
             "specialization": "Pulmonology",
             "hospital": "Respiratory Health Institute",
             "patients": [
-                357924680,
-                468013579
+                548805315
             ]
         },
         {
             "user_chat_id": 258741369,
-            "full_name": "Dr. Carlos Mendez",
+            "full_name": "Carlos Mendez",
             "user_type": "doctor",
             "specialization": "Endocrinology",
             "hospital": "Diabetes & Hormone Clinic",
-            "patients": [
-                579124680,
-                680235791,
-                791346802
-            ]
+            "patients": []
         },
         {
             "user_chat_id": 369852147,
-            "full_name": "Dr. Rachel Green",
+            "full_name": "Rachel Green",
             "user_type": "doctor",
             "specialization": "Cardiology",
             "hospital": "Heart & Vascular Institute",
-            "patients": [
-                802457913,
-                913568024
-            ]
+            "patients": []
         },
         {
             "user_chat_id": 147258369,
-            "full_name": "Dr. James O'Brien",
+            "full_name": "James O'Brien",
             "user_type": "doctor",
             "specialization": "Neurology",
             "hospital": "Neurological Sciences Center",
-            "patients": [
-                204679135,
-                135780246,
-                246891357
-            ]
+            "patients": []
         },
         {
             "user_chat_id": 548805315,
             "full_name": "Riccardo Fida",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
+            "devices": [
+                "temp_548805315_1759758744",
+                "heart_rate_548805315_1759761237",
+                "oxygen_548805315_1759761260"
             ],
-            "doctor_id": null,
+            "doctor_id": 159357258,
             "user_type": "patient"
         },
         {
-            "user_chat_id": 6378242947,
-            "full_name": "<Hadi>",
-            "sensors": [
-                {
-                    "id": 1,
-                    "name": "temp"
-                },
-                {
-                    "id": 2,
-                    "name": "oxygen"
-                },
-                {
-                    "id": 3,
-                    "name": "heart_rate"
-                }
-            ],
-            "doctor_id": null,
-            "user_type": "patient"
+            "user_chat_id": 373801492,
+            "full_name": "Peppe Nasso",
+            "user_type": "doctor",
+            "specialization": "Other",
+            "hospital": "",
+            "patients": []
         }
     ],
     "services": [
-    {
-        "name": "catalog",
-        "url": "http://catalog",
-        "port": 5001,
-        "endpoints": {
-            "GET /project": "get project info",
-            "PUT /project": "update project info",
-            "GET /services/<service_name>": "get service by name",
-            "POST /services/": "add new service",
-            "GET /users": "Get all users",
-            "GET /users/<user_chat_id>": "Get specific user details",
-            "POST /users": "Create a new user entry",
-            "PUT /users/<user_chat_id>": "Update a user",
-            "DELETE /users/<user_chat_id>": "Delete a user",
-            "GET /sensors/<user_chat_id>": "Get all sensors for a user",
-            "GET /sensors/<user_chat_id>/<sensor_id>": "Get specific sensor",
-            "POST /sensors/<user_chat_id>": "Add sensor to user (requires: id, name)",
-            "PUT /sensors/<user_chat_id>/<sensor_id>": "Update sensor name",
-            "DELETE /sensors/<user_chat_id>/<sensor_id>": "Remove sensor",
-            "POST /assign_patient": "Assign a patient to a doctor",
-            "GET /doctors": "Get all doctors",
-            "GET /doctors/<doctor_id>": "Get patients for a specific doctor",
-            "POST /doctors": "Register a new doctor"
+        {
+            "name": "catalog",
+            "url": "http://catalog",
+            "port": 5001,
+            "endpoints": {
+                "GET /project": "get project info",
+                "PUT /project": "update project info",
+                "GET /services/<service_name>": "get service by name",
+                "POST /services/": "add new service",
+                "GET /device_types": "Get available device types (temp, heart_rate, oxygen)",
+                "GET /devices": "Get all registered devices",
+                "GET /devices/<device_id>": "Get specific device",
+                "POST /devices": "Register a new device (requires: id, type)",
+                "PUT /devices/<device_id>": "Update device last_update",
+                "DELETE /devices/<device_id>": "Delete a device",
+                "GET /users": "Get all users",
+                "GET /users/<user_chat_id>": "Get specific user details",
+                "POST /users": "Create a new user entry",
+                "PUT /users/<user_chat_id>": "Update a user",
+                "DELETE /users/<user_chat_id>": "Delete a user",
+                "GET /user_devices/<user_chat_id>": "Get all devices assigned to user",
+                "POST /user_devices/<user_chat_id>": "Assign device to user (requires: device_id)",
+                "DELETE /user_devices/<user_chat_id>/<device_id>": "Remove device from user",
+                "GET /doctors": "Get all doctors",
+                "GET /doctors/<doctor_id>": "Get patients for a specific doctor",
+                "POST /doctors": "Register a new doctor",
+                "POST /assign_patient": "Assign a patient to a doctor"
+            }
+        },
+        {
+            "name": "dataIngestion",
+            "url": "http://data_ingestion",
+            "port": 2500,
+            "endpoints": {
+                "GET /getUserData/<id>": "get user data from db",
+                "GET /database/info": "get database adapter information",
+                "POST /database/switch": "switch database adapter",
+                "GET /database/adapters": "list available database adapters"
+            }
+        },
+        {
+            "name": "adminPanel",
+            "url": "http://admin_panel",
+            "port": 9000,
+            "endpoints": {
+                "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
+                "GET /report/<userid>": "get user sensor data by id => json",
+                "GET /doctor_registration": "doctor registration web form",
+                "POST /register_doctor_web": "process doctor registration form"
+            }
+        },
+        {
+            "name": "mqtt",
+            "url": "broker.hivemq.com",
+            "port": 1883,
+            "topics": [
+                "iot_user_sensor/#"
+            ]
+        },
+        {
+            "name": "sensor",
+            "url": "http://monitor",
+            "port": 3500,
+            "endpoints": {
+                "GET /read/<id>": "read sensor value from device",
+                "GET /stop/<id>": "stop sensor monitoring for user"
+            }
+        },
+        {
+            "name": "notification",
+            "url": "http://notification",
+            "port": 1500,
+            "endpoints": {
+                "POST /sendNotif/": "Send notification",
+                "GET /": "service information"
+            }
+        },
+        {
+            "name": "databaseAdapter",
+            "url": "http://database_adapter",
+            "port": 3000,
+            "endpoints": {
+                "POST /write": "write health data to database",
+                "GET /read/<user_id>": "get user health data",
+                "DELETE /delete/<user_id>": "delete user data",
+                "GET /info": "get database adapter information",
+                "POST /switch": "switch database adapter",
+                "GET /adapters": "list available adapters"
+            }
         }
-    },
-    {
-        "name": "dataIngestion",
-        "url": "http://data_ingestion",
-        "port": 2500,
-        "endpoints": {
-            "GET /getUserData/<id>": "get user data from db",
-            "GET /database/info": "get database adapter information",
-            "POST /database/switch": "switch database adapter",
-            "GET /database/adapters": "list available database adapters"
-        }
-    },
-    {
-        "name": "adminPanel",
-        "url": "http://admin_panel",
-        "port": 9000,
-        "endpoints": {
-            "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-            "GET /report/<userid>": "get user sensor data by id => json",
-            "GET /doctor_registration": "doctor registration web form",
-            "POST /register_doctor_web": "process doctor registration form"
-        }
-    },
-    {
-        "name": "mqtt",
-        "url": "broker.hivemq.com",
-        "port": 1883,
-        "topics": [
-            "iot_user_sensor/#"
-        ]
-    },
-    {
-        "name": "sensor",
-        "url": "http://monitor",
-        "port": 3500,
-        "endpoints": {
-            "GET /read/<id>": "read sensor value from device",
-            "GET /stop/<id>": "stop sensor monitoring for user"
-        }
-    },
-    {
-        "name": "notification",
-        "url": "http://notification",
-        "port": 1500,
-        "endpoints": {
-            "POST /sendNotif/": "Send notification",
-            "GET /": "service information"
-        }
-    },
-    {
-        "name": "databaseAdapter",
-        "url": "http://database_adapter",
-        "port": 3000,
-        "endpoints": {
-            "POST /write": "write health data to database",
-            "GET /read/<user_id>": "get user health data",
-            "DELETE /delete/<user_id>": "delete user data",
-            "GET /info": "get database adapter information",
-            "POST /switch": "switch database adapter",
-            "GET /adapters": "list available adapters"
-        }
-    }
-]
+    ]
 }
