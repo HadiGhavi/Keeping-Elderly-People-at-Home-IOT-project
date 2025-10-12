@@ -11,6 +11,11 @@ import cherrypy
 import requests
 import threading
 import webbrowser
+import pickle
+import os
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier 
+from datetime import datetime, timedelta
 from Microservices.Common.utils import (
     register_service_with_catalog,
     ServiceRegistry
@@ -27,6 +32,14 @@ class MockPredictor:
         else:
             return "normal"
 
+class RetrainedPredictor:
+    def __init__(self, model):
+        self.model = model
+    
+    def predict_state(self, temp, heart_rate, oxygen):
+        features = np.array([[temp, heart_rate, oxygen]])
+        prediction = self.model.predict(features)[0]
+        return prediction
         
 class DataHandler:
     def __init__(self):
@@ -43,11 +56,23 @@ class DataHandler:
         
         # Load ML model
         try:
-            self.predict = HealthStatePredictor(Config.CLASSIFICATION["TRAINMODEL"])
+            model_path = Config.CLASSIFICATION["TRAINMODEL"]
+            
+            # Check if file exists and is not empty
+            if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
+                try:
+                    self.predict = HealthStatePredictor(model_path)
+                    print(f"✅ Loaded ML model from {model_path}")
+                except (EOFError, pickle.UnpicklingError) as e:
+                    print(f"⚠️ Model file corrupted: {e}. Using MockPredictor.")
+                    self.predict = MockPredictor()
+            else:
+                print(f"⚠️ Model file not found or empty. Using MockPredictor.")
+                self.predict = MockPredictor()
+                
         except (FileNotFoundError, ImportError) as e:
             print(f"Warning: Could not load ML model: {e}")
             self.predict = MockPredictor()
-        
         # Cache for storing latest sensor values per user
         self.user_sensor_cache = {}  # user_id -> {sensor_type: {"value": val, "timestamp": time}}
         self.cache_timeout = 120  # Cache values for 2 minutes
@@ -60,6 +85,17 @@ class DataHandler:
         print("Starting MQTT subscriber...")
         background_thread = threading.Thread(target=self.main, daemon=True)
         background_thread.start()
+
+        # Model retraining configuration
+        self.retrain_interval = 900  # Retrain every 15 minutes
+        self.last_retrain_time = time.time()
+        self.min_samples_for_retrain = 100  # Minimum samples needed to retrain
+        self.model_save_path = Config.CLASSIFICATION.get("TRAINMODEL", "trained_model.pkl")
+
+        # Start retraining thread
+        print("🔄 Starting model retraining service...")
+        retrain_thread = threading.Thread(target=self.model_retraining_loop, daemon=True)
+        retrain_thread.start()
     
     def _test_database_connection(self):
         """Test connection to database service"""
@@ -73,6 +109,213 @@ class DataHandler:
         except Exception as e:
             print(f"Database service not available: {e}")
     
+    def model_retraining_loop(self):
+        """Continuously retrain the model with new data"""
+        print("🔄 Model retraining loop started")
+        
+        while True:
+            try:
+                # Wait for the retrain interval
+                time.sleep(self.retrain_interval)
+                
+                current_time = time.time()
+                time_since_last_retrain = current_time - self.last_retrain_time
+                
+                print(f"🔄 Attempting model retraining (last trained {time_since_last_retrain/60:.1f} minutes ago)")
+                
+                # Perform retraining
+                success = self._retrain_model()
+                
+                if success:
+                    self.last_retrain_time = current_time
+                    print(f"✅ Model retrained successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                else:
+                    print(f"⚠️ Model retraining skipped or failed")
+                    
+            except Exception as e:
+                print(f"❌ Error in retraining loop: {e}")
+                import traceback
+                traceback.print_exc()
+
+    def _retrain_model(self):
+        """Retrain the ML model using recent database data"""
+        try:
+            print("📊 Fetching training data from database...")
+            
+            # Get all users
+            users_response = requests.get(f"{self.catalog_url}/users", timeout=5)
+            if users_response.status_code != 200:
+                print("⚠️ Could not fetch users from catalog")
+                return False
+            
+            users = users_response.json()
+            patients = [u for u in users if u.get("user_type") == "patient"]
+            
+            # Collect data from all patients (last 7 days for training)
+            all_data = []
+            for patient in patients:
+                user_id = patient["user_chat_id"]
+                
+                try:
+                    # Get last 7 days of data
+                    data_response = requests.get(
+                        f"{self.database_service_url}/read/{user_id}",
+                        params={"hours": 168},  # 7 days
+                        timeout=15
+                    )
+                    
+                    if data_response.status_code == 200:
+                        result = data_response.json()
+                        if result.get("success") and result.get("data"):
+                            all_data.extend(result["data"])
+                except Exception as e:
+                    print(f"⚠️ Error fetching data for user {user_id}: {e}")
+                    continue
+            
+            if len(all_data) < self.min_samples_for_retrain:
+                print(f"⚠️ Not enough data for retraining: {len(all_data)} samples (need {self.min_samples_for_retrain})")
+                return False
+            
+            print(f"📊 Collected {len(all_data)} data points from {len(patients)} patients")
+            
+            # Prepare training data
+            X_train, y_train = self._prepare_training_data(all_data)
+            
+            if X_train is None or len(X_train) == 0:
+                print("⚠️ No valid training data after preparation")
+                return False
+            
+            print(f"🎯 Training with {len(X_train)} complete samples")
+            
+            # Train new model
+            new_model = self._train_classifier(X_train, y_train)
+            
+            if new_model is None:
+                print("❌ Model training failed")
+                return False
+            
+            # Save the new model
+            self._save_model(new_model)
+            
+            # Replace the current predictor
+            self.predict = new_model
+            
+            print(f"✅ Model updated and saved to {self.model_save_path}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error during model retraining: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def _prepare_training_data(self, data):
+        """Convert database records to training format"""
+        try:
+            # Group data by time to get complete records
+            from collections import defaultdict
+            
+            records = defaultdict(dict)
+            
+            for entry in data:
+                time_key = entry.get("time")
+                field = entry.get("field")
+                value = entry.get("value")
+                
+                if time_key and field:
+                    records[time_key][field] = value
+            
+            # Extract complete samples (with temp, heart_rate, oxygen, and state)
+            X_train = []
+            y_train = []
+            
+            for time_key, record in records.items():
+                if all(field in record for field in ["temp", "heart_rate", "oxygen", "state"]):
+                    try:
+                        temp = float(record["temp"])
+                        heart_rate = float(record["heart_rate"])
+                        oxygen = float(record["oxygen"])
+                        state = str(record["state"])
+                        
+                        X_train.append([temp, heart_rate, oxygen])
+                        y_train.append(state)
+                    except (ValueError, TypeError) as e:
+                        continue
+            
+            if len(X_train) == 0:
+                return None, None
+            
+            return np.array(X_train), np.array(y_train)
+            
+        except Exception as e:
+            print(f"Error preparing training data: {e}")
+            return None, None
+
+    def _train_classifier(self, X_train, y_train):
+        """Train a new classifier model"""
+        try:
+            # Use the same model architecture as your HealthStatePredictor
+            # Adjust this based on your actual model
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.model_selection import train_test_split
+            
+            # Split for validation
+            X_train_split, X_val, y_train_split, y_val = train_test_split(
+                X_train, y_train, test_size=0.2, random_state=42
+            )
+            
+            # Train model
+            model = RandomForestClassifier(
+                n_estimators=100,
+                random_state=42,
+                class_weight='balanced' 
+            )
+            
+            model.fit(X_train_split, y_train_split)
+            
+            # Validate
+            val_score = model.score(X_val, y_val)
+            print(f"📈 Validation accuracy: {val_score:.2%}")
+            
+            return RetrainedPredictor(model)
+            
+        except Exception as e:
+            print(f"Error training classifier: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def _save_model(self, predictor):
+        """Save the trained model to disk"""
+        try:
+            # Extract the sklearn model from the wrapper
+            sklearn_model = predictor.model
+            
+            # Save to a temporary file first (atomic write)
+            temp_path = self.model_save_path + '.tmp'
+            
+            with open(temp_path, 'wb') as f:
+                pickle.dump(sklearn_model, f)
+            
+            # Only replace the original file if write was successful
+            import os
+            import shutil
+            shutil.move(temp_path, self.model_save_path)
+            
+            print(f"💾 Model saved successfully to {self.model_save_path}")
+            
+        except Exception as e:
+            print(f"❌ Error saving model: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Clean up temp file if it exists
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except:
+                pass
+
     @cherrypy.expose
     def index(self):
         cherrypy.response.headers['Content-Type'] = 'application/json'
