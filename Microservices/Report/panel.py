@@ -1121,7 +1121,7 @@ class AdminPanel:
                     status = "Critical"
                 elif latest_state.lower() == 'risky':
                     status = "Warning"
-                elif latest_state.lower() == 'normal':
+                elif latest_state.lower() == 'healthy':
                     status = "Normal"
                 else:
                     status = latest_state.title()
@@ -1654,7 +1654,7 @@ class AdminPanel:
                         row_class = "style='background-color: #ffebee; color: #c62828;'"
                     elif value == 'risky':
                         row_class = "style='background-color: #fff3e0; color: #ef6c00;'"
-                    elif value == 'normal':
+                    elif value == 'healthy':
                         row_class = "style='background-color: #e8f5e8; color: #2e7d32;'"
                 
                 table_rows += f"""

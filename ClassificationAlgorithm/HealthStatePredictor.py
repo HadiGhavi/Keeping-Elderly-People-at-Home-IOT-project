@@ -63,7 +63,7 @@ if __name__ == "__main__":
         {'name': 'Kevin - Case 1', 'temp': 36.6, 'hr': 105, 'o2': 97.2},
         {'name': 'Kevin - Case 2', 'temp': 36.9, 'hr': 100, 'o2': 97.3},
         {'name': 'Barbara - Case 1', 'temp': 36.6, 'hr': 100, 'o2': 96.9},
-        {'name': 'Normal elderly', 'temp': 36.8, 'hr': 72, 'o2': 97.0},
+        {'name': 'Healthy elderly', 'temp': 36.8, 'hr': 72, 'o2': 97.0},
     ]
     
     print("\n=== TESTING WITH REAL DATA ===")
@@ -78,9 +78,9 @@ if __name__ == "__main__":
         
         # Show if this makes medical sense
         if case['temp'] < 37.5 and 60 <= case['hr'] <= 100 and case['o2'] >= 95:
-            expected = "normal"
+            expected = "healthy"
         else:
             expected = "risky or dangerous"
         
         print(f"  Medical expectation: {expected}")
-        print(f"  Match: {'✓' if prediction == 'normal' and expected == 'normal' else '✗'}")
+        print(f"  Match: {'✓' if prediction == 'healthy' and expected == 'healthy' else '✗'}")

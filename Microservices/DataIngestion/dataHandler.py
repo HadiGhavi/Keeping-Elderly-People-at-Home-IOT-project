@@ -30,7 +30,7 @@ class MockPredictor:
         elif temp > 37.5 or heart_rate > 90 or oxygen < 95:
             return "risky"
         else:
-            return "normal"
+            return "healthy"
 
 class RetrainedPredictor:
     def __init__(self, model):

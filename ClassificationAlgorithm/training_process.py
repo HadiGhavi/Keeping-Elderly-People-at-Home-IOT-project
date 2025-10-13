@@ -81,7 +81,7 @@ def train_health_model():
     # Step 7: Test with sample data
     print("Step 7: Testing with sample predictions...")
     test_cases = [
-        [36.8, 72, 97],   # Should be normal
+        [36.8, 72, 97],   # Should be healthy
         [38.5, 95, 94],   # Should be risky  
         [39.8, 110, 89]   # Should be dangerous
     ]

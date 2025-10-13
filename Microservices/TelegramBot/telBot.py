@@ -374,7 +374,7 @@ def format_health_report(data, user_id):
         state = reading.get('state', 'N/A')
         
         # Add status emoji based on health state
-        if state == 'normal':
+        if state == 'healthy':
             status_emoji = "✅"
         elif state == 'risky':
             status_emoji = "⚠️"
@@ -555,8 +555,8 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
         # Health State chart - now using weighted priority aggregation
         state_data = agg_df[agg_df['field'] == 'state'].copy()
         if not state_data.empty:
-            state_mapping = {'normal': 0, 'risky': 1, 'dangerous': 2}
-            state_colors = {'normal': 'green', 'risky': 'orange', 'dangerous': 'red'}
+            state_mapping = {'healthy': 0, 'risky': 1, 'dangerous': 2}
+            state_colors = {'healthy': 'green', 'risky': 'orange', 'dangerous': 'red'}
             
             # Convert states to numbers and colors for plotting
             state_data['state_num'] = state_data['value'].map(state_mapping)
@@ -569,7 +569,7 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
                 axes[1, 1].set_title('Health State (Weighted Priority)', fontweight='bold')
                 axes[1, 1].set_ylabel('State')
                 axes[1, 1].set_yticks([0, 1, 2])
-                axes[1, 1].set_yticklabels(['Normal', 'Risky', 'Dangerous'])
+                axes[1, 1].set_yticklabels(['Healthy', 'Risky', 'Dangerous'])
                 axes[1, 1].grid(True, alpha=0.3)
                 
         

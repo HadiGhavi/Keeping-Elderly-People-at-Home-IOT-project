@@ -256,7 +256,7 @@ class NotificationService:
                 emoji = "⚠️"
                 severity = "WARNING"
             else:
-                return True  # Don't send for normal states
+                return True  # Don't send for healthy states
             
             message = (
                 f"{emoji} <b>Health Alert - {severity}</b>\n\n"
