@@ -249,8 +249,8 @@ class DatabaseAdapterService:
                 categorical_df = categorical_df.set_index('time')
                 
                 # Define valid health states and weights
-                VALID_STATES = {'normal': 1, 'risky': 2, 'dangerous': 3}
-                STATE_WEIGHTS = {'dangerous': 3, 'risky': 2, 'normal': 1}
+                VALID_STATES = {'healthy': 1, 'risky': 2, 'dangerous': 3}
+                STATE_WEIGHTS = {'dangerous': 3, 'risky': 2, 'healthy': 1}
                 
                 def get_weighted_most_common_state(series):
                     """Get the most common state with weighted priority (dangerous > risky > normal)"""
@@ -295,11 +295,12 @@ class DatabaseAdapterService:
                                 'max_value': str(state_value),
                                 'sample_count': 1
                             })
+                            print(f"DEBUG: Aggregated state at {timestamp}: {state_value}")
                             
                 except Exception as state_error:
                     print(f"Error processing health states: {state_error}")
             
-            #print(f"DEBUG: Final aggregated data count: {len(aggregated_data)}")
+            print(f"DEBUG: Final aggregated data count: {len(aggregated_data)}")
             
             return json.dumps({
                 "success": True,

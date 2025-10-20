@@ -253,9 +253,9 @@ def stop_recording_for(user_id: int):
 
     try:
         if base.endswith("/read/"):
-            base_url = base[:-6]  # Remove "/read/" from the end
+            base_url = base[:-6]  
         elif base.endswith("/read"):
-            base_url = base[:-5]  # Remove "/read" from the end  
+            base_url = base[:-5]   
         else:
             base_url = base
             
@@ -347,7 +347,7 @@ def format_health_report(data, user_id):
         # Parse timestamp for better formatting
         try:
             from datetime import datetime
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+02:00'))
             formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
         except:
             formatted_time = timestamp
@@ -552,7 +552,7 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
                 axes[1, 0].grid(True, alpha=0.3)
                 axes[1, 0].legend()
         
-        # Health State chart - now using weighted priority aggregation
+        # Health State chart -  using weighted priority aggregation
         state_data = agg_df[agg_df['field'] == 'state'].copy()
         if not state_data.empty:
             state_mapping = {'healthy': 0, 'risky': 1, 'dangerous': 2}
@@ -560,11 +560,11 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
             
             # Convert states to numbers and colors for plotting
             state_data['state_num'] = state_data['value'].map(state_mapping)
-            colors = [state_colors.get(state, 'gray') for state in state_data['value']]
             
             state_data = state_data.dropna(subset=['state_num'])
             
             if not state_data.empty:
+                colors = [state_colors.get(state, 'gray') for state in state_data['value']]
                 axes[1, 1].scatter(state_data['time'], state_data['state_num'], c=colors, s=50, alpha=0.8)
                 axes[1, 1].set_title('Health State (Weighted Priority)', fontweight='bold')
                 axes[1, 1].set_ylabel('State')

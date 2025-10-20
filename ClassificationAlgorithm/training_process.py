@@ -26,13 +26,13 @@ def train_health_model():
         data = pd.read_csv(data_path)
     print(f"Data loaded: {len(data)} samples")
     print("Label distribution:")
-    print(data['label'].value_counts())
+    print(data['status'].value_counts())
     print()
     
     # Step 2: Prepare features and target
     print("Step 2: Preparing features...")
     X = data[['temperature', 'heart_rate', 'blood_oxygen']]
-    y = data['label']
+    y = data['status']
     
     # Step 3: Split data
     print("Step 3: Splitting data...")

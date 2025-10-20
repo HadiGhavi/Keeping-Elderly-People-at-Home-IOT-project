@@ -9,7 +9,6 @@ class HealthStatePredictor:
     def __init__(self, model_path):
         """Initialize the predictor with the trained model"""
         self.model_info = self._load_model(model_path)
-        # Handle both old and new model formats
         if isinstance(self.model_info, dict):
             self.model = self.model_info['model']
             self.feature_columns = self.model_info.get('feature_columns', 
@@ -17,7 +16,7 @@ class HealthStatePredictor:
             print(f"Model loaded from {model_path}")
             print(f"Training accuracy: {self.model_info.get('accuracy', 'N/A')}")
         else:
-            # Old format - just the model
+            # just the model
             self.model = self.model_info
             self.feature_columns = ['temperature', 'heart_rate', 'blood_oxygen']
             print(f"Model loaded from {model_path} (legacy format)")
@@ -60,10 +59,10 @@ if __name__ == "__main__":
     
     # Test with your real data examples
     real_world_cases = [
-        {'name': 'Kevin - Case 1', 'temp': 36.6, 'hr': 105, 'o2': 97.2},
+        {'name': 'Kevin - Case 1', 'temp': 38.6, 'hr': 105, 'o2': 97.2},
         {'name': 'Kevin - Case 2', 'temp': 36.9, 'hr': 100, 'o2': 97.3},
         {'name': 'Barbara - Case 1', 'temp': 36.6, 'hr': 100, 'o2': 96.9},
-        {'name': 'Healthy elderly', 'temp': 36.8, 'hr': 72, 'o2': 97.0},
+        {'name': 'Healthy elderly', 'temp': 36.8, 'hr': 72, 'o2': 90.0},
     ]
     
     print("\n=== TESTING WITH REAL DATA ===")
