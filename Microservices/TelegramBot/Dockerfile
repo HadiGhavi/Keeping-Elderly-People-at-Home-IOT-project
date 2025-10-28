@@ -7,6 +7,6 @@ COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 7000
+EXPOSE 8000
 
 CMD ["python", "telBot.py"]

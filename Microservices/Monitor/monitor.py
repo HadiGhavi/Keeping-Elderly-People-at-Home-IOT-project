@@ -268,7 +268,7 @@ class Monitor:
 
 if __name__ == "__main__":
 
-    register_service_with_catalog(service_name="sensor",
+    register_service_with_catalog(service_name="monitor",
                                   url="http://monitor",
                                   port=3500,
                                   endpoints={

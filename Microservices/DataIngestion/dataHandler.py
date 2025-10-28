@@ -14,6 +14,7 @@ import webbrowser
 import pickle
 import os
 import numpy as np
+import warnings
 from sklearn.ensemble import RandomForestClassifier 
 from datetime import datetime, timedelta
 from Microservices.Common.utils import (
@@ -87,7 +88,7 @@ class DataHandler:
         background_thread.start()
 
         # Model retraining configuration
-        self.retrain_interval = 900  # Retrain every 15 minutes
+        self.retrain_interval = 120  # Retrain every 15 minutes
         self.last_retrain_time = time.time()
         self.min_samples_for_retrain = 100  # Minimum samples needed to retrain
         self.model_save_path = Config.CLASSIFICATION.get("TRAINMODEL", "trained_model.pkl")
@@ -486,6 +487,10 @@ class DataHandler:
                     return False
             
             # Predict health state
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning, 
+                                        message="X has feature names, but RandomForestClassifier was fitted without feature names")
+        
             predicted_state = self.predict.predict_state(temp_value, heart_rate_value, oxygen_value)
             print(f"Predicted state: {predicted_state}")
 

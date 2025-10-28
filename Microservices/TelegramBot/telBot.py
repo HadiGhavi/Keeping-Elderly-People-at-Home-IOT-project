@@ -61,7 +61,7 @@ catalog_service =  Config.SERVICES["catalog_url"]
 
 registry = ServiceRegistry()
 database_service_url = registry.get_service_url("databaseAdapter")
-monitoring_service_url = registry.get_service_url("sensor")
+monitoring_service_url = registry.get_service_url("monitor")
 
 TELEGRAM_TOKEN = Config.TELEGRAM_TOKEN
 
@@ -184,7 +184,7 @@ def remove_device_from_user(user_id: int, device_id: str):
 # =========================
 
 def _sensor_service_url():
-    svc = api_get("services/sensor")
+    svc = api_get("services/monitor")
     if not svc or "url" not in svc:
         logger.warning("Sensor service not found in catalog")
         return None

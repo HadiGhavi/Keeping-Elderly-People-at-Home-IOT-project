@@ -30,7 +30,7 @@ class Config:
             "databaseAdapter": "http://database_adapter:3000",
             "notification": "http://notification:1500",
             "mqtt": "broker.hivemq.com:1883",
-            "sensor": "http://monitor:3500",
+            "monitor": "http://monitor:3500",
             "adminPanel": "http://admin_panel:9000"
         }
     }

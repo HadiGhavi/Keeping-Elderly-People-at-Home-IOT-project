@@ -33,7 +33,7 @@ class AdminPanel:
         self.database_service_url = self.registry.get_service_url("databaseAdapter")
         self.notification_service_url = self.registry.get_service_url("notification")
         self.data_ingestion_url = self.registry.get_service_url("dataIngestion")
-        self.monitor_service_url = self.registry.get_service_url("sensor")
+        self.monitor_service_url = self.registry.get_service_url("monitor")
         self.authorized_users = Config.ADMIN_USERS
         # Session storage 
         self.active_sessions = {}
