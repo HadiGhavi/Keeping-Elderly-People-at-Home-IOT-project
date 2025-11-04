@@ -16,6 +16,7 @@ from telegram.ext import (
     ContextTypes,
     ConversationHandler
 )
+import shlex
 import logging
 import sys
 import traceback
@@ -1713,44 +1714,51 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def register_doctor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         chat_id = update.effective_chat.id
-        
-        if len(context.args) < 2:
+        text = update.message.text
+
+        # Parse command properly (handles quotes)
+        args = shlex.split(text)
+        args = args[1:]  # remove '/register_doctor'
+
+        if len(args) < 2:
             await update.message.reply_text(
                 "Register as doctor:\n"
                 "/register_doctor <Full Name> <Specialization> [Hospital]\n\n"
-                "Example: /register_doctor Dr. Sarah Johnson Cardiology General Hospital"
+                "Example: /register_doctor 'Dr. Sarah Johnson' Cardiology 'General Hospital'"
             )
             return
-        
-        if len(context.args) >= 3:
-            full_name = " ".join(context.args[:-2])
-            specialization = context.args[-2]
-            hospital = context.args[-1]
+
+        # Extract fields safely
+        if len(args) >= 3:
+            full_name = args[0]
+            specialization = args[1]
+            hospital = " ".join(args[2:])
         else:
-            full_name = context.args[0]
-            specialization = context.args[1]
+            full_name = args[0]
+            specialization = args[1]
             hospital = ""
-        
+
         doctor_data = {
             "user_chat_id": chat_id,
             "full_name": full_name,
             "specialization": specialization,
             "hospital": hospital
         }
-        
+
+        # Send data to API
         if api_post("doctors", doctor_data):
             await update.message.reply_text(
                 f"✅ Successfully registered as doctor!\n\n"
                 f"Name: {full_name}\n"
                 f"Specialization: {specialization}\n"
-                f"Hospital: {hospital}\n\n"
+                f"Hospital: {hospital if hospital else 'N/A'}\n\n"
                 f"Use /menu to access doctor functions."
             )
         else:
             await update.message.reply_text(
                 "❌ Registration failed. You may already be registered or there was an error."
             )
-            
+
     except Exception as e:
         logger.error(f"Error in doctor registration: {e}")
         await update.message.reply_text("Registration failed. Please try again.")

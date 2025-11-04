@@ -32,82 +32,547 @@
         {
             "id": "temp_222333444_1759800001",
             "type": "temp",
-            "last_update": "2025-10-21T09:41:54Z"
+            "last_update": "2025-11-04T17:49:09Z"
         },
         {
             "id": "heart_rate_222333444_1759800002",
             "type": "heart_rate",
-            "last_update": "2025-10-21T09:41:51Z"
+            "last_update": "2025-11-04T17:48:35Z"
         },
         {
             "id": "oxygen_222333444_1759800003",
             "type": "oxygen",
-            "last_update": "2025-10-21T09:42:04Z"
+            "last_update": "2025-11-04T17:49:09Z"
         },
         {
             "id": "temp_333444555_1759800004",
             "type": "temp",
-            "last_update": "2025-10-21T17:26:30Z"
+            "last_update": "2025-11-04T17:49:07Z"
         },
         {
             "id": "heart_rate_333444555_1759800005",
             "type": "heart_rate",
-            "last_update": "2025-10-21T17:26:18Z"
+            "last_update": "2025-11-04T17:49:13Z"
         },
         {
             "id": "oxygen_333444555_1759800006",
             "type": "oxygen",
-            "last_update": "2025-10-21T17:26:29Z"
+            "last_update": "2025-11-04T17:49:05Z"
         },
         {
             "id": "temp_555666777_1759800007",
             "type": "temp",
-            "last_update": "2025-10-21T09:41:55Z"
+            "last_update": "2025-11-04T17:49:07Z"
         },
         {
             "id": "heart_rate_555666777_1759800008",
             "type": "heart_rate",
-            "last_update": "2025-10-21T09:41:58Z"
+            "last_update": "2025-11-04T17:49:10Z"
         },
         {
             "id": "oxygen_555666777_1759800009",
             "type": "oxygen",
-            "last_update": "2025-10-21T09:41:55Z"
+            "last_update": "2025-11-04T17:49:11Z"
         },
         {
             "id": "temp_666777888_1759800010",
             "type": "temp",
-            "last_update": "2025-10-21T09:42:20Z"
+            "last_update": "2025-11-04T17:49:12Z"
         },
         {
             "id": "heart_rate_666777888_1759800011",
             "type": "heart_rate",
-            "last_update": "2025-10-21T09:41:50Z"
+            "last_update": "2025-11-04T17:49:09Z"
         },
         {
             "id": "oxygen_666777888_1759800012",
             "type": "oxygen",
-            "last_update": "2025-10-21T09:42:14Z"
+            "last_update": "2025-11-04T17:49:05Z"
         },
         {
             "id": "temp_888999111_1759800013",
             "type": "temp",
-            "last_update": "2025-10-21T09:41:55Z"
+            "last_update": "2025-11-04T17:49:07Z"
         },
         {
             "id": "heart_rate_888999111_1759800014",
             "type": "heart_rate",
-            "last_update": "2025-10-21T09:42:05Z"
+            "last_update": "2025-11-04T17:49:11Z"
         },
         {
             "id": "oxygen_888999111_1759800015",
             "type": "oxygen",
-            "last_update": "2025-10-21T09:41:49Z"
+            "last_update": "2025-11-04T17:49:05Z"
         },
         {
             "id": "oxygen_548805315_1759762000",
             "type": "oxygen",
             "last_update": "2025-10-27T14:52:28.461562Z"
+        },
+        {
+            "id": "temp_8483019182_1762252275",
+            "type": "temp",
+            "last_update": "2025-11-04T11:01:03Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762252281",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T11:01:18Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762252287",
+            "type": "oxygen",
+            "last_update": "2025-11-04T11:01:31Z"
+        },
+        {
+            "id": "temp_991100111_1762252300",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "heart_rate_991100111_1762252301",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:11Z"
+        },
+        {
+            "id": "oxygen_991100111_1762252302",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "temp_991100112_1762252303",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:11Z"
+        },
+        {
+            "id": "heart_rate_991100112_1762252304",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "oxygen_991100112_1762252305",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100113_1762252306",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "heart_rate_991100113_1762252307",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "oxygen_991100113_1762252308",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:03Z"
+        },
+        {
+            "id": "temp_991100114_1762252309",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:06Z"
+        },
+        {
+            "id": "heart_rate_991100114_1762252310",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:48:39Z"
+        },
+        {
+            "id": "oxygen_991100114_1762252311",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100115_1762252312",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:14Z"
+        },
+        {
+            "id": "heart_rate_991100115_1762252313",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "oxygen_991100115_1762252314",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100116_1762252315",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:11Z"
+        },
+        {
+            "id": "heart_rate_991100116_1762252316",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "oxygen_991100116_1762252317",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "temp_991100117_1762252318",
+            "type": "temp",
+            "last_update": "2025-11-04T17:48:37Z"
+        },
+        {
+            "id": "heart_rate_991100117_1762252319",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:04Z"
+        },
+        {
+            "id": "oxygen_991100117_1762252320",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100118_1762252321",
+            "type": "temp",
+            "last_update": "2025-11-04T11:35:45Z"
+        },
+        {
+            "id": "heart_rate_991100118_1762252322",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "oxygen_991100118_1762252323",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "temp_991100119_1762252324",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:12Z"
+        },
+        {
+            "id": "heart_rate_991100119_1762252325",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "oxygen_991100119_1762252326",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100120_1762252327",
+            "type": "temp",
+            "last_update": "2025-11-04T11:36:15Z"
+        },
+        {
+            "id": "heart_rate_991100120_1762252328",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T11:36:20Z"
+        },
+        {
+            "id": "oxygen_991100120_1762252329",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100121_1762252330",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:03Z"
+        },
+        {
+            "id": "heart_rate_991100121_1762252331",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:11Z"
+        },
+        {
+            "id": "oxygen_991100121_1762252332",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "temp_991100122_1762252333",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:12Z"
+        },
+        {
+            "id": "heart_rate_991100122_1762252334",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "oxygen_991100122_1762252335",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:48:37Z"
+        },
+        {
+            "id": "temp_991100123_1762252336",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:12Z"
+        },
+        {
+            "id": "heart_rate_991100123_1762252337",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "oxygen_991100123_1762252338",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "temp_991100124_1762252339",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:08Z"
+        },
+        {
+            "id": "heart_rate_991100124_1762252340",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "oxygen_991100124_1762252341",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "temp_991100125_1762252342",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "heart_rate_991100125_1762252343",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:11Z"
+        },
+        {
+            "id": "oxygen_991100125_1762252344",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100126_1762252345",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "heart_rate_991100126_1762252346",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "oxygen_991100126_1762252347",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "temp_991100127_1762252348",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:08Z"
+        },
+        {
+            "id": "heart_rate_991100127_1762252349",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "oxygen_991100127_1762252350",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "temp_991100128_1762252351",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:11Z"
+        },
+        {
+            "id": "heart_rate_991100128_1762252352",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "oxygen_991100128_1762252353",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:14Z"
+        },
+        {
+            "id": "temp_991100129_1762252354",
+            "type": "temp",
+            "last_update": "2025-11-04T17:39:40Z"
+        },
+        {
+            "id": "heart_rate_991100129_1762252355",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:40:08Z"
+        },
+        {
+            "id": "oxygen_991100129_1762252356",
+            "type": "oxygen",
+            "last_update": "2025-11-04T11:38:40Z"
+        },
+        {
+            "id": "temp_991100130_1762252357",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:03Z"
+        },
+        {
+            "id": "heart_rate_991100130_1762252358",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "oxygen_991100130_1762252359",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:40:07Z"
+        },
+        {
+            "id": "temp_991100131_1762252360",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:08Z"
+        },
+        {
+            "id": "heart_rate_991100131_1762252361",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "oxygen_991100131_1762252362",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100132_1762252363",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "heart_rate_991100132_1762252364",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:48:37Z"
+        },
+        {
+            "id": "oxygen_991100132_1762252365",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:14Z"
+        },
+        {
+            "id": "temp_991100133_1762252366",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "heart_rate_991100133_1762252367",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "oxygen_991100133_1762252368",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "temp_991100134_1762252369",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:14Z"
+        },
+        {
+            "id": "heart_rate_991100134_1762252370",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:48:35Z"
+        },
+        {
+            "id": "oxygen_991100134_1762252371",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "temp_991100135_1762252372",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:12Z"
+        },
+        {
+            "id": "heart_rate_991100135_1762252373",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "oxygen_991100135_1762252374",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:10Z"
+        },
+        {
+            "id": "temp_991100136_1762252375",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:08Z"
+        },
+        {
+            "id": "heart_rate_991100136_1762252376",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:18Z"
+        },
+        {
+            "id": "oxygen_991100136_1762252377",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:06Z"
+        },
+        {
+            "id": "temp_991100137_1762252378",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:13Z"
+        },
+        {
+            "id": "heart_rate_991100137_1762252379",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:08Z"
+        },
+        {
+            "id": "oxygen_991100137_1762252380",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "temp_991100138_1762252381",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:07Z"
+        },
+        {
+            "id": "heart_rate_991100138_1762252382",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:08Z"
+        },
+        {
+            "id": "oxygen_991100138_1762252383",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:05Z"
+        },
+        {
+            "id": "temp_991100139_1762252384",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:06Z"
+        },
+        {
+            "id": "heart_rate_991100139_1762252385",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:09Z"
+        },
+        {
+            "id": "oxygen_991100139_1762252386",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:12Z"
+        },
+        {
+            "id": "temp_991100140_1762252387",
+            "type": "temp",
+            "last_update": "2025-11-04T17:49:03Z"
+        },
+        {
+            "id": "heart_rate_991100140_1762252388",
+            "type": "heart_rate",
+            "last_update": "2025-11-04T17:49:12Z"
+        },
+        {
+            "id": "oxygen_991100140_1762252389",
+            "type": "oxygen",
+            "last_update": "2025-11-04T17:49:09Z"
         }
     ],
     "users": [
@@ -118,7 +583,10 @@
             "specialization": "Pediatrics",
             "hospital": "Children's Medical Center",
             "patients": [
-                222333444
+                222333444,
+                991100111,
+                991100112,
+                991100113
             ]
         },
         {
@@ -128,7 +596,9 @@
             "specialization": "Internal Medicine",
             "hospital": "City General Hospital",
             "patients": [
-                333444555
+                333444555,
+                991100114,
+                991100115
             ]
         },
         {
@@ -138,7 +608,11 @@
             "specialization": "Emergency Medicine",
             "hospital": "Metro Emergency Center",
             "patients": [
-                555666777
+                555666777,
+                991100116,
+                991100117,
+                991100118,
+                991100119
             ]
         },
         {
@@ -147,7 +621,10 @@
             "user_type": "doctor",
             "specialization": "Geriatrics",
             "hospital": "Senior Care Medical Center",
-            "patients": []
+            "patients": [
+                991100120,
+                991100121
+            ]
         },
         {
             "user_chat_id": 159357258,
@@ -156,7 +633,10 @@
             "specialization": "Pulmonology",
             "hospital": "Respiratory Health Institute",
             "patients": [
-                888999111
+                888999111,
+                991100122,
+                991100123,
+                991100124
             ]
         },
         {
@@ -165,7 +645,11 @@
             "user_type": "doctor",
             "specialization": "Endocrinology",
             "hospital": "Diabetes & Hormone Clinic",
-            "patients": []
+            "patients": [
+                991100125,
+                991100126,
+                991100127
+            ]
         },
         {
             "user_chat_id": 369852147,
@@ -175,7 +659,11 @@
             "hospital": "Heart & Vascular Institute",
             "patients": [
                 666777888,
-                548805315
+                548805315,
+                991100128,
+                991100129,
+                991100130,
+                991100131
             ]
         },
         {
@@ -184,27 +672,26 @@
             "user_type": "doctor",
             "specialization": "Neurology",
             "hospital": "Neurological Sciences Center",
-            "patients": []
-        },
-        {
-            "user_chat_id": 548805315,
-            "full_name": "Riccardo Fida",
-            "devices": [
-                "temp_548805315_1759758744",
-                "heart_rate_548805315_1759761237",
-                "oxygen_548805315_1759761260",
-                "heart_rate_new"
-            ],
-            "doctor_id": 369852147,
-            "user_type": "patient"
+            "patients": [
+                991100132,
+                991100133
+            ]
         },
         {
             "user_chat_id": 373801492,
-            "full_name": "Peppe Nasso",
+            "full_name": "Giuseppe Nasso",
             "user_type": "doctor",
             "specialization": "Other",
             "hospital": "",
-            "patients": []
+            "patients": [
+                991100134,
+                991100135,
+                991100136,
+                991100137,
+                991100138,
+                991100139,
+                991100140
+            ]
         },
         {
             "user_chat_id": 222333444,
@@ -260,6 +747,343 @@
                 "heart_rate_888999111_1759800014",
                 "oxygen_888999111_1759800015"
             ]
+        },
+        {
+            "user_chat_id": 991100111,
+            "full_name": "Liam Turner",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_991100111_1762252300",
+                "heart_rate_991100111_1762252301",
+                "oxygen_991100111_1762252302"
+            ]
+        },
+        {
+            "user_chat_id": 991100112,
+            "full_name": "Isabella Rossi",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_991100112_1762252303",
+                "heart_rate_991100112_1762252304",
+                "oxygen_991100112_1762252305"
+            ]
+        },
+        {
+            "user_chat_id": 991100113,
+            "full_name": "Ethan Walker",
+            "user_type": "patient",
+            "doctor_id": 548805312,
+            "devices": [
+                "temp_991100113_1762252306",
+                "heart_rate_991100113_1762252307",
+                "oxygen_991100113_1762252308"
+            ]
+        },
+        {
+            "user_chat_id": 991100114,
+            "full_name": "Sophia Nguyen",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_991100114_1762252309",
+                "heart_rate_991100114_1762252310",
+                "oxygen_991100114_1762252311"
+            ]
+        },
+        {
+            "user_chat_id": 991100115,
+            "full_name": "Jacob Martin",
+            "user_type": "patient",
+            "doctor_id": 111222333,
+            "devices": [
+                "temp_991100115_1762252312",
+                "heart_rate_991100115_1762252313",
+                "oxygen_991100115_1762252314"
+            ]
+        },
+        {
+            "user_chat_id": 991100116,
+            "full_name": "Emma Lopez",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_991100116_1762252315",
+                "heart_rate_991100116_1762252316",
+                "oxygen_991100116_1762252317"
+            ]
+        },
+        {
+            "user_chat_id": 991100117,
+            "full_name": "Noah Schmidt",
+            "user_type": "patient",
+            "doctor_id": 548805312,
+            "devices": [
+                "temp_991100117_1762252318",
+                "heart_rate_991100117_1762252319",
+                "oxygen_991100117_1762252320"
+            ]
+        },
+        {
+            "user_chat_id": 991100118,
+            "full_name": "Olivia Moretti",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_991100118_1762252321",
+                "heart_rate_991100118_1762252322",
+                "oxygen_991100118_1762252323"
+            ]
+        },
+        {
+            "user_chat_id": 991100119,
+            "full_name": "Mason Dubois",
+            "user_type": "patient",
+            "doctor_id": 159357258,
+            "devices": [
+                "temp_991100119_1762252324",
+                "heart_rate_991100119_1762252325",
+                "oxygen_991100119_1762252326"
+            ]
+        },
+        {
+            "user_chat_id": 991100120,
+            "full_name": "Ava Becker",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_991100120_1762252327",
+                "heart_rate_991100120_1762252328",
+                "oxygen_991100120_1762252329"
+            ]
+        },
+        {
+            "user_chat_id": 991100121,
+            "full_name": "Lucas Silva",
+            "user_type": "patient",
+            "doctor_id": 444555666,
+            "devices": [
+                "temp_991100121_1762252330",
+                "heart_rate_991100121_1762252331",
+                "oxygen_991100121_1762252332"
+            ]
+        },
+        {
+            "user_chat_id": 991100122,
+            "full_name": "Mia Kowalska",
+            "user_type": "patient",
+            "doctor_id": 548805312,
+            "devices": [
+                "temp_991100122_1762252333",
+                "heart_rate_991100122_1762252334",
+                "oxygen_991100122_1762252335"
+            ]
+        },
+        {
+            "user_chat_id": 991100123,
+            "full_name": "Benjamin Rossi",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_991100123_1762252336",
+                "heart_rate_991100123_1762252337",
+                "oxygen_991100123_1762252338"
+            ]
+        },
+        {
+            "user_chat_id": 991100124,
+            "full_name": "Ella Johansson",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_991100124_1762252339",
+                "heart_rate_991100124_1762252340",
+                "oxygen_991100124_1762252341"
+            ]
+        },
+        {
+            "user_chat_id": 991100125,
+            "full_name": "Henry Park",
+            "user_type": "patient",
+            "doctor_id": 444555666,
+            "devices": [
+                "temp_991100125_1762252342",
+                "heart_rate_991100125_1762252343",
+                "oxygen_991100125_1762252344"
+            ]
+        },
+        {
+            "user_chat_id": 991100126,
+            "full_name": "Charlotte Meyer",
+            "user_type": "patient",
+            "doctor_id": 159357258,
+            "devices": [
+                "temp_991100126_1762252345",
+                "heart_rate_991100126_1762252346",
+                "oxygen_991100126_1762252347"
+            ]
+        },
+        {
+            "user_chat_id": 991100127,
+            "full_name": "Jack Brown",
+            "user_type": "patient",
+            "doctor_id": 111222333,
+            "devices": [
+                "temp_991100127_1762252348",
+                "heart_rate_991100127_1762252349",
+                "oxygen_991100127_1762252350"
+            ]
+        },
+        {
+            "user_chat_id": 991100128,
+            "full_name": "Amelia Chen",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_991100128_1762252351",
+                "heart_rate_991100128_1762252352",
+                "oxygen_991100128_1762252353"
+            ]
+        },
+        {
+            "user_chat_id": 991100129,
+            "full_name": "Oliver Fischer",
+            "user_type": "patient",
+            "doctor_id": 548805312,
+            "devices": [
+                "temp_991100129_1762252354",
+                "heart_rate_991100129_1762252355",
+                "oxygen_991100129_1762252356"
+            ]
+        },
+        {
+            "user_chat_id": 991100130,
+            "full_name": "Grace Patel",
+            "user_type": "patient",
+            "doctor_id": 444555666,
+            "devices": [
+                "temp_991100130_1762252357",
+                "heart_rate_991100130_1762252358",
+                "oxygen_991100130_1762252359"
+            ]
+        },
+        {
+            "user_chat_id": 991100131,
+            "full_name": "Leo Bianchi",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_991100131_1762252360",
+                "heart_rate_991100131_1762252361",
+                "oxygen_991100131_1762252362"
+            ]
+        },
+        {
+            "user_chat_id": 991100132,
+            "full_name": "Harper Clark",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_991100132_1762252363",
+                "heart_rate_991100132_1762252364",
+                "oxygen_991100132_1762252365"
+            ]
+        },
+        {
+            "user_chat_id": 991100133,
+            "full_name": "Daniel Weber",
+            "user_type": "patient",
+            "doctor_id": 548805312,
+            "devices": [
+                "temp_991100133_1762252366",
+                "heart_rate_991100133_1762252367",
+                "oxygen_991100133_1762252368"
+            ]
+        },
+        {
+            "user_chat_id": 991100134,
+            "full_name": "Aria Conti",
+            "user_type": "patient",
+            "doctor_id": 159357258,
+            "devices": [
+                "temp_991100134_1762252369",
+                "heart_rate_991100134_1762252370",
+                "oxygen_991100134_1762252371"
+            ]
+        },
+        {
+            "user_chat_id": 991100135,
+            "full_name": "Sebastian Klein",
+            "user_type": "patient",
+            "doctor_id": 111222333,
+            "devices": [
+                "temp_991100135_1762252372",
+                "heart_rate_991100135_1762252373",
+                "oxygen_991100135_1762252374"
+            ]
+        },
+        {
+            "user_chat_id": 991100136,
+            "full_name": "Victoria Romano",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_991100136_1762252375",
+                "heart_rate_991100136_1762252376",
+                "oxygen_991100136_1762252377"
+            ]
+        },
+        {
+            "user_chat_id": 991100137,
+            "full_name": "James Hughes",
+            "user_type": "patient",
+            "doctor_id": 369852147,
+            "devices": [
+                "temp_991100137_1762252378",
+                "heart_rate_991100137_1762252379",
+                "oxygen_991100137_1762252380"
+            ]
+        },
+        {
+            "user_chat_id": 991100138,
+            "full_name": "Camila Costa",
+            "user_type": "patient",
+            "doctor_id": 444555666,
+            "devices": [
+                "temp_991100138_1762252381",
+                "heart_rate_991100138_1762252382",
+                "oxygen_991100138_1762252383"
+            ]
+        },
+        {
+            "user_chat_id": 991100139,
+            "full_name": "William Scott",
+            "user_type": "patient",
+            "doctor_id": 987654321,
+            "devices": [
+                "temp_991100139_1762252384",
+                "heart_rate_991100139_1762252385",
+                "oxygen_991100139_1762252386"
+            ]
+        },
+        {
+            "user_chat_id": 991100140,
+            "full_name": "Chloe Marino",
+            "user_type": "patient",
+            "doctor_id": null,
+            "devices": [
+                "temp_991100140_1762252387",
+                "heart_rate_991100140_1762252388",
+                "oxygen_991100140_1762252389"
+            ]
+        },
+        {
+            "user_chat_id": 548805315,
+            "full_name": "Riccardo Fida",
+            "devices": [],
+            "doctor_id": null,
+            "user_type": "patient"
         }
     ],
     "services": [

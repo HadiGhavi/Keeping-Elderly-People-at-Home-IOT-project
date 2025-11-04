@@ -88,7 +88,7 @@ class DataHandler:
         background_thread.start()
 
         # Model retraining configuration
-        self.retrain_interval = 120  # Retrain every 15 minutes
+        self.retrain_interval = 900  # Retrain every 15 minutes
         self.last_retrain_time = time.time()
         self.min_samples_for_retrain = 100  # Minimum samples needed to retrain
         self.model_save_path = Config.CLASSIFICATION.get("TRAINMODEL", "trained_model.pkl")
