@@ -1,14 +1,8 @@
-# 🚀 [Project Title]
+# 🚀 [Keeping Elderly People at Home]
 
 > This project is a continuous health monitoring platform designed to close the gap between patients at home and their doctors. It solves the problem of "silent" critical events by using a Telegram bot to continuously monitor user-provided sensor data and instantly notifying both the patient and doctor when medical assistance may be required.
 
-<p align="left">
-  <img src="https://img.shields.io/github/license/YOUR_USERNAME/YOUR_REPO" alt="License">
-  <img src="https://img.shields.io/github/workflow/status/YOUR_USERNAME/YOUR_REPO/build" alt="Build Status">
-  <img src="https://img.shields.io/github/issues/YOUR_USERNAME/YOUR_REPO" alt="Issues">
-</p>
-
-![Project Screenshot/GIF]()
+![![alt text](diagram.png)]()
 
 ## ✨ Features
 
