@@ -23,6 +23,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger('NotificationService')
 
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING) 
+# Silenzia il logger degli accessi di CherryPy (le GET che vedi)
+logging.getLogger('cherrypy.access').setLevel(logging.WARNING)
+# Silenzia anche il logger degli errori, se fosse troppo verboso (meglio INFO in genere)
+logging.getLogger('cherrypy.error').setLevel(logging.WARNING)
+
 class NotificationService:
     def __init__(self):
         self.catalog_url = Config.SERVICES["catalog_url"]
@@ -348,8 +355,6 @@ if __name__ == "__main__":
         'tools.encode.on': True,
         'tools.encode.encoding': 'utf-8',
         'log.screen': True,  # Enable console output
-        'log.access_file': '',  # Disable access log file
-        'log.error_file': ''   # Disable error log file
     })
     
     # CORS

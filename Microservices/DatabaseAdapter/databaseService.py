@@ -187,8 +187,6 @@ class DatabaseAdapterService:
             df['time'] = pd.to_datetime(df['time'])
             df = df.sort_values('time')
             
-            print(f"DEBUG: Original data shape: {df.shape}")
-            print(f"DEBUG: Unique fields: {df['field'].unique()}")
             
             # Separate numeric and categorical data
             numeric_fields = ['temp', 'heart_rate', 'oxygen']
@@ -295,13 +293,10 @@ class DatabaseAdapterService:
                                 'max_value': str(state_value),
                                 'sample_count': 1
                             })
-                            print(f"DEBUG: Aggregated state at {timestamp}: {state_value}")
                             
                 except Exception as state_error:
                     print(f"Error processing health states: {state_error}")
-            
-            print(f"DEBUG: Final aggregated data count: {len(aggregated_data)}")
-            
+                        
             return json.dumps({
                 "success": True,
                 "data": aggregated_data,
@@ -442,7 +437,10 @@ if __name__ == "__main__":
         'server.socket_host': '0.0.0.0',
         'server.socket_port': 3000,
         'tools.encode.on': True,
-        'tools.encode.encoding': 'utf-8'
+        'tools.encode.encoding': 'utf-8',
+        'log.screen': True,          
+        'log.access_file': '',        # Impedisce la scrittura del log degli accessi su file/schermo
+        'log.error_file': ''          # Impedisce la scrittura del log degli errori su file/schermo
     })
 
     # CORS configuration

@@ -32,77 +32,77 @@
         {
             "id": "temp_222333444_1759800001",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:32Z"
         },
         {
             "id": "heart_rate_222333444_1759800002",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:48:35Z"
+            "last_update": "2025-11-09T15:33:28Z"
         },
         {
             "id": "oxygen_222333444_1759800003",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "temp_333444555_1759800004",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:08Z"
         },
         {
             "id": "heart_rate_333444555_1759800005",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:13Z"
+            "last_update": "2025-11-09T15:33:04Z"
         },
         {
             "id": "oxygen_333444555_1759800006",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:05Z"
         },
         {
             "id": "temp_555666777_1759800007",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:26Z"
         },
         {
             "id": "heart_rate_555666777_1759800008",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:30Z"
         },
         {
             "id": "oxygen_555666777_1759800009",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-09T15:33:31Z"
         },
         {
             "id": "temp_666777888_1759800010",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:12Z"
+            "last_update": "2025-11-09T15:33:33Z"
         },
         {
             "id": "heart_rate_666777888_1759800011",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:32:58Z"
         },
         {
             "id": "oxygen_666777888_1759800012",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "temp_888999111_1759800013",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:35Z"
         },
         {
             "id": "heart_rate_888999111_1759800014",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "oxygen_888999111_1759800015",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:12Z"
         },
         {
             "id": "oxygen_548805315_1759762000",
@@ -127,197 +127,197 @@
         {
             "id": "temp_991100111_1762252300",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "heart_rate_991100111_1762252301",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "oxygen_991100111_1762252302",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:00Z"
         },
         {
             "id": "temp_991100112_1762252303",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-09T15:33:03Z"
         },
         {
             "id": "heart_rate_991100112_1762252304",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:37Z"
         },
         {
             "id": "oxygen_991100112_1762252305",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:32Z"
         },
         {
             "id": "temp_991100113_1762252306",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:04Z"
         },
         {
             "id": "heart_rate_991100113_1762252307",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:04Z"
         },
         {
             "id": "oxygen_991100113_1762252308",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:03Z"
+            "last_update": "2025-11-09T15:33:34Z"
         },
         {
             "id": "temp_991100114_1762252309",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:06Z"
+            "last_update": "2025-11-09T15:33:26Z"
         },
         {
             "id": "heart_rate_991100114_1762252310",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:48:39Z"
+            "last_update": "2025-11-09T15:33:24Z"
         },
         {
             "id": "oxygen_991100114_1762252311",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:31Z"
         },
         {
             "id": "temp_991100115_1762252312",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:14Z"
+            "last_update": "2025-11-09T15:33:28Z"
         },
         {
             "id": "heart_rate_991100115_1762252313",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:06Z"
         },
         {
             "id": "oxygen_991100115_1762252314",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:28Z"
         },
         {
             "id": "temp_991100116_1762252315",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-09T15:44:18Z"
         },
         {
             "id": "heart_rate_991100116_1762252316",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:44:04Z"
         },
         {
             "id": "oxygen_991100116_1762252317",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:44:24Z"
         },
         {
             "id": "temp_991100117_1762252318",
             "type": "temp",
-            "last_update": "2025-11-04T17:48:37Z"
+            "last_update": "2025-11-09T15:33:30Z"
         },
         {
             "id": "heart_rate_991100117_1762252319",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:04Z"
+            "last_update": "2025-11-09T15:33:34Z"
         },
         {
             "id": "oxygen_991100117_1762252320",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:33Z"
         },
         {
             "id": "temp_991100118_1762252321",
             "type": "temp",
-            "last_update": "2025-11-04T11:35:45Z"
+            "last_update": "2025-11-09T15:33:26Z"
         },
         {
             "id": "heart_rate_991100118_1762252322",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:28Z"
         },
         {
             "id": "oxygen_991100118_1762252323",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:31Z"
         },
         {
             "id": "temp_991100119_1762252324",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:12Z"
+            "last_update": "2025-11-09T15:33:26Z"
         },
         {
             "id": "heart_rate_991100119_1762252325",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:36Z"
         },
         {
             "id": "oxygen_991100119_1762252326",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:25Z"
         },
         {
             "id": "temp_991100120_1762252327",
             "type": "temp",
-            "last_update": "2025-11-04T11:36:15Z"
+            "last_update": "2025-11-09T15:33:24Z"
         },
         {
             "id": "heart_rate_991100120_1762252328",
             "type": "heart_rate",
-            "last_update": "2025-11-04T11:36:20Z"
+            "last_update": "2025-11-09T15:33:33Z"
         },
         {
             "id": "oxygen_991100120_1762252329",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:32:57Z"
         },
         {
             "id": "temp_991100121_1762252330",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:03Z"
+            "last_update": "2025-11-09T15:33:36Z"
         },
         {
             "id": "heart_rate_991100121_1762252331",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-09T15:32:26Z"
         },
         {
             "id": "oxygen_991100121_1762252332",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:35Z"
         },
         {
             "id": "temp_991100122_1762252333",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:12Z"
+            "last_update": "2025-11-09T15:33:33Z"
         },
         {
             "id": "heart_rate_991100122_1762252334",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:27Z"
         },
         {
             "id": "oxygen_991100122_1762252335",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:48:37Z"
+            "last_update": "2025-11-09T15:33:25Z"
         },
         {
             "id": "temp_991100123_1762252336",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:12Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "heart_rate_991100123_1762252337",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:32:27Z"
         },
         {
             "id": "oxygen_991100123_1762252338",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:32:57Z"
         },
         {
             "id": "temp_991100124_1762252339",
@@ -337,242 +337,347 @@
         {
             "id": "temp_991100125_1762252342",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:35Z"
         },
         {
             "id": "heart_rate_991100125_1762252343",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-09T15:33:25Z"
         },
         {
             "id": "oxygen_991100125_1762252344",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:15Z"
         },
         {
             "id": "temp_991100126_1762252345",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:20Z"
         },
         {
             "id": "heart_rate_991100126_1762252346",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:33Z"
         },
         {
             "id": "oxygen_991100126_1762252347",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:27Z"
         },
         {
             "id": "temp_991100127_1762252348",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:08Z"
+            "last_update": "2025-11-09T15:33:30Z"
         },
         {
             "id": "heart_rate_991100127_1762252349",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:04Z"
         },
         {
             "id": "oxygen_991100127_1762252350",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:23Z"
         },
         {
             "id": "temp_991100128_1762252351",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:11Z"
+            "last_update": "2025-11-14T09:52:14Z"
         },
         {
             "id": "heart_rate_991100128_1762252352",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-14T09:52:24Z"
         },
         {
             "id": "oxygen_991100128_1762252353",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:14Z"
+            "last_update": "2025-11-14T09:52:11Z"
         },
         {
             "id": "temp_991100129_1762252354",
             "type": "temp",
-            "last_update": "2025-11-04T17:39:40Z"
+            "last_update": "2025-11-14T09:52:08Z"
         },
         {
             "id": "heart_rate_991100129_1762252355",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:40:08Z"
+            "last_update": "2025-11-14T09:52:19Z"
         },
         {
             "id": "oxygen_991100129_1762252356",
             "type": "oxygen",
-            "last_update": "2025-11-04T11:38:40Z"
+            "last_update": "2025-11-14T09:52:17Z"
         },
         {
             "id": "temp_991100130_1762252357",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:03Z"
+            "last_update": "2025-11-09T15:33:33Z"
         },
         {
             "id": "heart_rate_991100130_1762252358",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:32:53Z"
         },
         {
             "id": "oxygen_991100130_1762252359",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:40:07Z"
+            "last_update": "2025-11-09T15:33:04Z"
         },
         {
             "id": "temp_991100131_1762252360",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:08Z"
+            "last_update": "2025-11-09T15:33:32Z"
         },
         {
             "id": "heart_rate_991100131_1762252361",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:32Z"
         },
         {
             "id": "oxygen_991100131_1762252362",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "temp_991100132_1762252363",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-14T09:52:16Z"
         },
         {
             "id": "heart_rate_991100132_1762252364",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:48:37Z"
+            "last_update": "2025-11-14T09:52:13Z"
         },
         {
             "id": "oxygen_991100132_1762252365",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:14Z"
+            "last_update": "2025-11-14T09:52:32Z"
         },
         {
             "id": "temp_991100133_1762252366",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:32Z"
         },
         {
             "id": "heart_rate_991100133_1762252367",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:12Z"
         },
         {
             "id": "oxygen_991100133_1762252368",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:26Z"
         },
         {
             "id": "temp_991100134_1762252369",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:14Z"
+            "last_update": "2025-11-09T15:33:32Z"
         },
         {
             "id": "heart_rate_991100134_1762252370",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:48:35Z"
+            "last_update": "2025-11-09T15:32:33Z"
         },
         {
             "id": "oxygen_991100134_1762252371",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:29Z"
         },
         {
             "id": "temp_991100135_1762252372",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:12Z"
+            "last_update": "2025-11-09T15:33:23Z"
         },
         {
             "id": "heart_rate_991100135_1762252373",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:32:01Z"
         },
         {
             "id": "oxygen_991100135_1762252374",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:10Z"
+            "last_update": "2025-11-09T15:33:31Z"
         },
         {
             "id": "temp_991100136_1762252375",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:08Z"
+            "last_update": "2025-11-09T15:33:27Z"
         },
         {
             "id": "heart_rate_991100136_1762252376",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:18Z"
+            "last_update": "2025-11-09T15:33:30Z"
         },
         {
             "id": "oxygen_991100136_1762252377",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:06Z"
+            "last_update": "2025-11-09T15:33:31Z"
         },
         {
             "id": "temp_991100137_1762252378",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:13Z"
+            "last_update": "2025-11-09T15:33:25Z"
         },
         {
             "id": "heart_rate_991100137_1762252379",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:08Z"
+            "last_update": "2025-11-09T15:33:31Z"
         },
         {
             "id": "oxygen_991100137_1762252380",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:08Z"
         },
         {
             "id": "temp_991100138_1762252381",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:07Z"
+            "last_update": "2025-11-09T15:33:04Z"
         },
         {
             "id": "heart_rate_991100138_1762252382",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:08Z"
+            "last_update": "2025-11-09T15:33:34Z"
         },
         {
             "id": "oxygen_991100138_1762252383",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:05Z"
+            "last_update": "2025-11-09T15:33:27Z"
         },
         {
             "id": "temp_991100139_1762252384",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:06Z"
+            "last_update": "2025-11-09T15:33:24Z"
         },
         {
             "id": "heart_rate_991100139_1762252385",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:34Z"
         },
         {
             "id": "oxygen_991100139_1762252386",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:12Z"
+            "last_update": "2025-11-09T15:33:30Z"
         },
         {
             "id": "temp_991100140_1762252387",
             "type": "temp",
-            "last_update": "2025-11-04T17:49:03Z"
+            "last_update": "2025-11-09T15:33:32Z"
         },
         {
             "id": "heart_rate_991100140_1762252388",
             "type": "heart_rate",
-            "last_update": "2025-11-04T17:49:12Z"
+            "last_update": "2025-11-09T15:33:04Z"
         },
         {
             "id": "oxygen_991100140_1762252389",
             "type": "oxygen",
-            "last_update": "2025-11-04T17:49:09Z"
+            "last_update": "2025-11-09T15:33:06Z"
+        },
+        {
+            "id": "temp_8483019182_1762679524",
+            "type": "temp",
+            "last_update": "2025-11-09T15:33:03Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762679529",
+            "type": "heart_rate",
+            "last_update": "2025-11-09T15:33:25Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762679534",
+            "type": "oxygen",
+            "last_update": "2025-11-09T15:33:36Z"
+        },
+        {
+            "id": "temp_8483019182_1762704451",
+            "type": "temp",
+            "last_update": "2025-11-09T16:14:27Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762704459",
+            "type": "heart_rate",
+            "last_update": "2025-11-09T16:14:57Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762704466",
+            "type": "oxygen",
+            "last_update": "2025-11-09T16:13:27Z"
+        },
+        {
+            "id": "temp_8483019182_1762713616",
+            "type": "temp",
+            "last_update": "2025-11-09T18:40:16.828993Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762713623",
+            "type": "heart_rate",
+            "last_update": "2025-11-09T18:40:23.678091Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762713630",
+            "type": "oxygen",
+            "last_update": "2025-11-09T18:40:30.982594Z"
+        },
+        {
+            "id": "temp_8483019182_1762713691",
+            "type": "temp",
+            "last_update": "2025-11-09T18:42:17Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762713697",
+            "type": "heart_rate",
+            "last_update": "2025-11-09T18:42:23Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762713702",
+            "type": "oxygen",
+            "last_update": "2025-11-09T18:42:20Z"
+        },
+        {
+            "id": "temp_8483019182_1762772713",
+            "type": "temp",
+            "last_update": "2025-11-10T16:42:15Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762772719",
+            "type": "heart_rate",
+            "last_update": "2025-11-10T16:42:15Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762772724",
+            "type": "oxygen",
+            "last_update": "2025-11-10T16:42:15Z"
+        },
+        {
+            "id": "temp_8483019182_1762796909",
+            "type": "temp",
+            "last_update": "2025-11-10T17:48:29.100133Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762796916",
+            "type": "heart_rate",
+            "last_update": "2025-11-10T17:50:26Z"
+        },
+        {
+            "id": "temp_8483019182_1762797952",
+            "type": "temp",
+            "last_update": "2025-11-14T09:52:07Z"
+        },
+        {
+            "id": "heart_rate_8483019182_1762797960",
+            "type": "heart_rate",
+            "last_update": "2025-11-14T09:52:19Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762797966",
+            "type": "oxygen",
+            "last_update": "2025-11-10T18:06:06.291620Z"
+        },
+        {
+            "id": "oxygen_8483019182_1762798675",
+            "type": "oxygen",
+            "last_update": "2025-11-14T09:52:13Z"
         }
     ],
     "users": [
@@ -580,7 +685,7 @@
             "user_chat_id": 987654321,
             "full_name": "Emily Carter",
             "user_type": "doctor",
-            "specialization": "Pediatrics",
+            "specialization": "Cardiology",
             "hospital": "Children's Medical Center",
             "patients": [
                 222333444,
@@ -939,7 +1044,7 @@
             "user_chat_id": 991100128,
             "full_name": "Amelia Chen",
             "user_type": "patient",
-            "doctor_id": 987654321,
+            "doctor_id": 548805315,
             "devices": [
                 "temp_991100128_1762252351",
                 "heart_rate_991100128_1762252352",
@@ -950,7 +1055,7 @@
             "user_chat_id": 991100129,
             "full_name": "Oliver Fischer",
             "user_type": "patient",
-            "doctor_id": 548805312,
+            "doctor_id": 548805315,
             "devices": [
                 "temp_991100129_1762252354",
                 "heart_rate_991100129_1762252355",
@@ -961,7 +1066,7 @@
             "user_chat_id": 991100130,
             "full_name": "Grace Patel",
             "user_type": "patient",
-            "doctor_id": 444555666,
+            "doctor_id": 548805315,
             "devices": [
                 "temp_991100130_1762252357",
                 "heart_rate_991100130_1762252358",
@@ -972,7 +1077,7 @@
             "user_chat_id": 991100131,
             "full_name": "Leo Bianchi",
             "user_type": "patient",
-            "doctor_id": 369852147,
+            "doctor_id": 548805315,
             "devices": [
                 "temp_991100131_1762252360",
                 "heart_rate_991100131_1762252361",
@@ -983,7 +1088,7 @@
             "user_chat_id": 991100132,
             "full_name": "Harper Clark",
             "user_type": "patient",
-            "doctor_id": 987654321,
+            "doctor_id": 548805315,
             "devices": [
                 "temp_991100132_1762252363",
                 "heart_rate_991100132_1762252364",
@@ -1079,11 +1184,38 @@
             ]
         },
         {
+            "user_chat_id": 123456789,
+            "full_name": "Giuseppe Nasso",
+            "user_type": "doctor",
+            "specialization": "Emergency Medicine",
+            "hospital": "Turin Hospital",
+            "patients": []
+        },
+        {
+            "user_chat_id": 8483019182,
+            "full_name": "Mirella Bianchi",
+            "devices": [
+                "temp_8483019182_1762797952",
+                "heart_rate_8483019182_1762797960",
+                "oxygen_8483019182_1762798675"
+            ],
+            "doctor_id": 548805315,
+            "user_type": "patient"
+        },
+        {
             "user_chat_id": 548805315,
             "full_name": "Riccardo Fida",
-            "devices": [],
-            "doctor_id": null,
-            "user_type": "patient"
+            "user_type": "doctor",
+            "specialization": "Cardiology",
+            "hospital": "Ospedale Molinette Turin",
+            "patients": [
+                8483019182,
+                991100128,
+                991100129,
+                991100130,
+                991100131,
+                991100132
+            ]
         }
     ],
     "services": [
@@ -1117,28 +1249,6 @@
             }
         },
         {
-            "name": "dataIngestion",
-            "url": "http://data_ingestion",
-            "port": 2500,
-            "endpoints": {
-                "GET /getUserData/<id>": "get user data from db",
-                "GET /database/info": "get database adapter information",
-                "POST /database/switch": "switch database adapter",
-                "GET /database/adapters": "list available database adapters"
-            }
-        },
-        {
-            "name": "adminPanel",
-            "url": "http://admin_panel",
-            "port": 9000,
-            "endpoints": {
-                "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-                "GET /report/<userid>": "get user sensor data by id => json",
-                "GET /doctor_registration": "doctor registration web form",
-                "POST /register_doctor_web": "process doctor registration form"
-            }
-        },
-        {
             "name": "mqtt",
             "url": "broker.hivemq.com",
             "port": 1883,
@@ -1147,12 +1257,40 @@
             ]
         },
         {
+            "name": "monitor",
+            "url": "http://monitor",
+            "port": 3500,
+            "endpoints": {
+                "GET /read/<id>": "read sensor value from device",
+                "GET /stop/<id>": "stop sensor monitoring for user"
+            }
+        },
+        {
             "name": "notification",
             "url": "http://notification",
             "port": 1500,
             "endpoints": {
-                "POST /sendNotif/": "Send notification",
+                "POST /sendNotif": "Send notification",
                 "GET /status": "Get service status"
+            }
+        },
+        {
+            "name": "adminPanel",
+            "url": "http://admin_panel",
+            "port": 9000,
+            "endpoints": {
+                "GET /": "Admin panel home page",
+                "GET /login": "Admin login page",
+                "POST /login": "Process admin login",
+                "GET /logout": "Admin logout",
+                "GET /dashboard": "System dashboard with statistics",
+                "GET /doctor_registration": "Doctor registration form",
+                "POST /register_doctor_web": "Process doctor registration",
+                "GET /manage_doctors": "View and manage all doctors",
+                "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
+                "GET /patient_overview": "Overview of all patients",
+                "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
+                "GET /report/<userid>": "get user sensor data by id => json"
             }
         },
         {
@@ -1161,7 +1299,9 @@
             "port": 3000,
             "endpoints": {
                 "POST /write": "write health data to database",
+                "GET /users": "get all users with health data",
                 "GET /read/<user_id>": "get user health data",
+                "GET /aggregated/<user_id>": "get aggregated user health data for charts",
                 "DELETE /delete/<user_id>": "delete user data",
                 "GET /info": "get database adapter information",
                 "POST /switch": "switch database adapter",
@@ -1169,12 +1309,14 @@
             }
         },
         {
-            "name": "monitor",
-            "url": "http://monitor",
-            "port": 3500,
+            "name": "dataIngestion",
+            "url": "http://data_ingestion",
+            "port": 2500,
             "endpoints": {
-                "GET /read/<id>": "read sensor value from device",
-                "GET /stop/<id>": "stop sensor monitoring for user"
+                "GET /getUserData/<id>": "get user data from database",
+                "GET /database/info": "get database adapter information",
+                "POST /database/switch": "switch database adapter",
+                "GET /database/adapters": "list available database adapters"
             }
         }
     ]

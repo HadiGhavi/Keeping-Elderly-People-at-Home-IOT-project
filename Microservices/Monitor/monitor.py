@@ -186,7 +186,7 @@ class Monitor:
                 port=self.mqtt_info["port"],
                 auth=None
             )
-            print(f"Device {device_id} ({device_type}) - MQTT client connected")
+            #print(f"Device {device_id} ({device_type}) - MQTT client connected")
             
             while True:
                 # Check if stop was requested
@@ -201,7 +201,7 @@ class Monitor:
                         max_value=100,
                         sensor_name=device_type
                     )
-                    
+
                     if sensor_value is not None:
                         # Prepare data for this specific device
                         publish_data = {
@@ -215,7 +215,6 @@ class Monitor:
                         }
                         
                         # Publish data
-                        print(f"Device {device_id} ({device_type}) - Publishing value: {sensor_value}")
                         success = mqtt_client.publish(
                             "iot_user_sensor/value",
                             payload=json.dumps(publish_data),
@@ -240,8 +239,10 @@ class Monitor:
                 except Exception as e:
                     print(f"Device {device_id} - Error generating/publishing value: {e}")
                 
+                print(f"Device {device_id} ({device_type}) - Publishing value: {sensor_value}",flush=True)
                 # Wait before next reading (30 seconds)
                 time.sleep(30)
+
                 
         except KeyboardInterrupt:
             print(f"Device {device_id} - Stopped by user")
@@ -252,9 +253,9 @@ class Monitor:
             if mqtt_client:
                 try:
                     mqtt_client.disconnect()
-                    print(f"Device {device_id} - MQTT client disconnected")
+                    print(f"Device {device_id} - MQTT client disconnected",flush=True)
                 except Exception as e:
-                    print(f"Device {device_id} - Error disconnecting MQTT: {e}")
+                    print(f"Device {device_id} - Error disconnecting MQTT: {e}",flush=True)
             
             # Clean up thread tracking
             with self.lock:
@@ -263,7 +264,7 @@ class Monitor:
                 if device_id in self.device_threads:
                     del self.device_threads[device_id]
             
-            print(f"Device {device_id} - Monitoring stopped")
+            print(f"Device {device_id} - Monitoring stopped",flush=True)
 
 
 if __name__ == "__main__":

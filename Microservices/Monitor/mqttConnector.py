@@ -15,8 +15,8 @@ class MQTTService:
     # Publisher functionality
     def publish(self, topic: str, payload: Any, retain: bool = False, qos: int = 1) -> bool:
         try:
-            print(self.host)
-            print(self.port)
+            #print(self.host)
+            #print(self.port)
             publish.single(
                 topic,
                 payload=str(payload),

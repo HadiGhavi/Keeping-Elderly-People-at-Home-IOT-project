@@ -21,7 +21,8 @@ from Microservices.Common.utils import (
     register_service_with_catalog,
     ServiceRegistry
 )
-
+warnings.filterwarnings("ignore", category=UserWarning, 
+                        message="X has feature names, but RandomForestClassifier was fitted without feature names")
 class MockPredictor:
     """Simple mock predictor for testing"""
     def predict_state(self, temp, heart_rate, oxygen):
@@ -443,7 +444,7 @@ class DataHandler:
                         "value": sensor_value,
                         "timestamp": current_time
                     }
-                    print(f"Updated cache for user {user_id}: {sensor_type} = {sensor_value}")
+                    #print(f"Updated cache for user {user_id}: {sensor_type} = {sensor_value}")
                 
                 # Get cached values
                 cached_data = self.user_sensor_cache[user_id]
@@ -478,24 +479,20 @@ class DataHandler:
                     
                 else:
                     # Not enough data for prediction yet
-                    print(f"Waiting for more sensors for user {user_id}:")
-                    print(f"  Available: {list(available_sensors.keys())}")
-                    if missing_sensors:
-                        print(f"  Missing: {missing_sensors}")
-                    if stale_sensors:
-                        print(f"  Stale (>{self.cache_timeout}s): {stale_sensors}")
+                    #print(f"Waiting for more sensors for user {user_id}:")
+                    #print(f"  Available: {list(available_sensors.keys())}")
+                    #if missing_sensors:
+                    #    print(f"  Missing: {missing_sensors}")
+                    #if stale_sensors:
+                    #    print(f"  Stale (>{self.cache_timeout}s): {stale_sensors}")
                     return False
             
             # Predict health state
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=UserWarning, 
-                                        message="X has feature names, but RandomForestClassifier was fitted without feature names")
-        
             predicted_state = self.predict.predict_state(temp_value, heart_rate_value, oxygen_value)
             print(f"Predicted state: {predicted_state}")
 
             # Store in database using the service
-            print("Writing to database...")
+            #print("Writing to database...")
             success, message = self._write_health_data(
                 user_id=user_id,
                 user_name=user_name,
@@ -505,7 +502,7 @@ class DataHandler:
                 state=predicted_state
             )
             
-            print(f"Database write result: {message}")
+            #print(f"Database write result: {message}")
             return success
             
         except ValueError as e:

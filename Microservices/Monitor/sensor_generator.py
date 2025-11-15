@@ -125,7 +125,7 @@ class GenerateSensor:
         else:
             sensor_type = self._detect_sensor_type(min_value, max_value)
     
-        print(f"Detected sensor type: {sensor_type}")
+        #print(f"Detected sensor type: {sensor_type}")
 
         if sensor_type == 'generic':
             # For unknown sensors, use simple random generation

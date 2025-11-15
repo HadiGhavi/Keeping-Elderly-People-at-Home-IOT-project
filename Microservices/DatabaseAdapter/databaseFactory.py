@@ -102,7 +102,7 @@ class DatabaseService:
     def write_health_data(self, user_id: str, user_name: str, 
                         temp: float, heart_rate: int, oxygen: float, state: str) -> tuple[bool, str]:
         """Write health data to database"""
-        print(f"write_health_data called, adapter status: {self.adapter is not None}")
+        print(f"writing data..., adapter status: {self.adapter is not None}")
         
         if not self.adapter:
             print("write_health_data: No database adapter available")
@@ -141,7 +141,7 @@ class DatabaseService:
             return False, []
         
         success, result = self.adapter.get_user_data(user_id, time_range)
-    
+        #print(f"retrieving data: success={success}, result={result}")
         if success:
             return True, result
         else:

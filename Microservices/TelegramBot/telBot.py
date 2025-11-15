@@ -198,7 +198,6 @@ def _sensor_service_url():
     else:
         full_url = url
     
-    logger.info(f"DEBUG: Sensor service full URL: {full_url}")
     return full_url
 
 
@@ -247,7 +246,6 @@ def start_recording_for(user_id: int):
 
 def stop_recording_for(user_id: int):
     base = _sensor_service_url()
-    print(f"DEBUG: _sensor_service_url() returned: {base}")
     
     if not base:
         return False, "Sensor service not found."
@@ -262,18 +260,15 @@ def stop_recording_for(user_id: int):
             
         url = f"{base_url}/stop/{user_id}"
         
-        print(f"DEBUG: Final stop URL: {url}")
         
         r = requests.get(url, timeout=10)
-        print(f"DEBUG: Response status: {r.status_code}")
-        print(f"DEBUG: Response text: {r.text[:200]}...")
         
         if r.status_code == 200:
             return True, "Recording stopped successfully."
         else:
             return False, f"Failed to stop (HTTP {r.status_code}): {r.text[:100]}"
     except Exception as e:
-        print(f"DEBUG: Exception: {e}")
+        print(f"Exception: {e}")
         return False, f"Error while stopping: {str(e)}"
 
 def get_report_for(user_id: int, max_hours: int = 24):
@@ -753,7 +748,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await update.message.reply_text(
-                "🏥 Welcome to Human Health Monitoring!\n\n"
+                "🏥 Welcome to Safe Home Bot!\n\n"
                 "Please register with your full name using:\n"
                 "/register <your full name>"
             )
