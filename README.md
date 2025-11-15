@@ -1,8 +1,6 @@
-# 🚀 [Keeping Elderly People at Home]
+# 🚀 Keeping Elderly People at Home
 
 > This project is a continuous health monitoring platform designed to close the gap between patients at home and their doctors. It solves the problem of "silent" critical events by using a Telegram bot to continuously monitor user-provided sensor data and instantly notifying both the patient and doctor when medical assistance may be required.
-
-![![alt text](diagram.png)]()
 
 ## ✨ Features
 
@@ -70,5 +68,6 @@ Before running `docker-compose up`, you must configure the application.
 ## 🧑‍💻 Contact
 
 Riccardo Fida - s327834@studenti.polito.it
+Hadi Ghavipeykar - s328181@studenti.polito.it
 
 Project Link: https://github.com/HadiGhavi/Keeping-Elderly-People-at-Home-IOT-project
