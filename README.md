@@ -61,8 +61,9 @@
 
 Before running `docker-compose up`, you must configure the application.
 
-1.  Access the Microservices/Common folder 
+1. Access the Microservices/Common folder 
 2. Edit config.py with custom values
+3. (Optional) If any problems with containers occur, you would probably change some of the port numbers on which containers are exposed, to do it edit the filed "ports" of the container raising problem in docker-compose.yml file and port number in the field "EXPOSE" in the Dockerfile of the container in the related folder 
 
 
 ## 🧑‍💻 Contact
