@@ -1,5 +1,0 @@
-cherrypy
-requests
-influxdb-client
-certifi
-pandas
