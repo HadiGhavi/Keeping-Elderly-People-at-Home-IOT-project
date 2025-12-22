@@ -4,6 +4,7 @@ import threading
 import requests
 import os
 import pickle
+import traceback
 import numpy as np
 from datetime import datetime
 from Microservices.Common.config import Config
@@ -87,8 +88,183 @@ class DataHandlerAdapter:
         payload = {"user_id": uid, "user_name": name, "temp": t, "heart_rate": hr, "oxygen": ox, "state": state}
         requests.post(f"{self.database_service_url}/write", json=payload, timeout=5)
 
+
     def _retrain_loop(self):
+        """Continuously retrain the model with new data at fixed intervals"""
+        print("Model retraining loop started")
         while True:
-            time.sleep(self.retrain_interval)
-            # Logic for _retrain_model goes here (omitted for brevity, keep your original logic)
-            print("Checking for model retraining...")
+            try:
+                # Wait for the retrain interval (e.g., 15 minutes)
+                time.sleep(self.retrain_interval)
+                
+                current_time = time.time()
+                print(f"Attempting model retraining...")
+                
+                # Perform retraining
+                success = self._retrain_model()
+                
+                if success:
+                    self.last_retrain_time = current_time
+                    print(f"Model retrained successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                else:
+                    print(f"Model retraining skipped (not enough data or failed)")
+                    
+            except Exception as e:
+                print(f"Error in retraining loop: {e}")
+                traceback.print_exc()
+
+    def _retrain_model(self):
+        """Retrain the ML model using recent database data"""
+        try:
+            # 1. Fetch all users from catalog to identify patients
+            users_response = requests.get(f"{self.catalog_url}/users", timeout=5)
+            if users_response.status_code != 200:
+                return False
+            
+            users = users_response.json()
+            patients = [u for u in users if u.get("user_type") == "patient"]
+            
+            # 2. Collect historical data from all patients
+            all_data = []
+            for patient in patients:
+                user_id = patient["user_chat_id"]
+                try:
+                    # Get last 7 days of data for training
+                    data_res = requests.get(
+                        f"{self.database_service_url}/read/{user_id}",
+                        params={"hours": 168}, 
+                        timeout=15
+                    )
+                    if data_res.status_code == 200:
+                        result = data_res.json()
+                        if result.get("success") and result.get("data"):
+                            all_data.extend(result["data"])
+                except Exception:
+                    continue
+            
+            # 3. Validation: Ensure we have enough data
+            if len(all_data) < self.min_samples_for_retrain:
+                print(f"Not enough data: {len(all_data)} samples")
+                return False
+            
+            # 4. Prepare data and Train
+            X, y = self._prepare_training_data(all_data)
+            if X is not None:
+                new_model = self._train_classifier(X, y)
+                if new_model:
+                    self._save_model(new_model)
+                    self.predict = new_model # Update active predictor
+                    return True
+            return False
+            
+        except Exception as e:
+            print(f"Error during model retraining: {e}")
+            return False
+        
+    def _prepare_training_data(self, data):
+        """Convert database records to training format"""
+        try:
+            # Group data by time to get complete records
+            from collections import defaultdict
+            
+            records = defaultdict(dict)
+            
+            for entry in data:
+                time_key = entry.get("time")
+                field = entry.get("field")
+                value = entry.get("value")
+                
+                if time_key and field:
+                    records[time_key][field] = value
+            
+            # Extract complete samples (with temp, heart_rate, oxygen, and state)
+            X_train = []
+            y_train = []
+            
+            for time_key, record in records.items():
+                if all(field in record for field in ["temp", "heart_rate", "oxygen", "state"]):
+                    try:
+                        temp = float(record["temp"])
+                        heart_rate = float(record["heart_rate"])
+                        oxygen = float(record["oxygen"])
+                        state = str(record["state"])
+                        
+                        X_train.append([temp, heart_rate, oxygen])
+                        y_train.append(state)
+                    except (ValueError, TypeError) as e:
+                        continue
+            
+            if len(X_train) == 0:
+                return None, None
+            
+            return np.array(X_train), np.array(y_train)
+            
+        except Exception as e:
+            print(f"Error preparing training data: {e}")
+            return None, None
+
+    def _train_classifier(self, X_train, y_train):
+        """Train a new classifier model"""
+        try:
+            # Use the same model architecture as your HealthStatePredictor
+            # Adjust this based on your actual model
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.model_selection import train_test_split
+            
+            # Split for validation
+            X_train_split, X_val, y_train_split, y_val = train_test_split(
+                X_train, y_train, test_size=0.2, random_state=42
+            )
+            
+            # Train model
+            model = RandomForestClassifier(
+                n_estimators=100,
+                random_state=42,
+                class_weight='balanced' 
+            )
+            
+            model.fit(X_train_split, y_train_split)
+            
+            # Validate
+            val_score = model.score(X_val, y_val)
+            print(f"📈 Validation accuracy: {val_score:.2%}")
+            
+            return RetrainedPredictor(model)
+            
+        except Exception as e:
+            print(f"Error training classifier: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def _save_model(self, predictor):
+        """Save the trained model to disk"""
+        try:
+            # Extract the sklearn model from the wrapper
+            sklearn_model = predictor.model
+            
+            # Save to a temporary file first (atomic write)
+            temp_path = self.model_save_path + '.tmp'
+            
+            with open(temp_path, 'wb') as f:
+                pickle.dump(sklearn_model, f)
+            
+            # Only replace the original file if write was successful
+            import os
+            import shutil
+            shutil.move(temp_path, self.model_save_path)
+            
+            print(f"💾 Model saved successfully to {self.model_save_path}")
+            
+        except Exception as e:
+            print(f"Error saving model: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Clean up temp file if it exists
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except:
+                pass
+
