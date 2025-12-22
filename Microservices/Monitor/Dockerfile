@@ -2,9 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY . .
-
-COPY Microservices/Monitor/requirements.txt requirements.txt
+COPY Microservices/Monitor/requirements.txt . 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "Microservices/Monitor/monitor.py"]
+COPY . .
+
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 3500
+
+CMD ["python", "Microservices/Monitor/monitorREST.py"]

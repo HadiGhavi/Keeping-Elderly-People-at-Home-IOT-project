@@ -10,22 +10,12 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 os.environ['SSL_CERT_FILE'] = certifi.where()
 
 class InfluxDBAdapter():
-    def __init__(self, conf_filename):
-        DATABASE = {
-        "influxdb": {
-            "host": os.getenv("INFLUXDB_HOST", "https://eu-central-1-1.aws.cloud2.influxdata.com"),
-            "token": os.getenv("INFLUXDB_TOKEN", "WaCTN7nEqIMjNSsl-Yzry1iz6Os2F4xskPWrdrA5JQe49JmxT0MiUtOgvAHtz94cTkVolVrcplxYXfaYxqPf-g=="),
-            "org": os.getenv("INFLUXDB_ORG", "Dev Team"),
-            "bucket": os.getenv("INFLUXDB_BUCKET", "iot_health")
-        }
-    }
-        # Assuming Generic_Service style initialization from your first file
-        # self.conf = self.load_config(conf_filename)
-        # For now, we manually extract common config keys:
-        self.host = DATABASE['influxdb']['host']
-        self.token = DATABASE['influxdb']['token']
-        self.org = DATABASE['influxdb']['org']
-        self.bucket = DATABASE['influxdb']['bucket']
+    def __init__(self):
+       
+        self.host = Config.DATABASE['influxdb']['host']
+        self.token = Config.DATABASE['influxdb']['token']
+        self.org = Config.DATABASE['influxdb']['org']   
+        self.bucket = Config.DATABASE['influxdb']['bucket']
 
         self.client = InfluxDBClient(
             url=self.host,

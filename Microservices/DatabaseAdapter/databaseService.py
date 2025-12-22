@@ -6,8 +6,8 @@ from influxdbAdapter import InfluxDBAdapter
 class DatabaseREST():
     exposed = True
 
-    def __init__(self, conf_filename):
-        self.adapter = InfluxDBAdapter(conf_filename)
+    def __init__(self):
+        self.adapter = InfluxDBAdapter()
 
     def GET(self, *uri, **params):
         try:
@@ -85,9 +85,7 @@ class DatabaseREST():
             raise cherrypy.HTTPError(501, "No operation!")
 
 if __name__ == '__main__':
-    # Standard CherryPy startup sequence as seen in your first example
-    conf_file = "config.json" # sys.argv[1]
-    db_rest = DatabaseREST(conf_file)
+    db_rest = DatabaseREST()
     
     conf = {
         '/': {
