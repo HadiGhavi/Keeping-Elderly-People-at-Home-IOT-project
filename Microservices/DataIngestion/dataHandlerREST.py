@@ -6,11 +6,21 @@ from Microservices.Common.utils import register_service_with_catalog
 
 class DataHandlerREST:
     exposed = True
-
+    
     def __init__(self):
         self.handler = DataHandlerAdapter()
         # Start background MQTT and Retraining services
         self.handler.start_services()
+        register_service_with_catalog(
+        service_name="dataIngestion",
+        url="http://data_ingestion",
+        port=2500,
+        endpoints={
+            "GET /getUserData/<id>": "get user data",
+            "GET /database/info": "db info",
+            "POST /database/switch": "switch db"
+        }
+    )
 
     def GET(self, *uri, **params):
         if not uri:
@@ -24,7 +34,7 @@ class DataHandlerREST:
             return res.content
 
         elif command == "database":
-            action = uri[1] # info, adapters
+            action = uri[1] 
             res = requests.get(f"{self.handler.database_service_url}/{action}")
             return res.content
 
@@ -38,17 +48,16 @@ class DataHandlerREST:
         raise cherrypy.HTTPError(501, "Not Implemented")
 
 if __name__ == "__main__":
-    register_service_with_catalog(
-        service_name="dataIngestion",
-        url="http://data_ingestion",
-        port=2500,
-        endpoints={
-            "GET /getUserData/<id>": "get user data",
-            "GET /database/info": "db info",
-            "POST /database/switch": "switch db"
-        }
-    )
 
-    conf = {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}}
+    data_rest = DataHandlerREST()
+    
+    conf = {
+        '/': {
+            'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
+            'tools.sessions.on': True,
+        }
+    }
+    cherrypy.tree.mount(data_rest, '/', conf)
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': 2500})
-    cherrypy.quickstart(DataHandlerREST(), '/', conf)
+    cherrypy.engine.start()
+    cherrypy.engine.block()

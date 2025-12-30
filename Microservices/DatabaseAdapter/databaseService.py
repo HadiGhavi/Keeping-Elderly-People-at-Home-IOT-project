@@ -2,12 +2,24 @@ import cherrypy
 import json
 import pandas as pd
 from influxdbAdapter import InfluxDBAdapter
+from Microservices.Common.utils import register_service_with_catalog
 
 class DatabaseREST():
     exposed = True
 
     def __init__(self):
         self.adapter = InfluxDBAdapter()
+        register_service_with_catalog(
+        service_name="databaseAdapter",
+        url="http://database_adapter",
+        port=3000,
+        endpoints={
+            "GET /read/<id>": "read raw health data",
+            "GET /aggregated/<id>": "get 5-min averaged vitals",
+            "POST /write": "save new health record",
+            "GET /info": "get database connection info"
+            }
+    )
 
     def GET(self, *uri, **params):
         try:

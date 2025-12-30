@@ -9,6 +9,15 @@ class MonitorREST:
 
     def __init__(self):
         self.monitor = MonitorAdapter()
+        register_service_with_catalog(
+            service_name="monitor",
+            url="http://monitor",
+            port=3500,
+            endpoints={
+                "GET /read/<id>": "start monitoring",
+                "GET /stop/<id>": "stop monitoring"
+            }
+        )
 
     def GET(self, *uri, **params):
         if not uri:
@@ -30,22 +39,16 @@ class MonitorREST:
         raise cherrypy.HTTPError(501, "Operation not supported")
 
 if __name__ == "__main__":
-    register_service_with_catalog(
-        service_name="monitor",
-        url="http://monitor",
-        port=3500,
-        endpoints={
-            "GET /read/<id>": "start monitoring",
-            "GET /stop/<id>": "stop monitoring"
-        }
-    )
-
+    
+    mon_rest = MonitorREST()
+    
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
             'tools.sessions.on': True,
         }
     }
-    
+    cherrypy.tree.mount(mon_rest, '/', conf)
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': 3500})
-    cherrypy.quickstart(MonitorREST(), '/', conf)
+    cherrypy.engine.start()
+    cherrypy.engine.block()

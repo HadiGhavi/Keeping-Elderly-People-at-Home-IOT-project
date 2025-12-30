@@ -1,30 +1,10 @@
-"""
-Service Discovery Utilities
-Shared module for discovering microservices from the catalog
-"""
-
 import requests
 from typing import Optional, Dict
 from Microservices.Common.config import Config
 
 
-def get_service_url_from_catalog(service_name: str, 
-                                   catalog_url: str = None, 
-                                   fallback: str = None) -> str:
-    """
-    Get service URL from catalog with fallback
+def get_service_url_from_catalog(service_name,catalog_url = None,fallback = None):
     
-    Args:
-        service_name: Name of service to discover (e.g., "databaseAdapter")
-        catalog_url: Catalog service URL (defaults to Config value)
-        fallback: Fallback URL if discovery fails
-        
-    Returns:
-        Service URL string (e.g., "http://database_adapter:3000")
-        
-    Raises:
-        ValueError: If service not found and no fallback provided
-    """
     if catalog_url is None:
         catalog_url = Config.SERVICES["catalog_url"]
     
@@ -72,18 +52,8 @@ def get_service_url_from_catalog(service_name: str,
     raise ValueError(f"Could not discover '{service_name}' and no fallback provided")
 
 
-def get_service_info_from_catalog(service_name: str, 
-                                    catalog_url: str = None) -> Optional[Dict]:
-    """
-    Get full service info from catalog (returns the whole service object)
-    
-    Args:
-        service_name: Name of service to discover
-        catalog_url: Catalog service URL (defaults to Config value)
-        
-    Returns:
-        dict with url, port, endpoints, topics, etc. or None if not found
-    """
+def get_service_info_from_catalog(service_name, catalog_url ):
+   
     if catalog_url is None:
         catalog_url = Config.SERVICES["catalog_url"]
     
@@ -102,11 +72,8 @@ def get_service_info_from_catalog(service_name: str,
     return None
 
 
-def register_service_with_catalog(service_name: str,
-                                    url: str,
-                                    port: int,
-                                    endpoints: Dict = None,
-                                    catalog_url: str = None) -> bool:
+def register_service_with_catalog(service_name,url,port,endpoints,
+                                    catalog_url = None):
     """
     Register this service with the catalog
     
@@ -156,11 +123,11 @@ class ServiceRegistry:
     Service registry class that caches discovered services
     """
     
-    def __init__(self, catalog_url: str = None):
+    def __init__(self, catalog_url = None):
         self.catalog_url = catalog_url or Config.SERVICES["catalog_url"]
         self._cache = {}
     
-    def get_service_url(self, service_name: str, fallback: str = None) -> str:
+    def get_service_url(self, service_name, fallback = None):
         """Get service URL with caching"""
         if service_name not in self._cache:
             self._cache[service_name] = get_service_url_from_catalog(
@@ -170,7 +137,7 @@ class ServiceRegistry:
             )
         return self._cache[service_name]
     
-    def get_service_info(self, service_name: str) -> Optional[Dict]:
+    def get_service_info(self, service_name) :
         """Get full service info with caching"""
         cache_key = f"{service_name}_info"
         if cache_key not in self._cache:
@@ -184,7 +151,7 @@ class ServiceRegistry:
         """Clear the service cache (useful for testing or if services change)"""
         self._cache = {}
     
-    def refresh_service(self, service_name: str):
+    def refresh_service(self, service_name):
         """Refresh a specific service in the cache"""
         if service_name in self._cache:
             del self._cache[service_name]

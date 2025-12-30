@@ -84,6 +84,7 @@ class MonitorAdapter:
                         "sensors": [{"id": device_id, "name": device['type'], "value": val}]
                     }
                     mqtt_client.publish("iot_user_sensor/value", json.dumps(payload))
+                    print(f"Published data for device {device_id}: {payload}")
                 time.sleep(30)
         finally:
             mqtt_client.disconnect()

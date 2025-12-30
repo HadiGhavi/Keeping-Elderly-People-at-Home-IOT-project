@@ -7,9 +7,9 @@ import pickle
 import traceback
 import numpy as np
 from datetime import datetime
+from MyMQTT import MyMQTT 
 from Microservices.Common.config import Config
 from Microservices.Common.utils import ServiceRegistry
-from Microservices.DataIngestion.mqttConnector import MQTTService
 from ClassificationAlgorithm.HealthStatePredictor import HealthStatePredictor
 
 class MockPredictor:
@@ -45,6 +45,25 @@ class DataHandlerAdapter:
         self.min_samples_for_retrain = 100
         self.model_save_path = Config.CLASSIFICATION.get("TRAINMODEL", "trained_model.pkl")
 
+        # Initialize MyMQTT with 'self' as the notifier
+        self.mqtt_client = MyMQTT(
+            clientID="DataIngestionService", 
+            broker=self.mqtt_info["url"], 
+            port=self.mqtt_info["port"], 
+            notifier=self 
+        )
+
+    def start_services(self):
+        """Starts the MQTT connection and background retraining"""
+        self.mqtt_client.start() # Connects and starts paho loop
+        
+        # Subscribe to sensor topics defined in registry
+        #for topic in self.mqtt_info["topics"]:
+        self.mqtt_client.mySubscribe("iot_user_sensor/value") 
+            
+        # Start retraining loop
+        threading.Thread(target=self._retrain_loop, daemon=True).start()
+
     def _load_model(self):
         model_path = Config.CLASSIFICATION["TRAINMODEL"]
         if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
@@ -52,42 +71,64 @@ class DataHandlerAdapter:
             except: return MockPredictor()
         return MockPredictor()
 
-    def start_services(self):
-        # Start MQTT Subscriber
-        threading.Thread(target=self._mqtt_loop, daemon=True).start()
-        # Start Retraining Loop
-        threading.Thread(target=self._retrain_loop, daemon=True).start()
-
-    def _mqtt_loop(self):
-        mqtt_sub = MQTTService(host=self.mqtt_info["url"], port=self.mqtt_info["port"])
-        mqtt_sub.subscribe(topics=self.mqtt_info["topics"], message_handler=self.process_mqtt_message)
-        while True: time.sleep(30)
+    def notify(self, topic, payload):
+        """REQUIRED by MyMQTT: Bridges to processing logic"""
+        try:
+            # Pass the raw payload to your existing processing method
+            self.process_mqtt_message(topic, payload)
+        except Exception as e:
+            print(f"Error in MyMQTT notify: {e}")
 
     def process_mqtt_message(self, topic, message):
+        """Processes incoming sensor data from Monitor"""
         try:
             msg = json.loads(message)
             user_id = str(msg["user_id"])
             user_name = msg["user_name"]
             now = time.time()
-
+            print(f"Received data from user {user_id} with vitals {msg}")
             with self.cache_lock:
-                if user_id not in self.user_sensor_cache: self.user_sensor_cache[user_id] = {}
+                if user_id not in self.user_sensor_cache: 
+                    self.user_sensor_cache[user_id] = {}
+                
+                # Handle monitor data format (list of sensors)
                 for s in msg["sensors"]:
-                    self.user_sensor_cache[user_id][s["name"]] = {"value": s["value"], "timestamp": now}
+                    self.user_sensor_cache[user_id][s["name"]] = {
+                        "value": s["value"], 
+                        "timestamp": now
+                    }
                 
                 cache = self.user_sensor_cache[user_id]
                 vals = {k: cache[k]["value"] for k in ["temp", "heart_rate", "oxygen"] 
                         if k in cache and (now - cache[k]["timestamp"]) <= self.cache_timeout}
 
+            # If we have all 3 vitals, predict and potentially alert
             if len(vals) == 3:
-                state = self.predict.predict_state(float(vals["temp"]), int(float(vals["heart_rate"])), float(vals["oxygen"]))
+                state = self.predict.predict_state(
+                    float(vals["temp"]), 
+                    int(float(vals["heart_rate"])), 
+                    float(vals["oxygen"])
+                )
+                
+                # Write to DB
                 self._write_to_db(user_id, user_name, vals["temp"], vals["heart_rate"], vals["oxygen"], state)
-        except Exception as e: print(f"Processing error: {e}")
+                
+                # Event-Driven Alert using MyMQTT
+                if state in ["risky", "dangerous"]:
+                    alert_payload = json.dumps({
+                        "user_id": user_id,
+                        "user_name": user_name,
+                        "state": state,
+                        "vitals": vals # Flat dict of floats
+                    })
+                    self.mqtt_client.myPublish(f"iot/notifications/{state}", alert_payload)  
+                    print(f"🚨 Alert published for user {user_id} with state {state}")    
+        except Exception as e: 
+            print(f"Processing error: {e}")
 
     def _write_to_db(self, uid, name, t, hr, ox, state):
         payload = {"user_id": uid, "user_name": name, "temp": t, "heart_rate": hr, "oxygen": ox, "state": state}
         requests.post(f"{self.database_service_url}/write", json=payload, timeout=5)
-
 
     def _retrain_loop(self):
         """Continuously retrain the model with new data at fixed intervals"""

@@ -1264,7 +1264,8 @@
             "url": "broker.hivemq.com",
             "port": 1883,
             "topics": [
-                "iot_user_sensor/#"
+                "iot_user_sensor/#",
+                "iot_notifications/#"
             ]
         },
         {
@@ -1272,17 +1273,8 @@
             "url": "http://monitor",
             "port": 3500,
             "endpoints": {
-                "GET /read/<id>": "read sensor value from device",
-                "GET /stop/<id>": "stop sensor monitoring for user"
-            }
-        },
-        {
-            "name": "notification",
-            "url": "http://notification",
-            "port": 1500,
-            "endpoints": {
-                "POST /sendNotif": "Send notification",
-                "GET /status": "Get service status"
+                "GET /read/<id>": "start monitoring",
+                "GET /stop/<id>": "stop monitoring"
             }
         },
         {
@@ -1290,14 +1282,10 @@
             "url": "http://database_adapter",
             "port": 3000,
             "endpoints": {
-                "POST /write": "write health data to database",
-                "GET /users": "get all users with health data",
-                "GET /read/<user_id>": "get user health data",
-                "GET /aggregated/<user_id>": "get aggregated user health data for charts",
-                "DELETE /delete/<user_id>": "delete user data",
-                "GET /info": "get database adapter information",
-                "POST /switch": "switch database adapter",
-                "GET /adapters": "list available adapters"
+                "GET /read/<id>": "read raw health data",
+                "GET /aggregated/<id>": "get 5-min averaged vitals",
+                "POST /write": "save new health record",
+                "GET /info": "get database connection info"
             }
         },
         {
@@ -1324,10 +1312,9 @@
             "url": "http://data_ingestion",
             "port": 2500,
             "endpoints": {
-                "GET /getUserData/<id>": "get user data from database",
-                "GET /database/info": "get database adapter information",
-                "POST /database/switch": "switch database adapter",
-                "GET /database/adapters": "list available database adapters"
+                "GET /getUserData/<id>": "get user data",
+                "GET /database/info": "db info",
+                "POST /database/switch": "switch db"
             }
         }
     ]
