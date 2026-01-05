@@ -10,16 +10,16 @@ class DatabaseREST():
     def __init__(self):
         self.adapter = InfluxDBAdapter()
         register_service_with_catalog(
-        service_name="databaseAdapter",
-        url="http://database_adapter",
-        port=3000,
-        endpoints={
-            "GET /read/<id>": "read raw health data",
-            "GET /aggregated/<id>": "get 5-min averaged vitals",
-            "POST /write": "save new health record",
-            "GET /info": "get database connection info"
-            }
-    )
+            service_name="databaseAdapter",
+            url="http://database_adapter",
+            port=3000,
+            endpoints={
+                "GET /read/<id>": "read raw health data",
+                "GET /aggregated/<id>": "get 5-min averaged vitals",
+                "POST /write": "save new health record",
+                "GET /info": "get database connection info"
+                }
+        )
 
     def GET(self, *uri, **params):
         try:
@@ -30,7 +30,7 @@ class DatabaseREST():
                 hours = params.get('hours', 24)
                 success, data = self.adapter.get_user_health_data(user_id, hours)
                 if success:
-                    return json.dumps(data)
+                    return json.dumps({"success": True, "data": data})
                 else:
                     raise cherrypy.HTTPError(500, data)
             

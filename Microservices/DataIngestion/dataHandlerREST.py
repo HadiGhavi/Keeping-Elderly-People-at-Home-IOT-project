@@ -12,15 +12,15 @@ class DataHandlerREST:
         # Start background MQTT and Retraining services
         self.handler.start_services()
         register_service_with_catalog(
-        service_name="dataIngestion",
-        url="http://data_ingestion",
-        port=2500,
-        endpoints={
-            "GET /getUserData/<id>": "get user data",
-            "GET /database/info": "db info",
-            "POST /database/switch": "switch db"
-        }
-    )
+            service_name="dataIngestion",
+            url="http://data_ingestion",
+            port=2500,
+            endpoints={
+                "GET /getUserData/<id>": "get user data",
+                "GET /database/info": "db info",
+                "POST /database/switch": "switch db"
+            }
+        )
 
     def GET(self, *uri, **params):
         if not uri:

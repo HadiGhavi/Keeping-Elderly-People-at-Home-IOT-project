@@ -1316,6 +1316,15 @@
                 "GET /database/info": "db info",
                 "POST /database/switch": "switch db"
             }
+        },
+        {
+            "name": "notification",
+            "url": "http://notification",
+            "port": 1500,
+            "endpoints": {
+                "POST /sendNotif": "Manual notification",
+                "GET /status": "Service status"
+            }
         }
     ]
 }
