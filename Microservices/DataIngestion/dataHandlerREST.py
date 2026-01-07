@@ -17,8 +17,8 @@ class DataHandlerREST:
             port=2500,
             endpoints={
                 "GET /getUserData/<id>": "get user data",
-                "GET /database/info": "db info",
-                "POST /database/switch": "switch db"
+                "GET /database/info": "db info"#,
+                #"POST /database/switch": "switch db"
             }
         )
 
@@ -40,12 +40,12 @@ class DataHandlerREST:
 
         raise cherrypy.HTTPError(501, "Not Implemented")
 
-    def POST(self, *uri):
+    """ def POST(self, *uri):
         if uri[0] == "database" and uri[1] == "switch":
             body = cherrypy.request.body.read()
             res = requests.post(f"{self.handler.database_service_url}/switch", data=body)
             return res.content
-        raise cherrypy.HTTPError(501, "Not Implemented")
+        raise cherrypy.HTTPError(501, "Not Implemented") """
 
 if __name__ == "__main__":
 

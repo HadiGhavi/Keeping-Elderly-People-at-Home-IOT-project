@@ -14,8 +14,7 @@ class NotificationREST:
             service_name="notification",
             url="http://notification",
             port=1500,
-            endpoints={"POST /sendNotif": "Manual notification", 
-                       "GET /status": "Service status"}
+            endpoints={"GET /status": "Service status"}
         )
 
     def GET(self, *uri):
@@ -27,13 +26,6 @@ class NotificationREST:
             }).encode('utf-8')
         return json.dumps({"message": "Notification Service API"}).encode('utf-8')
 
-    def POST(self, *uri):
-        if uri and uri[0] == "sendNotif":
-            # Logic for manual notification
-            body = json.loads(cherrypy.request.body.read().decode('utf-8'))
-            # ... process manual notification ...
-            return json.dumps({"success": True}).encode('utf-8')
-        raise cherrypy.HTTPError(405)
 
 if __name__ == "__main__":
     

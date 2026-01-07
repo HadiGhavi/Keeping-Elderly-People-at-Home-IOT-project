@@ -3,7 +3,7 @@ import time
 import requests
 import json
 from Microservices.Monitor.sensor_generator import GenerateSensor
-from Microservices.Monitor.mqttConnector import MQTTService
+from Microservices.Monitor.MyMQTT import MyMQTT 
 from Microservices.Common.config import Config
 from Microservices.Common.utils import ServiceRegistry
 
@@ -21,7 +21,6 @@ class MonitorAdapter:
 
     def start_monitoring(self, chat_id):
         user_id = int(chat_id)
-        # Get user and device info from catalog
         user_response = requests.get(f"{self.catalog_url}/users/{chat_id}", timeout=5)
         if user_response.status_code != 200:
             return False, "User not found"
@@ -38,7 +37,6 @@ class MonitorAdapter:
                     already_running.append(device_id)
                     continue
                 
-                # Fetch device details
                 device_res = requests.get(f"{self.catalog_url}/devices/{device_id}")
                 if device_res.status_code == 200:
                     device = device_res.json()
@@ -72,7 +70,16 @@ class MonitorAdapter:
 
     def run_device_loop(self, device, user_info, stop_event):
         device_id = device['id']
-        mqtt_client = MQTTService(host=self.mqtt_info["url"], port=self.mqtt_info["port"])
+        
+        # 'None' as notifier since this is a publisher only
+        mqtt_client = MyMQTT(
+            clientID=f"Monitor_{device_id}", 
+            broker=self.mqtt_info["url"], 
+            port=self.mqtt_info["port"], 
+            notifier=None 
+        )
+        
+        mqtt_client.start() 
         
         try:
             while not stop_event.is_set():
@@ -83,11 +90,10 @@ class MonitorAdapter:
                         "user_name": user_info['full_name'],
                         "sensors": [{"id": device_id, "name": device['type'], "value": val}]
                     }
-                    mqtt_client.publish("iot_user_sensor/value", json.dumps(payload))
-                    print(f"Published data for device {device_id}: {payload}")
+                    mqtt_client.myPublish("iot_user_sensor/value", json.dumps(payload))
                 time.sleep(30)
         finally:
-            mqtt_client.disconnect()
+            mqtt_client.stop()
             with self.lock:
                 self.device_threads.pop(device_id, None)
                 self.device_stop_events.pop(device_id, None)

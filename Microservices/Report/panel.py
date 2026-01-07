@@ -66,7 +66,6 @@ class AdminPanel:
         if not self.check_auth():
             raise cherrypy.HTTPRedirect("/login")
     
-    @cherrypy.expose
     def login(self, username=None, password=None):
         """Login page and authentication handler"""
         error_message = ""
@@ -232,7 +231,6 @@ class AdminPanel:
 </html>
         """
     
-    @cherrypy.expose
     def logout(self):
         """Logout handler"""
         try:
@@ -244,7 +242,6 @@ class AdminPanel:
             pass
         raise cherrypy.HTTPRedirect("/login")
 
-    @cherrypy.expose
     def index(self):
         """Main dashboard - requires authentication"""
         self.require_auth()
@@ -299,7 +296,6 @@ class AdminPanel:
 </html>
         """
 
-    @cherrypy.expose
     def dashboard(self):
         self.require_auth()
         try:
@@ -769,7 +765,6 @@ class AdminPanel:
     </html>
             """
             
-    @cherrypy.expose
     def manage_doctors(self):
         self.require_auth()
         try:
@@ -839,7 +834,6 @@ class AdminPanel:
         except Exception as e:
             return f"<h1>Error</h1><p>{str(e)}</p>"
 
-    @cherrypy.expose
     def view_doctor_patients(self, doctor_id):
         self.require_auth()
         try:
@@ -936,7 +930,6 @@ class AdminPanel:
         except Exception as e:
             return f"<h1>Error</h1><p>{str(e)}</p>"
 
-    @cherrypy.expose
     def patient_overview(self):
         self.require_auth()
         try:
@@ -1147,7 +1140,6 @@ class AdminPanel:
             print(f"Error getting health status for user {user_id}: {e}")
             return "Error", "N/A"
         
-    @cherrypy.expose
     def reports(self):
         self.require_auth()
         return """
@@ -1205,7 +1197,6 @@ class AdminPanel:
 </html>
         """
 
-    @cherrypy.expose
     def generate_patient_report(self):
         self.require_auth()
         try:
@@ -1297,7 +1288,6 @@ class AdminPanel:
         except Exception as e:
             return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
 
-    @cherrypy.expose
     def generate_doctor_report(self):
         self.require_auth()
         try:
@@ -1398,7 +1388,6 @@ class AdminPanel:
             return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
 
 
-    @cherrypy.expose
     def generate_system_report(self):
         self.require_auth()
         
@@ -1565,7 +1554,6 @@ class AdminPanel:
     </body>
     </html>
             """
-    @cherrypy.expose
     def sensorInfo(self, user_id, hours=24):
         self.require_auth()
         """Get user sensor data through database adapter with optional time filtering"""
@@ -1771,7 +1759,6 @@ class AdminPanel:
     <p><a href="/">← Back to Main Menu</a></p>
             """
 
-    @cherrypy.expose
     def report(self, user_id, hours=24):
         self.require_auth()
 
@@ -1837,7 +1824,6 @@ class AdminPanel:
                 "data": []
             }).encode('utf-8')
 
-    @cherrypy.expose
     def doctor_registration(self):
         return """
 <!DOCTYPE html>
@@ -1925,7 +1911,6 @@ class AdminPanel:
 </html>
         """
 
-    @cherrypy.expose
     def register_doctor_web(self, full_name, chat_id, specialization, hospital=""):
         try:
             doctor_data = {
@@ -2044,33 +2029,84 @@ class AdminPanel:
 </html>
             """
 
+def expose_admin_panel_endpoints():
+    """Expose endpoints without decorators.
+
+    CherryPy's default object publishing requires each callable endpoint to have
+    a truthy `exposed` attribute. Setting it on the *class* function is reliable.
+    """
+    names = [
+        "login",
+        "logout",
+        "index",
+        "dashboard",
+        "manage_doctors",
+        "view_doctor_patients",
+        "patient_overview",
+        "reports",
+        "generate_patient_report",
+        "generate_doctor_report",
+        "generate_system_report",
+        "sensorInfo",
+        "report",
+        "doctor_registration",
+        "register_doctor_web",
+    ]
+    for name in names:
+        fn = getattr(AdminPanel, name, None)
+        if fn is not None:
+            fn.exposed = True
+
 if __name__ == "__main__":
     # Register the service
-    register_service_with_catalog(service_name="adminPanel", 
-                                  url="http://admin_panel", 
-                                  port=9000,
-                                  endpoints={
-                                      "GET /": "Admin panel home page",
-                                      "GET /login": "Admin login page",
-                                      "POST /login": "Process admin login",
-                                      "GET /logout": "Admin logout",
-                                      "GET /dashboard": "System dashboard with statistics",
-                                      "GET /doctor_registration": "Doctor registration form",
-                                      "POST /register_doctor_web": "Process doctor registration",
-                                      "GET /manage_doctors": "View and manage all doctors",
-                                      "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
-                                      "GET /patient_overview": "Overview of all patients",
-                                      "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-                                      "GET /report/<userid>": "get user sensor data by id => json"
-                                  })
-    
-    cherrypy.config.update({
-        "server.socket_host": "0.0.0.0",
-        "server.socket_port": 9000,
-        "tools.response_headers.on": True,
-        "tools.response_headers.headers": [("Content-Type", "text/html")],
-        "tools.sessions.on": True,
-        "tools.sessions.timeout": 480,  # 8 hours in minutes
-        "tools.sessions.storage_class": cherrypy.lib.sessions.RamSession,
-    })
-    cherrypy.quickstart(AdminPanel())
+    register_service_with_catalog(
+        service_name="adminPanel",
+        url="http://admin_panel",
+        port=9000,
+        endpoints={
+            "GET /": "Admin panel home page",
+            "GET /login": "Admin login page",
+            "POST /login": "Process admin login",
+            "GET /logout": "Admin logout",
+            "GET /dashboard": "System dashboard with statistics",
+            "GET /doctor_registration": "Doctor registration form",
+            "POST /register_doctor_web": "Process doctor registration",
+            "GET /manage_doctors": "View and manage all doctors",
+            "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
+            "GET /patient_overview": "Overview of all patients",
+            "GET /reports": "Reports menu",
+            "GET /generate_patient_report": "Patient summary report",
+            "GET /generate_doctor_report": "Doctor summary report",
+            "GET /generate_system_report": "System summary report",
+            "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
+            "GET /report/<userid>": "get user sensor data by id => json",
+        },
+    )
+
+    # Expose endpoints (no decorators)
+    expose_admin_panel_endpoints()
+
+    # Server config
+    cherrypy.config.update(
+        {
+            "server.socket_host": "0.0.0.0",
+            "server.socket_port": 9000,
+        }
+    )
+
+    # Mount config (tools)
+    conf = {
+        "/": {
+            "tools.response_headers.on": True,
+            "tools.response_headers.headers": [("Content-Type", "text/html")],
+            "tools.sessions.on": True,
+            "tools.sessions.timeout": 480,  # 8 hours in minutes
+            "tools.sessions.storage_class": cherrypy.lib.sessions.RamSession,
+        }
+    }
+
+    root = AdminPanel()
+    cherrypy.tree.mount(root, "/", conf)
+
+    cherrypy.engine.start()
+    cherrypy.engine.block()

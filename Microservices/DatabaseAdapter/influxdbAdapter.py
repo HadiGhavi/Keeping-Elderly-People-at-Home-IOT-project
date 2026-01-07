@@ -1,9 +1,8 @@
 import os
-import json
 import certifi
 from Microservices.Common.config import Config
-from datetime import datetime, timedelta
-from influxdb_client import InfluxDBClient, Point, WriteOptions
+from datetime import datetime
+from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 # Set SSL certificates for InfluxDB connection

@@ -122,7 +122,7 @@ class DataHandlerAdapter:
                         "vitals": vals # Flat dict of floats
                     })
                     self.mqtt_client.myPublish(f"iot/notifications/{state}", alert_payload)  
-                    print(f"🚨 Alert published for user {user_id} with state {state}")    
+                    print(f"Alert published for user {user_id} with state {state}")    
         except Exception as e: 
             print(f"Processing error: {e}")
 
@@ -268,7 +268,7 @@ class DataHandlerAdapter:
             
             # Validate
             val_score = model.score(X_val, y_val)
-            print(f"📈 Validation accuracy: {val_score:.2%}")
+            print(f"Validation accuracy: {val_score:.2%}")
             
             return RetrainedPredictor(model)
             
@@ -295,7 +295,7 @@ class DataHandlerAdapter:
             import shutil
             shutil.move(temp_path, self.model_save_path)
             
-            print(f"💾 Model saved successfully to {self.model_save_path}")
+            print(f"Model saved successfully to {self.model_save_path}")
             
         except Exception as e:
             print(f"Error saving model: {e}")

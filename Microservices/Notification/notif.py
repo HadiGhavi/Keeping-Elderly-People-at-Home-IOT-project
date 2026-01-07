@@ -27,7 +27,6 @@ class NotificationAdapter:
         )
 
     def start_listening(self):
-        """Starts the MQTT loop and subscribes to the alert topic"""
         self.mqtt_client.start() 
         self.mqtt_client.mySubscribe("iot/notifications/#") 
 
@@ -56,27 +55,6 @@ class NotificationAdapter:
     def _send_telegram(self, chat_id, text):
         url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
         requests.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"}, timeout=10)
-
-    def on_alert_received(self, topic, message):
-        try:
-            # Check if message is empty to avoid JSON errors
-            if not message:
-                return
-                
-            alert_data = json.loads(message)
-            user_id = alert_data.get("user_id")
-            state = alert_data.get("state")
-            vitals = alert_data.get("vitals", {}) 
-
-            if self._should_send(user_id, state):
-                user_res = requests.get(f"{self.catalog_url}/users/{user_id}", timeout=5)
-                if user_res.status_code == 200:
-                    patient_info = user_res.json()
-                    self._send_alerts(patient_info, state, vitals)
-        except json.JSONDecodeError as e:
-            logger.error(f"Received non-JSON message on {topic}: {e}")
-        except Exception as e:
-            logger.error(f"Error processing alert: {e}")
 
     def _send_alerts(self, patient, state, vitals_dict):
         user_id = patient["user_chat_id"]
