@@ -1303,6 +1303,10 @@
                 "GET /manage_doctors": "View and manage all doctors",
                 "GET /view_doctor_patients/<doctor_id>": "View patients for specific doctor",
                 "GET /patient_overview": "Overview of all patients",
+                "GET /reports": "Reports menu",
+                "GET /generate_patient_report": "Patient summary report",
+                "GET /generate_doctor_report": "Doctor summary report",
+                "GET /generate_system_report": "System summary report",
                 "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
                 "GET /report/<userid>": "get user sensor data by id => json"
             }
@@ -1313,8 +1317,7 @@
             "port": 2500,
             "endpoints": {
                 "GET /getUserData/<id>": "get user data",
-                "GET /database/info": "db info",
-                "POST /database/switch": "switch db"
+                "GET /database/info": "db info"
             }
         },
         {
@@ -1322,7 +1325,6 @@
             "url": "http://notification",
             "port": 1500,
             "endpoints": {
-                "POST /sendNotif": "Manual notification",
                 "GET /status": "Service status"
             }
         }

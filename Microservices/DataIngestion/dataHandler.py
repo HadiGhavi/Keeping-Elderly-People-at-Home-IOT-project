@@ -308,4 +308,3 @@ class DataHandlerAdapter:
                     os.remove(temp_path)
             except:
                 pass
-

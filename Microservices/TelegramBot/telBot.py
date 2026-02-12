@@ -24,7 +24,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from Microservices.Common.config import Config
 from Microservices.Common.utils import ServiceRegistry
 
-# Optional chart libs (keep behavior: charts disabled if deps missing)
+# Optional chart libs 
 try:
     import io
     from datetime import datetime
@@ -41,7 +41,7 @@ except Exception:
     CHARTS_AVAILABLE = False
 
 
-# Logging (same output behavior as your file)
+# Logging 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s - %(message)s",
@@ -1280,11 +1280,55 @@ def build_app() -> Application:
     return app
 
 
-# Entrypoint written in the same "instantiate -> config -> start" style as your screenshot
-if __name__ == "__main__":
+if __name__ == '__main__':
+    # -------------------------
+    # Bot configuration 
+    # -------------------------
+    bot_config = {
+        'drop_pending_updates': True,
+        'charts_enabled': CHARTS_AVAILABLE,
+        'logging_level': 'INFO',
+    }
+
+    # -------------------------
+    # Middleware / Tool 
+    # -------------------------
+    async def global_error_tool(update, context):
+        import traceback
+        logger.error("Unhandled exception: %s", context.error)
+        logger.error(traceback.format_exc())
+        try:
+            if update and update.effective_message:
+                await update.effective_message.reply_text("❌ An internal error occurred. Please try again.")
+        except Exception:
+            pass
+
+    # -------------------------
+    # Configuration dict 
+    # -------------------------
+    conf = {
+        'commands': [
+            "start",
+            "register",
+            "menu",
+            "register_doctor",
+            "update_doctor_name",
+            "update_doctor_specialization",
+            "update_doctor_hospital",
+        ],
+        'conversation_handlers': ['device_registration'],
+        'callback_handler': 'button_handler',
+        'error_handler': global_error_tool,
+    }
+
+    # -------------------------
+    # Instantiate application 
+    # -------------------------
     bot_app = build_app()
 
-    logger.info("Bot started (charts=%s).", CHARTS_AVAILABLE)
+    # -------------------------
+    # Start bot 
+    # -------------------------
+    logger.info("Telegram bot started (charts=%s)", CHARTS_AVAILABLE)
+    bot_app.run_polling(drop_pending_updates=bot_config['drop_pending_updates'])
 
-    # Same behavior as before
-    bot_app.run_polling(drop_pending_updates=True)
