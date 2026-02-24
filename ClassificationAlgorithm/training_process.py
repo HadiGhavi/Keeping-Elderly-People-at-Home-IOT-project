@@ -10,7 +10,6 @@ import numpy as np
 def create_window_features(df, features, window_size=6):
     """
     Create rolling window features for time-series data.
-    Assumes df has 'patient_id' to group by.
     """
     df_rolled = df.copy()
     
@@ -112,36 +111,33 @@ def train_health_model():
     y_encoded = label_encoder.fit_transform(y)
     
     # Step 3: Split data
-    # Note: For strict time series, we should split by patient_id, but customized random split 
-    # is okay here as long as windows don't leak (we dropped NaNs).
-    # Ideally split by patient ID to test generalization to new patients.
-    patients = data_processed['patient_id'].unique()
-    train_patients, test_patients = train_test_split(patients, test_size=0.2, random_state=42)
-    
-    train_mask = data_processed['patient_id'].isin(train_patients)
-    X_train = X[train_mask]
-    X_train.to_csv('X_train.csv', index=False)  # Save for inspection
-    y_train = y_encoded[train_mask]
-    
-    test_mask = data_processed['patient_id'].isin(test_patients)
-    X_test = X[test_mask]
-    y_test = y_encoded[test_mask]
+    # We use a stratified split on samples to ensure balanced class representation
+    # across training and test sets.
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y_encoded, 
+        test_size=0.2, 
+        stratify=y_encoded, 
+        random_state=42
+    )
     
     print(f"Training set: {len(X_train)} samples")
     print(f"Test set: {len(X_test)} samples")
     
     # Step 4: Train model
     model = xgb.XGBClassifier(
-        n_estimators=500,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
+        n_estimators=400,
+        learning_rate=0.01,
+        max_depth=4,
+        subsample=1.0,
+        min_child_weight=1,
+        gamma=0.1,
+        colsample_bytree=0.9,
         eval_metric='mlogloss',
         random_state=42
     )
 
-    model.fit(X_train, y_train)    
+    model.fit(X_train, y_train)  
+  
     print("Model trained successfully!")
 
     # Step 5: Evaluate model
@@ -152,7 +148,7 @@ def train_health_model():
     print(f"Accuracy: {accuracy_score(y_test_labels, y_pred_labels):.3f}")
     print("\nClassification Report:")
     print(classification_report(y_test_labels, y_pred_labels))
-
+    
     # Step 6: Save model
     print("Step 6: Saving model...")
     
@@ -165,7 +161,7 @@ def train_health_model():
         'accuracy': accuracy_score(y_test_labels, y_pred_labels)
     }
 
-    joblib.dump(model_info, 'trained_model.pkl')
+    joblib.dump(model_info, 'ClassificationAlgorithm/trained_model.pkl')
     print("Model saved as 'trained_model.pkl'")
     
     return model

@@ -20,6 +20,7 @@ class MockPredictor:
 
 class RetrainedPredictor:
     def __init__(self, model): self.model = model
+        
     def predict_state(self, temp, heart_rate, oxygen):
         features = np.array([[temp, heart_rate, oxygen]])
         return self.model.predict(features)[0]
@@ -44,6 +45,11 @@ class DataHandlerAdapter:
         self.last_retrain_time = time.time()
         self.min_samples_for_retrain = 100
         self.model_save_path = Config.CLASSIFICATION.get("TRAINMODEL", "trained_model.pkl")
+        print(f"DataHandler initialized with model: {type(self.predict).__name__}")
+        
+        # Consecutive Alert Logic
+        self.state_counters = {}
+        self.consecutive_alert_threshold = 10 
 
         # Initialize MyMQTT with 'self' as the notifier
         self.mqtt_client = MyMQTT(
@@ -115,14 +121,23 @@ class DataHandlerAdapter:
                 
                 # Event-Driven Alert using MyMQTT
                 if state in ["risky", "dangerous"]:
-                    alert_payload = json.dumps({
-                        "user_id": user_id,
-                        "user_name": user_name,
-                        "state": state,
-                        "vitals": vals # Flat dict of floats
-                    })
-                    self.mqtt_client.myPublish(f"iot/notifications/{state}", alert_payload)  
-                    print(f"Alert published for user {user_id} with state {state}")    
+                    # Increment consecutive counter
+                    self.state_counters[user_id] = self.state_counters.get(user_id, 0) + 1
+                    
+                    if self.state_counters[user_id] >= self.consecutive_alert_threshold:
+                        alert_payload = json.dumps({
+                            "user_id": user_id,
+                            "user_name": user_name,
+                            "state": state,
+                            "vitals": vals # Flat dict of floats
+                        })
+                        self.mqtt_client.myPublish(f"iot/notifications/{state}", alert_payload)  
+                        print(f"Alert published for user {user_id} with state {state} ({self.state_counters[user_id]} consecutive)")
+                    else:
+                        print(f"State {state} detected for {user_id}, suppressed ({self.state_counters[user_id]}/{self.consecutive_alert_threshold})")
+                else:
+                    # Healthy or unknown - Reset counter
+                    self.state_counters[user_id] = 0
         except Exception as e: 
             print(f"Processing error: {e}")
 

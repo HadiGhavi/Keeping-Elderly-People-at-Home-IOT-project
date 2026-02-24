@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 
 class Config:
-    BASE_DIR = Path(os.getenv("BASE_DIR", "/app/ClassificationAlgorithm"))
+    PROJECT_ROOT = Path(__file__).parent.parent.parent
+    BASE_DIR = Path(os.getenv("BASE_DIR", str(PROJECT_ROOT / "ClassificationAlgorithm")))
     CLASSIFICATION = {
         "TRAINMODEL": str(BASE_DIR / "trained_model.pkl"),
         "SAMPLEPATH": str(BASE_DIR / "elderly_health_data.csv"),

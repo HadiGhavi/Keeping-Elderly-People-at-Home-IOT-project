@@ -148,8 +148,8 @@ if __name__ == "__main__":
     temps = np.linspace(36.5, 39.5, 12)
     # HR 70 -> 110 
     hrs = np.linspace(70, 110, 12)
-    # SpO2 85 -> 98
-    o2s = np.linspace(85, 98, 12)
+    # SpO2 constant at 98%
+    o2s = np.full(12, 98.0)
     
     predictor.reset_history()
     

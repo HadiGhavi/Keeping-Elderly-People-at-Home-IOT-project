@@ -1278,6 +1278,14 @@
             }
         },
         {
+            "name": "notification",
+            "url": "http://notification",
+            "port": 1500,
+            "endpoints": {
+                "GET /status": "Service status"
+            }
+        },
+        {
             "name": "databaseAdapter",
             "url": "http://database_adapter",
             "port": 3000,
@@ -1318,14 +1326,6 @@
             "endpoints": {
                 "GET /getUserData/<id>": "get user data",
                 "GET /database/info": "db info"
-            }
-        },
-        {
-            "name": "notification",
-            "url": "http://notification",
-            "port": 1500,
-            "endpoints": {
-                "GET /status": "Service status"
             }
         }
     ]
