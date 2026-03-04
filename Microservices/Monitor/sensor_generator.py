@@ -5,76 +5,67 @@ from datetime import datetime
 
 class GenerateSensor:
     def __init__(self):
-        # Base physiological values for healthy adults
         self.base_values = {
-            'temp': 36.5,        # Normal body temperature in Celsius
-            'heart_rate': 75,    # Normal resting heart rate
-            'oxygen': 98         # Normal oxygen saturation
+            'temp': 36.5,        
+            'heart_rate': 75,    
+            'oxygen': 98         
         }
         
-        # Natural variation ranges (realistic fluctuations)
+        # Natural variation ranges 
         self.variation_ranges = {
-            'temp': 1.0,         # ±1°C variation
-            'heart_rate': 15,    # ±15 BPM variation
-            'oxygen': 2          # ±2% variation
+            'temp': 1.0,         
+            'heart_rate': 15,    
+            'oxygen': 2          
         }
         
-        # Time-based patterns (circadian rhythms, activity cycles)
+        # Time-based patterns 
         self.time_factors = {
             'temp': 0.5,         # Temperature varies throughout day
             'heart_rate': 10,    # Heart rate varies with activity
             'oxygen': 1          # Oxygen less time-dependent
         }
         
-        # Previous values for smoothing (realistic gradual changes)
         self.last_values = {}
         
         # Activity simulation (affects heart rate and oxygen)
         self.activity_cycle = 0
         
     def _get_time_factor(self, sensor_type):
-        """Calculate time-based variation using circadian patterns"""
         current_hour = datetime.now().hour
         
         if sensor_type == 'temp':
             # Body temperature lowest around 4-6 AM, highest around 6-8 PM
             temp_cycle = math.sin((current_hour - 6) * math.pi / 12)
-            return temp_cycle * 0.3  # ±0.3°C circadian variation
+            return temp_cycle * 0.3  # ±0.3°C 
             
         elif sensor_type == 'heart_rate':
             # Heart rate lower during night, higher during day
             hr_cycle = math.sin((current_hour - 6) * math.pi / 12)
-            return hr_cycle * 5  # ±5 BPM circadian variation
+            return hr_cycle * 5  # ±5 BPM 
             
         return 0
     
     def _get_activity_factor(self, sensor_type):
-        """Simulate random activity that affects vitals"""
-        # Increment activity cycle for simulation
         self.activity_cycle += random.uniform(-0.1, 0.2)
-        self.activity_cycle = max(0, min(1, self.activity_cycle))  # Keep between 0-1
+        self.activity_cycle = max(0, min(1, self.activity_cycle))  # [0-1]
         
         if sensor_type == 'heart_rate':
-            # Activity increases heart rate
             return self.activity_cycle * 25  # Up to +25 BPM during activity
             
         elif sensor_type == 'oxygen':
-            # Light activity might slightly decrease oxygen
             return -self.activity_cycle * 1  # Up to -1% during activity
             
         elif sensor_type == 'temp':
-            # Activity slightly increases temperature
             return self.activity_cycle * 0.2  # Up to +0.2°C during activity
             
         return 0
     
     def _smooth_value(self, sensor_type, new_value):
-        """Apply smoothing to prevent unrealistic jumps"""
         if sensor_type not in self.last_values:
             self.last_values[sensor_type] = new_value
             return new_value
         
-        # Smoothing factor (how much change is allowed per reading)
+        # How much change is allowed per reading, we cannot have high jumps from a reading to another one
         smoothing_factors = {
             'temp': 0.1,         # Temperature changes slowly
             'heart_rate': 3,     # Heart rate can change more quickly
@@ -84,7 +75,7 @@ class GenerateSensor:
         max_change = smoothing_factors.get(sensor_type, 1)
         last_value = self.last_values[sensor_type]
         
-        # Limit the change from last reading
+        
         if abs(new_value - last_value) > max_change:
             if new_value > last_value:
                 new_value = last_value + max_change
@@ -95,7 +86,6 @@ class GenerateSensor:
         return new_value
     
     def _detect_sensor_type(self, min_value, max_value):
-        """Automatically detect sensor type based on ranges"""
         avg_value = (min_value + max_value) / 2
         
         if 30 <= avg_value <= 45:
@@ -105,15 +95,13 @@ class GenerateSensor:
         elif 85 <= avg_value <= 100:
             return 'oxygen'
         else:
-            # Default to generic sensor
+            # Default 
             return 'generic'
     
     def read_value(self, min_value, max_value, sensor_name=None):
-        """Generate realistic sensor values with natural variations"""
+        """ Generate sensor values """
         
-        # Detect sensor type if not provided
         if sensor_name:
-            # Extract sensor type from name
             if 'temp' in sensor_name.lower():
                 sensor_type = 'temp'
             elif 'heart' in sensor_name.lower() or 'pulse' in sensor_name.lower():
@@ -128,36 +116,35 @@ class GenerateSensor:
         #print(f"Detected sensor type: {sensor_type}")
 
         if sensor_type == 'generic':
-            # For unknown sensors, use simple random generation
+            # For unknown sensors, random generation
             return round(random.uniform(min_value, max_value), 1)
         
-        # Start with physiologically normal base value
+        # Normal base value
         base_value = self.base_values[sensor_type]
         
-        # Add natural random variation
+        # Natural random variation
         random_variation = random.gauss(0, self.variation_ranges[sensor_type] / 3)
         
-        # Add time-based (circadian) variation
+        # Time-based variation
         time_variation = self._get_time_factor(sensor_type)
         
-        # Add activity-based variation
+        # Activity-based variation
         activity_variation = self._get_activity_factor(sensor_type)
         
-        # Combine all factors
         new_value = base_value + random_variation + time_variation + activity_variation
         
-        # Apply smoothing for realistic gradual changes
+        # Smoothing for realistic gradual changes
         new_value = self._smooth_value(sensor_type, new_value)
         
-        # Apply realistic bounds
+        # Clipping
         if sensor_type == 'temp':
-            new_value = max(34.0, min(42.0, new_value))  # Survivable temperature range
+            new_value = max(34.0, min(42.0, new_value))  
         elif sensor_type == 'heart_rate':
-            new_value = max(40, min(180, new_value))     # Realistic heart rate range
+            new_value = max(40, min(180, new_value))     
         elif sensor_type == 'oxygen':
-            new_value = max(80, min(100, new_value))     # Realistic oxygen saturation
+            new_value = max(80, min(100, new_value))     
         
-        # Occasionally generate concerning values for testing alerts
+        # Occasionally generate concerning values for alerts
         if random.random() < 0.025:  # 2.5% chance of concerning reading
             if sensor_type == 'temp':
                 if random.choice([True, False]):
@@ -172,13 +159,12 @@ class GenerateSensor:
             elif sensor_type == 'oxygen':
                 new_value = random.uniform(88, 94)          # Low oxygen
         
-        # Round appropriately and return
         if sensor_type == 'heart_rate':
             return int(round(new_value))
         else:
             return round(new_value, 1)
 
-# For testing and demonstration
+# For testing 
 if __name__ == "__main__":
     sensor = GenerateSensor()
     

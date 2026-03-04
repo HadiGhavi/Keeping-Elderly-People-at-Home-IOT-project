@@ -31,7 +31,6 @@ class NotificationAdapter:
         self.mqtt_client.mySubscribe("iot/notifications/#") 
 
     def notify(self, topic, payload):
-        """This specific method name is required by MyMQTT.py"""
         try:
             alert_data = json.loads(payload)
             user_id = alert_data.get("user_id")

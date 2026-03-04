@@ -6,7 +6,11 @@ import os
 import pickle
 import traceback
 import numpy as np
+import shutil, joblib
 from datetime import datetime
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 from MyMQTT import MyMQTT 
 from Microservices.Common.config import Config
 from Microservices.Common.utils import ServiceRegistry
@@ -32,7 +36,6 @@ class DataHandlerAdapter:
         self.database_service_url = self.registry.get_service_url("databaseAdapter")
         self.mqtt_info = self.registry.get_service_info("mqtt")
         
-        # Load Predictor
         self.predict = self._load_model()
         
         # Cache and Threading
@@ -51,7 +54,6 @@ class DataHandlerAdapter:
         self.state_counters = {}
         self.consecutive_alert_threshold = 10 
 
-        # Initialize MyMQTT with 'self' as the notifier
         self.mqtt_client = MyMQTT(
             clientID="DataIngestionService", 
             broker=self.mqtt_info["url"], 
@@ -63,8 +65,7 @@ class DataHandlerAdapter:
         """Starts the MQTT connection and background retraining"""
         self.mqtt_client.start() # Connects and starts paho loop
         
-        # Subscribe to sensor topics defined in registry
-        #for topic in self.mqtt_info["topics"]:
+        # Subscribe to sensor topics 
         self.mqtt_client.mySubscribe("iot_user_sensor/value") 
             
         # Start retraining loop
@@ -78,9 +79,8 @@ class DataHandlerAdapter:
         return MockPredictor()
 
     def notify(self, topic, payload):
-        """REQUIRED by MyMQTT: Bridges to processing logic"""
+        """REQUIRED by MyMQTT"""
         try:
-            # Pass the raw payload to your existing processing method
             self.process_mqtt_message(topic, payload)
         except Exception as e:
             print(f"Error in MyMQTT notify: {e}")
@@ -97,7 +97,6 @@ class DataHandlerAdapter:
                 if user_id not in self.user_sensor_cache: 
                     self.user_sensor_cache[user_id] = {}
                 
-                # Handle monitor data format (list of sensors)
                 for s in msg["sensors"]:
                     self.user_sensor_cache[user_id][s["name"]] = {
                         "value": s["value"], 
@@ -108,7 +107,7 @@ class DataHandlerAdapter:
                 vals = {k: cache[k]["value"] for k in ["temp", "heart_rate", "oxygen"] 
                         if k in cache and (now - cache[k]["timestamp"]) <= self.cache_timeout}
 
-            # If we have all 3 vitals, predict and potentially alert
+            # If we have all 3 vitals, predict 
             if len(vals) == 3:
                 state = self.predict.predict_state(
                     float(vals["temp"]), 
@@ -116,12 +115,9 @@ class DataHandlerAdapter:
                     float(vals["oxygen"])
                 )
                 
-                # Write to DB
                 self._write_to_db(user_id, user_name, vals["temp"], vals["heart_rate"], vals["oxygen"], state)
                 
-                # Event-Driven Alert using MyMQTT
                 if state in ["risky", "dangerous"]:
-                    # Increment consecutive counter
                     self.state_counters[user_id] = self.state_counters.get(user_id, 0) + 1
                     
                     if self.state_counters[user_id] >= self.consecutive_alert_threshold:
@@ -129,14 +125,14 @@ class DataHandlerAdapter:
                             "user_id": user_id,
                             "user_name": user_name,
                             "state": state,
-                            "vitals": vals # Flat dict of floats
+                            "vitals": vals 
                         })
                         self.mqtt_client.myPublish(f"iot/notifications/{state}", alert_payload)  
                         print(f"Alert published for user {user_id} with state {state} ({self.state_counters[user_id]} consecutive)")
                     else:
                         print(f"State {state} detected for {user_id}, suppressed ({self.state_counters[user_id]}/{self.consecutive_alert_threshold})")
                 else:
-                    # Healthy or unknown - Reset counter
+                    # Healthy -> Reset counter
                     self.state_counters[user_id] = 0
         except Exception as e: 
             print(f"Processing error: {e}")
@@ -146,17 +142,13 @@ class DataHandlerAdapter:
         requests.post(f"{self.database_service_url}/write", json=payload, timeout=5)
 
     def _retrain_loop(self):
-        """Continuously retrain the model with new data at fixed intervals"""
         print("Model retraining loop started")
         while True:
             try:
-                # Wait for the retrain interval (e.g., 15 minutes)
                 time.sleep(self.retrain_interval)
                 
                 current_time = time.time()
                 print(f"Attempting model retraining...")
-                
-                # Perform retraining
                 success = self._retrain_model()
                 
                 if success:
@@ -170,7 +162,6 @@ class DataHandlerAdapter:
                 traceback.print_exc()
 
     def _retrain_model(self):
-        """Retrain the ML model using recent database data"""
         try:
             # 1. Fetch all users from catalog to identify patients
             users_response = requests.get(f"{self.catalog_url}/users", timeout=5)
@@ -198,18 +189,18 @@ class DataHandlerAdapter:
                 except Exception:
                     continue
             
-            # 3. Validation: Ensure we have enough data
+            # 3. Ensure we have enough data
             if len(all_data) < self.min_samples_for_retrain:
                 print(f"Not enough data: {len(all_data)} samples")
                 return False
             
-            # 4. Prepare data and Train
+            # 4. Train
             X, y = self._prepare_training_data(all_data)
             if X is not None:
-                new_model = self._train_classifier(X, y)
-                if new_model:
-                    self._save_model(new_model)
-                    self.predict = new_model # Update active predictor
+                new_model_info = self._train_classifier(X, y)
+                if new_model_info:
+                    self._save_model(new_model_info)
+                    self.predict = HealthStatePredictor(self.model_save_path)
                     return True
             return False
             
@@ -218,7 +209,6 @@ class DataHandlerAdapter:
             return False
         
     def _prepare_training_data(self, data):
-        """Convert database records to training format"""
         try:
             # Group data by time to get complete records
             from collections import defaultdict
@@ -260,23 +250,22 @@ class DataHandlerAdapter:
             return None, None
 
     def _train_classifier(self, X_train, y_train):
-        """Train a new classifier model"""
         try:
-            # Use the same model architecture as your HealthStatePredictor
-            # Adjust this based on your actual model
-            from sklearn.ensemble import RandomForestClassifier
-            from sklearn.model_selection import train_test_split
+            # Encode labels
+            label_encoder = LabelEncoder()
+            y_train_encoded = label_encoder.fit_transform(y_train)
             
             # Split for validation
             X_train_split, X_val, y_train_split, y_val = train_test_split(
-                X_train, y_train, test_size=0.2, random_state=42
+                X_train, y_train_encoded, test_size=0.2, random_state=42
             )
             
-            # Train model
-            model = RandomForestClassifier(
-                n_estimators=100,
-                random_state=42,
-                class_weight='balanced' 
+            model = xgb.XGBClassifier(
+                n_estimators=400,
+                learning_rate=0.01,
+                max_depth=4,
+                eval_metric='mlogloss',
+                random_state=42
             )
             
             model.fit(X_train_split, y_train_split)
@@ -285,7 +274,14 @@ class DataHandlerAdapter:
             val_score = model.score(X_val, y_val)
             print(f"Validation accuracy: {val_score:.2%}")
             
-            return RetrainedPredictor(model)
+            model_info = {
+                'model': model,
+                'feature_columns': ['temperature', 'heart_rate', 'blood_oxygen'],
+                'label_encoder': label_encoder,
+                'accuracy': val_score
+            }
+            
+            return model_info
             
         except Exception as e:
             print(f"Error training classifier: {e}")
@@ -293,21 +289,14 @@ class DataHandlerAdapter:
             traceback.print_exc()
             return None
 
-    def _save_model(self, predictor):
-        """Save the trained model to disk"""
+    def _save_model(self, model_info):
         try:
-            # Extract the sklearn model from the wrapper
-            sklearn_model = predictor.model
-            
-            # Save to a temporary file first (atomic write)
+            # Save to a temporary file first
             temp_path = self.model_save_path + '.tmp'
             
-            with open(temp_path, 'wb') as f:
-                pickle.dump(sklearn_model, f)
+            joblib.dump(model_info, temp_path)
             
-            # Only replace the original file if write was successful
-            import os
-            import shutil
+            # Replace the original file if write was successful
             shutil.move(temp_path, self.model_save_path)
             
             print(f"Model saved successfully to {self.model_save_path}")
@@ -319,7 +308,7 @@ class DataHandlerAdapter:
             
             # Clean up temp file if it exists
             try:
-                if os.path.exists(temp_path):
+                if 'temp_path' in locals() and os.path.exists(temp_path):
                     os.remove(temp_path)
             except:
                 pass
