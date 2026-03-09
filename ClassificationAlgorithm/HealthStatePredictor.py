@@ -1,13 +1,17 @@
 import pandas as pd
 import joblib
 import sys
-from pathlib import Path
 import os
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
-from config import Config
 
 sys.path.append(str(Path(__file__).parent.parent))
+
+try:
+    from config import Config
+except ImportError:
+    from .config import Config
 
 class HealthStatePredictor:
     def __init__(self, model_path):

@@ -4,7 +4,10 @@ import numpy as np
 import ssl
 import certifi
 import os
-from config import Config
+try:
+    from config import Config
+except ImportError:
+    from .config import Config
 
 # SSL setup for vitaldb connection
 try:

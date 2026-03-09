@@ -52,7 +52,8 @@ class DataHandlerAdapter:
         
         # Consecutive Alert Logic
         self.state_counters = {}
-        self.consecutive_alert_threshold = 10 
+        self.last_sent_state = {} 
+        self.consecutive_alert_threshold = 5
 
         self.mqtt_client = MyMQTT(
             clientID="DataIngestionService", 
@@ -114,13 +115,22 @@ class DataHandlerAdapter:
                     int(float(vals["heart_rate"])), 
                     float(vals["oxygen"])
                 )
-                
+                                
                 self._write_to_db(user_id, user_name, vals["temp"], vals["heart_rate"], vals["oxygen"], state)
                 
                 if state in ["risky", "dangerous"]:
                     self.state_counters[user_id] = self.state_counters.get(user_id, 0) + 1
                     
-                    if self.state_counters[user_id] >= self.consecutive_alert_threshold:
+                    # Only publish if threshold reached AND either:
+                    # 1. State changed since last sent (e.g. risky -> dangerous)
+                    # 2. Threshold was just exactly hit (to avoid double publication before notif cooldown)
+                    should_publish = (
+                        self.state_counters[user_id] >= self.consecutive_alert_threshold and
+                        self.last_sent_state.get(user_id) != state
+                    )
+
+                    if should_publish:
+                        self.last_sent_state[user_id] = state
                         alert_payload = json.dumps({
                             "user_id": user_id,
                             "user_name": user_name,
@@ -130,10 +140,14 @@ class DataHandlerAdapter:
                         self.mqtt_client.myPublish(f"iot/notifications/{state}", alert_payload)  
                         print(f"Alert published for user {user_id} with state {state} ({self.state_counters[user_id]} consecutive)")
                     else:
-                        print(f"State {state} detected for {user_id}, suppressed ({self.state_counters[user_id]}/{self.consecutive_alert_threshold})")
+                        status_msg = f"suppressed ({self.state_counters[user_id]}/{self.consecutive_alert_threshold})"
+                        if self.state_counters[user_id] >= self.consecutive_alert_threshold:
+                            status_msg = f"throttled (already sent {state})"
+                        print(f"State {state} detected for {user_id}, {status_msg}")
                 else:
-                    # Healthy -> Reset counter
+                    # Healthy -> Reset counter and last sent
                     self.state_counters[user_id] = 0
+                    self.last_sent_state[user_id] = None
         except Exception as e: 
             print(f"Processing error: {e}")
 
@@ -306,7 +320,7 @@ class DataHandlerAdapter:
             import traceback
             traceback.print_exc()
             
-            # Clean up temp file if it exists
+            # Clean temp file if it exists
             try:
                 if 'temp_path' in locals() and os.path.exists(temp_path):
                     os.remove(temp_path)

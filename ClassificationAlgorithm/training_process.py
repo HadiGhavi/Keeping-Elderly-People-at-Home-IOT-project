@@ -5,7 +5,10 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import LabelEncoder
 import xgboost as xgb
 import numpy as np
-from config import Config
+try:
+    from config import Config
+except ImportError:
+    from .config import Config
 
 def train_health_model():
     print("Step 1: Loading training data...")

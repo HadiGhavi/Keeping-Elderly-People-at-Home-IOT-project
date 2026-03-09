@@ -38,17 +38,24 @@ class NotificationAdapter:
             vitals = alert_data.get("vitals", {})
 
             if self._should_send(user_id, state):
+                # Update state BEFORE sending to prevent race conditions
+                uid_str = str(user_id)
+                self.last_notification[uid_str] = {"state": state, "timestamp": time.time()}
+                
                 user_res = requests.get(f"{self.catalog_url}/users/{user_id}", timeout=5)
                 if user_res.status_code == 200:
                     patient_info = user_res.json()
                     self._send_alerts(patient_info, state, vitals)
+                else:
+                    logger.warning(f"User {user_id} not found in catalog (Status {user_res.status_code})")
         except Exception as e:
             logger.error(f"Error in MyMQTT notify: {e}")
    
     def _should_send(self, user_id, current_state):
         current_time = time.time()
-        if user_id not in self.last_notification: return True
-        last = self.last_notification[user_id]
+        uid_str = str(user_id)
+        if uid_str not in self.last_notification: return True
+        last = self.last_notification[uid_str]
         return last["state"] != current_state or (current_time - last["timestamp"] > self.notification_cooldown)
     
     def _send_telegram(self, chat_id, text):
@@ -62,8 +69,6 @@ class NotificationAdapter:
         self._send_telegram(user_id, msg)
         if patient.get("doctor_id"):
             self._send_telegram(patient["doctor_id"], f"DOC ALERT: {msg}")
-            
-        self.last_notification[user_id] = {"state": state, "timestamp": time.time()}
 
     def _format_message(self, name, state, vitals):
         emoji = "🚨" if state == "dangerous" else "⚠️"
