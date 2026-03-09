@@ -23,6 +23,10 @@ class MonitorREST:
         if not uri:
             return json.dumps({"status": "Monitor Service Running"}).encode('utf-8')
         
+        # 1. Safety Check: Ensure we have at least a command and an ID
+        if len(uri) < 2:
+            raise cherrypy.HTTPError(400, "Bad Request: Missing chat_id in URL. Use /command/id")
+
         command = uri[0] # "read" or "stop"
         chat_id = uri[1] # <chat_id>
 

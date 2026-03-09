@@ -23,61 +23,34 @@ class DatabaseREST():
 
     def GET(self, *uri, **params):
         try:
-            command = uri[0] # e.g., "read"
+            if not uri:
+                return json.dumps({"status": "running"}).encode('utf-8')
             
+            command = uri[0]
+            
+            # Check if we actually have an ID in the URL
+            if len(uri) < 2:
+                raise cherrypy.HTTPError(400, "Missing user_id in request path")
+
+            user_id = uri[1]
+            hours = params.get('hours', 24)
+
             if command == "read":
-                user_id = uri[1]
-                hours = params.get('hours', 24)
-                success, data = self.adapter.get_user_health_data(user_id, hours)
+                success, data = self.adapter.get_user_health_data(user_id, hours, aggregate=False)
                 if success:
-                    return json.dumps({"success": True, "data": data})
-                else:
-                    raise cherrypy.HTTPError(500, data)
-            
-            elif command == "info":
-                return json.dumps({"host": self.adapter.host, "bucket": self.adapter.bucket})
+                    return json.dumps({"success": True, "data": data}).encode('utf-8')
+                raise Exception(data) # Pass InfluxDB error to catch block
 
             elif command == "aggregated":
-                user_id = uri[1]
-                hours = int(params.get('hours', 24))
-                
-                # 1. Get raw data from the adapter
-                success, raw_data = self.adapter.get_user_health_data(user_id, hours)
-                
-                if not success or not raw_data:
-                    return json.dumps({"success": False, "message": "No data"}).encode('utf-8')
+                success, data = self.adapter.get_user_health_data(user_id, hours, aggregate=True)
+                if success:
+                    return json.dumps({"success": True, "data": data}).encode('utf-8')
+                raise Exception(data)
 
-                # 2. Convert to pandas DataFrame 
-                df = pd.DataFrame(raw_data)
-                df['time'] = pd.to_datetime(df['time'])
-                
-                # 3. Separate numeric fields for averaging 
-                numeric_fields = ['temp', 'heart_rate', 'oxygen']
-                numeric_df = df[df['field'].isin(numeric_fields)].copy()
-                numeric_df['value'] = pd.to_numeric(numeric_df['value'])
-                
-                # 4. Pivot and Resample (e.g., 5-minute windows) 
-                # We pivot so fields become columns: [time, temp, heart_rate, oxygen]
-                pivot_df = numeric_df.pivot(index='time', columns='field', values='value')
-                resampled = pivot_df.resample('5min').mean().dropna(how='all')
-                
-                # 5. Format for JSON response
-                aggregated_results = []
-                for timestamp, row in resampled.iterrows():
-                    entry = {"time": timestamp.isoformat()}
-                    entry.update(row.to_dict())
-                    aggregated_results.append(entry)
-
-                return json.dumps({
-                    "success": True,
-                    "user_id": user_id,
-                    "data": aggregated_results
-                }).encode('utf-8')
-
-            else:
-                raise cherrypy.HTTPError(501, "Command not found")
         except Exception as e:
-            raise cherrypy.HTTPError(400, f"Error: {str(e)}")
+            # This will tell us if it's an InfluxDB error or a Python error
+            print(f"Database Service Error: {str(e)}")
+            raise cherrypy.HTTPError(400, f"Adapter Error: {str(e)}")
         
 
     def POST(self, *uri):
@@ -109,3 +82,5 @@ if __name__ == '__main__':
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': 3000})
     cherrypy.engine.start()
     cherrypy.engine.block()
+
+    

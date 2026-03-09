@@ -205,86 +205,68 @@ def get_report_for(user_id: int, max_hours: int = 24) -> Tuple[bool, str]:
         return False, "Database adapter service not configured."
 
     url = f"{DATABASE_ADAPTER_URL}/read/{user_id}"
+    # Use 'params' correctly for hours
     code, raw = _request_json("GET", url, params={"hours": max_hours})
+    
     if code != 200:
         return False, f"Failed to fetch report (HTTP {code})."
 
     try:
-        if not raw:
-            return True, "No report found."
+        # Check if the adapter returned a successful JSON wrapper
+        if isinstance(raw, dict):
+            if raw.get("success") is False:
+                return False, f"Database: {raw.get('message', 'Error')}"
+            data = raw.get("data", [])
+        else:
+            data = raw
 
-        if isinstance(raw, dict) and raw.get("success") is False:
-            return False, f"Database error: {raw.get('message', 'Unknown error')}"
-
-        data = raw.get("data") if isinstance(raw, dict) and "data" in raw else raw
-
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        if not data:
-            return True, "No report data found for this user."
+        if not data or len(data) == 0:
+            return True, "No health data found for this user in the specified period."
 
         return True, format_health_report(data, user_id)
     except Exception as e:
-        logger.error("Report processing error: %s", e)
-        logger.error(traceback.format_exc())
-        return False, "Error processing report data."
-
+        logger.error("Report processing error: %s", traceback.format_exc())
+        return False, "Error parsing health data."
 
 def format_health_report(data: List[Dict[str, Any]], user_id: int) -> str:
     if not data:
         return "No health data available."
 
-    from collections import Counter, defaultdict
-    from datetime import datetime
-
-    grouped: Dict[str, Dict[str, Any]] = defaultdict(dict)
-
-    for entry in data:
-        ts = entry.get("time", "Unknown time")
-        field = entry.get("field", "unknown")
-        value = entry.get("value", "N/A")
-
-        try:
-            dt = datetime.fromisoformat(ts.replace("Z", "+02:00"))
-            ts_fmt = dt.strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            ts_fmt = ts
-
-        grouped[ts_fmt][field] = value
-
-    times = sorted(grouped.keys(), reverse=True)
+    # Data is already grouped by timestamp from InfluxDB! 
+    sorted_data = sorted(data, key=lambda x: x.get("time", ""), reverse=True)
 
     lines: List[str] = [f"<b>Health Report - User {user_id}</b>\n"]
-    for ts in times[:10]:
-        r = grouped[ts]
-        state = r.get("state", "N/A")
-        emoji = {"healthy": "✅", "risky": "⚠️", "dangerous": "🚨"}.get(state, "❓")
+    
+    for r in sorted_data[:10]:
+        ts = r.get("time", "Unknown time")
+        
+        # FIX: Ensure state is a string even if it's None in the database
+        state = r.get("state") or "unknown" 
+        
+        emoji = {"healthy": "✅", "risky": "⚠️", "dangerous": "🚨"}.get(state.lower(), "❓")
 
-        lines.append(f"<b>📅 {ts}</b>")
-        lines.append(f"{emoji} Status: <b>{state}</b>")
-        lines.append(f"🌡️ Temperature: {r.get('temp', 'N/A')}°C")
-        lines.append(f"❤️ Heart Rate: {r.get('heart_rate', 'N/A')} BPM")
-        lines.append(f"🫁 Oxygen: {r.get('oxygen', 'N/A')}%")
+        ts_fmt = ts.split('.')[0].replace('T', ' ') 
+
+        lines.append(f"<b>📅 {ts_fmt}</b>")
+        # Use state.upper() safely now
+        lines.append(f"{emoji} Status: <b>{state.upper()}</b>")
+        lines.append(f"🌡️ Temp: {r.get('temp', 'N/A')}°C")
+        lines.append(f"❤️ HR: {r.get('heart_rate', 'N/A')} BPM")
+        lines.append(f"🫁 O2: {r.get('oxygen', 'N/A')}%")
         lines.append("")
 
-    if len(times) > 10:
-        lines.append(f"... and {len(times) - 10} more readings")
-
-    if times:
-        latest = grouped[times[0]]
-        lines.append("\n<b>📊 Summary</b>")
-        lines.append(f"Latest Status: <b>{latest.get('state', 'unknown')}</b>")
-        lines.append(f"Total Readings: {len(times)}")
-
-        counts = Counter(r.get("state", "unknown") for r in grouped.values())
-        lines.append("State Distribution:")
-        for state, count in counts.items():
-            pct = (count / len(times)) * 100
-            lines.append(f"  • {state}: {count} ({pct:.1f}%)")
+    # Summary logic remains the same but is faster to calculate
+    latest = sorted_data[0]
+    lines.append("\n<b>📊 Summary (Last 24h)</b>")
+    lines.append(f"Latest Status: <b>{latest.get('state', 'unknown')}</b>")
+    
+    from collections import Counter
+    counts = Counter(r.get("state", "unknown") for r in sorted_data)
+    for state, count in counts.items():
+        pct = (count / len(sorted_data)) * 100
+        lines.append(f"  • {state}: {count} ({pct:.1f}%)")
 
     return "\n".join(lines)
-
 
 # -------------------------
 # Charts
@@ -315,117 +297,112 @@ def get_aggregated_chart_data_for(user_id: int, max_hours: int = 24) -> Tuple[bo
     }
 
 
-def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: int = 24):
+def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: int = 24) -> Tuple[bool, str, Optional[io.BytesIO]]:
+    """
+    Generates a 4-panel health dashboard using pre-aggregated data from the Database Service.
+    """
     if not CHARTS_AVAILABLE:
         return False, "Chart functionality not available - missing dependencies.", None
 
+    # 1. Fetch the data (Database has already done the heavy lifting via Flux)
     ok, msg, result = get_aggregated_chart_data_for(user_id, max_hours)
     if not ok or not result:
         return False, msg, None
 
     try:
         aggregated_data = result["data"]
-        sample_info = result.get("sample_info", "Aggregated Health Data")
         if not aggregated_data:
-            return False, "No aggregated data available for chart generation.", None
+            return False, "No data available to generate chart.", None
 
-        agg_df = pd.DataFrame(aggregated_data)
-        agg_df["time"] = pd.to_datetime(agg_df["time"])
+        # 2. Convert to DataFrame
+        # Data format: [{"time": "...", "temp": 36.5, "heart_rate": 72, "oxygen": 98, "state": "healthy"}]
+        df = pd.DataFrame(aggregated_data)
+        df["time"] = pd.to_datetime(df["time"], format='ISO8601')        
+        # Ensure numeric types for plotting
+        for col in ["temp", "heart_rate", "oxygen"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
 
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        # 3. Setup Figure and Axes (2x2 Grid)
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10), constrained_layout=True)
+        time_label = f"Last {max_hours} Hours" if max_hours <= 24 else f"Last {max_hours//24} Days"
+        fig.suptitle(f"Health Dashboard: User {user_id}\n({time_label})", fontsize=18, fontweight="bold")
 
-        time_range_text = f"Last {max_hours} hours" if max_hours < 48 else f"Last {max_hours//24} days"
-        fig.suptitle(
-            f"Health Monitoring Dashboard - User {user_id} ({time_range_text})\n{sample_info}",
-            fontsize=16,
-            fontweight="bold",
-        )
+        # --- Plot 1: Temperature ---
+        if "temp" in df.columns:
+            axes[0, 0].plot(df["time"], df["temp"], color="#e74c3c", linewidth=2, marker='o', markersize=3)
+            axes[0, 0].set_title("Body Temperature (°C)", color="#c0392b")
+            axes[0, 0].set_ylabel("°C")
+            axes[0, 0].grid(True, linestyle="--", alpha=0.6)
 
-        if "temp" in agg_df.columns:
-            agg_df["temp"] = pd.to_numeric(agg_df["temp"], errors="coerce")
-            temp_valid = agg_df.dropna(subset=["temp"])
-            if not temp_valid.empty:
-                axes[0, 0].plot(temp_valid["time"], temp_valid["temp"], "r-", linewidth=2)
-                axes[0, 0].set_title("Body Temperature (°C)", fontweight="bold")
-                axes[0, 0].set_ylabel("Temperature (°C)")
-                axes[0, 0].grid(True, alpha=0.3)
+        # --- Plot 2: Heart Rate ---
+        if "heart_rate" in df.columns:
+            axes[0, 1].plot(df["time"], df["heart_rate"], color="#27ae60", linewidth=2, marker='o', markersize=3)
+            axes[0, 1].set_title("Heart Rate (BPM)", color="#1e8449")
+            axes[0, 1].set_ylabel("BPM")
+            axes[0, 1].grid(True, linestyle="--", alpha=0.6)
 
-        if "heart_rate" in agg_df.columns:
-            agg_df["heart_rate"] = pd.to_numeric(agg_df["heart_rate"], errors="coerce")
-            hr_valid = agg_df.dropna(subset=["heart_rate"])
-            if not hr_valid.empty:
-                axes[0, 1].plot(hr_valid["time"], hr_valid["heart_rate"], "g-", linewidth=2)
-                axes[0, 1].set_title("Heart Rate (BPM)", fontweight="bold")
-                axes[0, 1].set_ylabel("BPM")
-                axes[0, 1].grid(True, alpha=0.3)
+        # --- Plot 3: Oxygen ---
+        if "oxygen" in df.columns:
+            axes[1, 0].plot(df["time"], df["oxygen"], color="#2980b9", linewidth=2, marker='o', markersize=3)
+            axes[1, 0].set_title("Oxygen Saturation (%)", color="#1a5276")
+            axes[1, 0].set_ylabel("SpO2 %")
+            axes[1, 0].grid(True, linestyle="--", alpha=0.6)
 
-        if "oxygen" in agg_df.columns:
-            agg_df["oxygen"] = pd.to_numeric(agg_df["oxygen"], errors="coerce")
-            o2_valid = agg_df.dropna(subset=["oxygen"])
-            if not o2_valid.empty:
-                axes[1, 0].plot(o2_valid["time"], o2_valid["oxygen"], "b-", linewidth=2)
-                axes[1, 0].set_title("Oxygen Saturation (%)", fontweight="bold")
-                axes[1, 0].set_ylabel("SpO2 (%)")
-                axes[1, 0].grid(True, alpha=0.3)
+        # --- Plot 4: Health State (Status Scatter) ---
+        if "state" in df.columns:
+            state_map = {"healthy": 0, "risky": 1, "dangerous": 2}
+            color_map = {"healthy": "#2ecc71", "risky": "#f1c40f", "dangerous": "#e74c3c"}
+            
+            df["state_num"] = df["state"].map(state_map)
+            colors = df["state"].map(color_map).fillna("#95a5a6")
+            
+            axes[1, 1].scatter(df["time"], df["state_num"], c=colors, s=100, edgecolors='black', alpha=0.7)
+            axes[1, 1].set_title("Health Status Legend", fontweight="bold")
+            axes[1, 1].set_yticks([0, 1, 2])
+            axes[1, 1].set_yticklabels(["Healthy", "Risky", "Dangerous"])
+            axes[1, 1].grid(axis='y', linestyle='--', alpha=0.5)
 
-        if "state" in agg_df.columns:
-            state_mapping = {"healthy": 0, "risky": 1, "dangerous": 2}
-            state_colors = {"healthy": "green", "risky": "orange", "dangerous": "red"}
-
-            agg_df["state_num"] = agg_df["state"].map(state_mapping)
-            state_valid = agg_df.dropna(subset=["state_num"])
-            if not state_valid.empty:
-                colors = [state_colors.get(s, "gray") for s in state_valid["state"]]
-                axes[1, 1].scatter(state_valid["time"], state_valid["state_num"], c=colors, s=50, alpha=0.8)
-                axes[1, 1].set_title("Health State Status", fontweight="bold")
-                axes[1, 1].set_ylabel("State")
-                axes[1, 1].set_yticks([0, 1, 2])
-                axes[1, 1].set_yticklabels(["Healthy", "Risky", "Dangerous"])
-                axes[1, 1].grid(True, alpha=0.3)
-
+        # 4. Global X-Axis Formatting (Time)
         for ax in axes.flat:
-            if len(ax.get_lines()) > 0 or len(ax.collections) > 0:
-                if max_hours <= 24:
-                    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-                else:
-                    ax.xaxis.set_major_locator(mdates.DayLocator())
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
-                ax.tick_params(axis="x", rotation=45, labelsize=9)
+            if max_hours <= 24:
+                ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+                ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+            else:
+                ax.xaxis.set_major_locator(mdates.DayLocator())
+                ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+            plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
 
-        plt.tight_layout()
+        # 5. Save to Buffer
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+        plt.savefig(buf, format="png", dpi=150)
         buf.seek(0)
-        plt.close()
+        plt.close(fig)
 
         return True, "Chart generated successfully.", buf
 
     except Exception as e:
-        logger.error("Error generating chart: %s", e)
-        logger.error(traceback.format_exc())
-        return False, f"Chart generation failed: {str(e)}", None
-
+        plt.close('all') # Cleanup on error
+        return False, f"Visualization error: {str(e)}", None
 
 async def send_chart_to_user(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, max_hours: int) -> None:
-    if not CHARTS_AVAILABLE:
-        await update.callback_query.edit_message_text("Charts are disabled on this server.")
-        return
+    query = update.callback_query
+    # 1. Inform the user (prevents double-clicking out of frustration)
+    await query.edit_message_text("🎨 Generating chart... please wait.")
 
     ok, msg, buf = generate_chart_for(user_id, max_hours=max_hours)
-    if not ok or not buf:
-        await update.callback_query.edit_message_text(f"❌ {msg}")
-        return
-
-    label = {24: "24 hours", 48: "48 hours", 72: "72 hours", 168: "1 week"}.get(max_hours, f"{max_hours} hours")
-
-    await context.bot.send_photo(
-        chat_id=update.effective_chat.id,
-        photo=buf,
-        caption=f"📊 Health chart for user {user_id} (Last {label})\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-    )
-    await update.callback_query.edit_message_text("✅ Chart sent.")
-
+    
+    if ok and buf:
+        # 2. Send the actual photo
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=buf,
+            caption=f"📊 Health Status - User {user_id}"
+        )
+        # 3. DELETE the "Generating..." text so only the chart remains
+        await query.delete_message()
+    else:
+        await query.edit_message_text(f"❌ Chart Error: {msg}")
 
 # -------------------------
 # UI helpers
@@ -787,6 +764,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text if ok else "❌ " + text, parse_mode="HTML")
             return
 
+        # --- Handle the Menu (Initial Click) ---
         if data == "get_chart":
             await query.edit_message_text(
                 "📈 Select chart time period:",
@@ -794,14 +772,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        if data.startswith("get_chart_"):
+        # --- Handle the Period Selection (Second Click) ---
+        # Note the trailing underscore to distinguish from the "get_chart" menu command
+        elif data.startswith("get_chart_") or data.startswith("doctor_chart_") or data.startswith("admin_chart_"):
             parts = data.split("_")
-            period = parts[2]
+            # For "get_chart_24h_12345", parts are: ["get", "chart", "24h", "12345"]
+            period = parts[2] 
             target = int(parts[3])
+            
             hours = {"24h": 24, "48h": 48, "72h": 72, "week": 168}.get(period)
             if not hours:
                 await query.edit_message_text("Invalid chart period.")
                 return
+            
+            # Send the chart and EXIT (return)
             await send_chart_to_user(update, context, target, max_hours=hours)
             return
 

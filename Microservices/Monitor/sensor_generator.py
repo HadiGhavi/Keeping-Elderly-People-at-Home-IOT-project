@@ -75,7 +75,6 @@ class GenerateSensor:
         max_change = smoothing_factors.get(sensor_type, 1)
         last_value = self.last_values[sensor_type]
         
-        
         if abs(new_value - last_value) > max_change:
             if new_value > last_value:
                 new_value = last_value + max_change
@@ -99,7 +98,6 @@ class GenerateSensor:
             return 'generic'
     
     def read_value(self, min_value, max_value, sensor_name=None):
-        """ Generate sensor values """
         
         if sensor_name:
             if 'temp' in sensor_name.lower():

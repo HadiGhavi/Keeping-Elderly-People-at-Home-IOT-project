@@ -41,24 +41,58 @@ class InfluxDBAdapter():
         except Exception as e:
             return False, str(e)
 
-    def get_user_health_data(self, user_id, hours=None):
+
+    def get_user_health_data(self, user_id, hours=None, aggregate=False):
         try:
-            range_start = f"-{hours}h" if hours else "-24h"
-            query = f'''
-            from(bucket: "{self.bucket}")
-            |> range(start: {range_start})
-            |> filter(fn: (r) => r._measurement == "value")
-            |> filter(fn: (r) => r.UserId == "{user_id}")
-            '''
+            clean_hours = int(str(hours).replace('h', '')) if hours else 24
+            range_start = f"-{clean_hours}h"
+            
+            if not aggregate:
+                # RAW DATA: Just filter and pivot
+                query = f'''
+                from(bucket: "{self.bucket}")
+                |> range(start: {range_start})
+                |> filter(fn: (r) => r._measurement == "value" and r.UserId == "{user_id}")
+                |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                '''
+            else:
+                # AGGREGATED DATA: 
+                # 1. Separate numeric and string data
+                # 2. Aggregate them while they still have the _value column
+                # 3. Pivot at the very end to join them into one row
+                query = f'''
+                data = from(bucket: "{self.bucket}")
+                    |> range(start: {range_start})
+                    |> filter(fn: (r) => r._measurement == "value" and r.UserId == "{user_id}")
+
+                vitals = data
+                    |> filter(fn: (r) => r._field != "state")
+                    |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+
+                status = data
+                    |> filter(fn: (r) => r._field == "state")
+                    |> aggregateWindow(every: 5m, fn: last, createEmpty: false)
+
+                union(tables: [vitals, status])
+                    |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                '''
+            
             result = self.query_api.query(query)
             data = []
+            
             for table in result:
                 for record in table.records:
+                    v = record.values
                     data.append({
                         "time": record.get_time().isoformat(),
-                        "field": record.get_field(),
-                        "value": record.get_value()
+                        "temp": v.get("temp"),
+                        "heart_rate": v.get("heart_rate"),
+                        "oxygen": v.get("oxygen"),
+                        "state": v.get("state") or "unknown"
                     })
+            
             return True, data
+
         except Exception as e:
+            print(f"Database Query Error: {str(e)}")
             return False, str(e)

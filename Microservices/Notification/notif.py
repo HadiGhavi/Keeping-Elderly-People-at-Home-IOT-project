@@ -59,9 +59,17 @@ class NotificationAdapter:
         return last["state"] != current_state or (current_time - last["timestamp"] > self.notification_cooldown)
     
     def _send_telegram(self, chat_id, text):
-        url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
-        requests.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"}, timeout=10)
-
+        def perform_request():
+            try:
+                url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
+                payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+                response = requests.post(url, json=payload, timeout=10)
+                response.raise_for_status() 
+            except Exception as e:
+                logger.error(f"Failed to send Telegram message to {chat_id}: {e}")
+        # This returns control to the main loop IMMEDIATELY
+        threading.Thread(target=perform_request, daemon=True).start()
+        
     def _send_alerts(self, patient, state, vitals_dict):
         user_id = patient["user_chat_id"]
         msg = self._format_message(patient.get("full_name"), state, vitals_dict)

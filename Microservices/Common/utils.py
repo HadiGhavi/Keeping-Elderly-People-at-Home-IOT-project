@@ -72,21 +72,7 @@ def get_service_info_from_catalog(service_name, catalog_url ):
     return None
 
 
-def register_service_with_catalog(service_name,url,port,endpoints,
-                                    catalog_url = None):
-    """
-    Register this service with the catalog
-    
-    Args:
-        service_name: Name of this service
-        url: URL where this service is accessible
-        port: Port this service runs on
-        endpoints: Dictionary of endpoints this service provides
-        catalog_url: Catalog service URL
-        
-    Returns:
-        True if registration successful, False otherwise
-    """
+def register_service_with_catalog(service_name,url,port,endpoints,catalog_url = None):
     if catalog_url is None:
         catalog_url = Config.SERVICES["catalog_url"]
     
@@ -119,16 +105,13 @@ def register_service_with_catalog(service_name,url,port,endpoints,
 
 
 class ServiceRegistry:
-    """
-    Service registry class that caches discovered services
-    """
+    """ Service registry class that caches discovered services"""
     
     def __init__(self, catalog_url = None):
         self.catalog_url = catalog_url or Config.SERVICES["catalog_url"]
         self._cache = {}
     
     def get_service_url(self, service_name, fallback = None):
-        """Get service URL with caching"""
         if service_name not in self._cache:
             self._cache[service_name] = get_service_url_from_catalog(
                 service_name,
@@ -138,7 +121,6 @@ class ServiceRegistry:
         return self._cache[service_name]
     
     def get_service_info(self, service_name) :
-        """Get full service info with caching"""
         cache_key = f"{service_name}_info"
         if cache_key not in self._cache:
             self._cache[cache_key] = get_service_info_from_catalog(
@@ -148,11 +130,9 @@ class ServiceRegistry:
         return self._cache[cache_key]
     
     def clear_cache(self):
-        """Clear the service cache (useful for testing or if services change)"""
         self._cache = {}
     
     def refresh_service(self, service_name):
-        """Refresh a specific service in the cache"""
         if service_name in self._cache:
             del self._cache[service_name]
         cache_key = f"{service_name}_info"
