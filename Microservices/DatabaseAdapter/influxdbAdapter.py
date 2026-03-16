@@ -48,7 +48,7 @@ class InfluxDBAdapter():
             range_start = f"-{clean_hours}h"
             
             if not aggregate:
-                # RAW DATA: Just filter and pivot
+                # Just filter and pivot
                 query = f'''
                 from(bucket: "{self.bucket}")
                 |> range(start: {range_start})
@@ -56,7 +56,6 @@ class InfluxDBAdapter():
                 |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
                 '''
             else:
-                # AGGREGATED DATA: 
                 # 1. Separate numeric and string data
                 # 2. Aggregate them while they still have the _value column
                 # 3. Pivot at the very end to join them into one row
@@ -71,7 +70,7 @@ class InfluxDBAdapter():
 
                 status = data
                     |> filter(fn: (r) => r._field == "state")
-                    |> aggregateWindow(every: 5m, fn: last, createEmpty: false)
+                    |> aggregateWindow(every: 5m, fn: mode, createEmpty: false)
 
                 union(tables: [vitals, status])
                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")

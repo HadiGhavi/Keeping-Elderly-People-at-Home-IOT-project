@@ -1,14 +1,12 @@
 import pandas as pd
-import joblib, os
+import joblib
+import os
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 import xgboost as xgb
 import numpy as np
-try:
-    from config import Config
-except ImportError:
-    from .config import Config
+from config import Config
 
 def train_health_model():
     print("Step 1: Loading training data...")

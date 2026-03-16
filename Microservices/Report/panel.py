@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+
 import cherrypy
 import requests
 import json
@@ -13,7 +14,7 @@ from Microservices.Common.config import Config
 from Microservices.Common.utils import (ServiceRegistry,
                    register_service_with_catalog)
 
-
+# record log for debugging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
@@ -23,6 +24,7 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+# In admin pannel, we config service registery to find URL and microservices.
 class AdminPanel:
     def __init__(self):
 
@@ -37,7 +39,7 @@ class AdminPanel:
         self.authorized_users = Config.ADMIN_USERS
         # Session storage 
         self.active_sessions = {}
-
+    # Authentication check for users
     def check_auth(self):
         """Check if user is authenticated"""
         try:
@@ -60,7 +62,7 @@ class AdminPanel:
                 del self.active_sessions[session_id]
                 
         return False
-    
+    #### 
     def require_auth(self):
         """Redirect to login if not authenticated"""
         if not self.check_auth():
@@ -299,7 +301,7 @@ class AdminPanel:
     def dashboard(self):
         self.require_auth()
         try:
-            # Helper function to check service health
+            # Helper function to check service health (Timing check)
             def check_service(url, timeout=3):
                 try:
                     response = requests.get(url, timeout=timeout)
@@ -314,7 +316,7 @@ class AdminPanel:
                 except:
                     return {'status': 'error', 'response_time': None}
             
-            # Check all services
+            # Check all services (Connection check)
             service_checks = {
                 'Catalog Service': check_service(self.catalog_url),
                 'Database Adapter': check_service(self.database_service_url),
@@ -324,7 +326,7 @@ class AdminPanel:
                 'Admin Panel': {'status': 'online', 'response_time': 0}  # Current service
             }
             
-            # Get system statistics
+            # Get system statistics (Response check for doctors and patients)
             users_response = requests.get(f"{self.catalog_url}/users", timeout=10)
             doctors_response = requests.get(f"{self.catalog_url}/doctors", timeout=10)
             
@@ -341,7 +343,7 @@ class AdminPanel:
             warning_patients = 0
             normal_patients = 0
             no_data_patients = 0
-            
+            # (stat check- "healthy-normal", "risky, dangerous-unormal")
             for patient in patients:
                 status, _ = self.get_patient_health_status(patient['user_chat_id'])
                 if status == "Critical":
@@ -392,7 +394,7 @@ class AdminPanel:
             system_status_html = ""
             services_online = 0
             total_services = len(service_checks)
-            
+            # (Time status check)
             for service_name, check_result in service_checks.items():
                 status = check_result['status']
                 response_time = check_result.get('response_time')
@@ -422,7 +424,7 @@ class AdminPanel:
                     </div>
                 """
             
-            # Overall system health
+            # Overall system health (Check percentage of online services)
             system_health_percentage = (services_online / total_services) * 100
             
             if system_health_percentage == 100:
@@ -437,7 +439,7 @@ class AdminPanel:
             else:
                 system_health_class = 'alert'
                 system_health_text = f'Critical system issues ({int(system_health_percentage)}% services online)'
-            
+            # Visualization of system status, size of boxes, colors, position
             return f"""
     <!DOCTYPE html>
     <html>
@@ -764,7 +766,7 @@ class AdminPanel:
     </body>
     </html>
             """
-            
+    # (Doctors authentication and timeout  check and visualization)      
     def manage_doctors(self):
         self.require_auth()
         try:
@@ -833,7 +835,7 @@ class AdminPanel:
             """
         except Exception as e:
             return f"<h1>Error</h1><p>{str(e)}</p>"
-
+    # (Doctor patients assigned authentication and timeout  check and visualization) 
     def view_doctor_patients(self, doctor_id):
         self.require_auth()
         try:
@@ -850,7 +852,7 @@ class AdminPanel:
                 # Get real health status and last reading using the new function
                 health_status, last_reading = self.get_patient_health_status(patient['user_chat_id'])
                 
-                # Apply styling based on health status
+                # (Apply styling based on health status)
                 row_class = ""
                 if health_status == "Critical":
                     row_class = "style='background-color: #ffebee; color: #c62828;'"
@@ -871,7 +873,7 @@ class AdminPanel:
                     </td>
                 </tr>
                 """
-            
+            # (Visualization the status in tabular form)
             return f"""
 <!DOCTYPE html>
 <html>
@@ -929,7 +931,7 @@ class AdminPanel:
             """
         except Exception as e:
             return f"<h1>Error</h1><p>{str(e)}</p>"
-
+    # (overview of patients)
     def patient_overview(self):
         self.require_auth()
         try:
@@ -1027,7 +1029,8 @@ class AdminPanel:
             """
         except Exception as e:
             return f"<h1>Error</h1><p>{str(e)}</p>"
-
+        
+    # (check for abnormal patients status, in last 24 hours)
     def get_patient_health_status(self, user_id):
         """Get patient's latest health status and last readings for all vital signs"""
         try: 
@@ -1054,59 +1057,35 @@ class AdminPanel:
             # Sort by time (newest first)
             sensor_data.sort(key=lambda x: x.get('time', ''), reverse=True)
             
-            # Track latest readings for each vital sign
-            latest_state = None
-            latest_readings = {
-                'temp': None,
-                'heart_rate': None,
-                'oxygen': None
-            }
+            # NEW LOGIC: Just grab the newest entry because it contains everything!
+            latest = sensor_data[0]
+            latest_state = latest.get('state')
             
-            # Process all entries to find latest of each type
-            for entry in sensor_data:
-                field = entry.get('field')
-                value = entry.get('value')
-                time_str = entry.get('time', '')
-                
-                # Look for state field for health status
-                if field == 'state' and not latest_state:
-                    latest_state = value
-                
-                # Look for vital signs we haven't found yet
-                if field in latest_readings and latest_readings[field] is None:
-                    try:
-                        # Format the time
-                        if isinstance(time_str, str):
-                            clean_time = time_str.split('+')[0].split('Z')[0].split('.')[0]
-                            dt = datetime.fromisoformat(clean_time)
-                            formatted_time = dt.strftime('%m/%d %H:%M')
-                        else:
-                            formatted_time = "Unknown"
-                        
-                        # Format value based on field type
-                        if field == 'temp':
-                            formatted_value = f"{value}°C"
-                            display_name = "Temp"
-                        elif field == 'heart_rate':
-                            formatted_value = f"{value} BPM"
-                            display_name = "HR"
-                        elif field == 'oxygen':
-                            formatted_value = f"{value}%"
-                            display_name = "O2"
-                        else:
-                            formatted_value = str(value)
-                            display_name = field
-                        
-                        latest_readings[field] = f"{display_name}: {formatted_value} ({formatted_time})"
-                        
-                    except Exception as e:
-                        # Fallback formatting if time parsing fails
-                        latest_readings[field] = f"{field}: {value}"
-                
-                # Check if we have everything we need
-                if (latest_state and 
-                    all(latest_readings[field] is not None for field in latest_readings)):
-                    break
+            # Format time
+            time_str = latest.get('time', '')
+            try:
+                clean_time = time_str.split('+')[0].split('Z')[0].split('.')[0]
+                dt = datetime.fromisoformat(clean_time)
+                formatted_time = dt.strftime('%m/%d %H:%M')
+            except:
+                formatted_time = "Unknown"
+
+            # Extract vitals directly from keys
+            temp = latest.get('temp')
+            hr = latest.get('heart_rate')
+            ox = latest.get('oxygen')
+            
+            readings = []
+            if temp is not None: readings.append(f"Temp: {temp}°C")
+            if hr is not None: readings.append(f"HR: {int(float(hr))} BPM")
+            if ox is not None: readings.append(f"O2: {ox}%")
+
+            # Combine them for the UI
+            combined_readings = " | ".join(readings)
+            if combined_readings:
+                combined_readings += f" ({formatted_time})"
+            else:
+                combined_readings = "N/A"
             
             # Determine health status
             if latest_state:
@@ -1119,20 +1098,7 @@ class AdminPanel:
                 else:
                     status = latest_state.title()
             else:
-                # If no state field, try to infer from recent data
-                if any(latest_readings[field] is not None for field in latest_readings):
-                    status = "Active"
-                else:
-                    status = "No Data"
-            
-            # Combine all available readings into a single string
-            available_readings = [reading for reading in latest_readings.values() if reading is not None]
-            
-            if available_readings:
-                # Join readings with " | " separator for compact display
-                combined_readings = " | ".join(available_readings)
-            else:
-                combined_readings = "N/A"
+                status = "Active" if readings else "No Data"
             
             return status, combined_readings
             
@@ -1196,7 +1162,7 @@ class AdminPanel:
 </body>
 </html>
         """
-
+    # (Tabular report of patients)
     def generate_patient_report(self):
         self.require_auth()
         try:
@@ -1287,7 +1253,7 @@ class AdminPanel:
             """
         except Exception as e:
             return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
-
+    # (Tabular report of doctors)
     def generate_doctor_report(self):
         self.require_auth()
         try:
@@ -1387,7 +1353,7 @@ class AdminPanel:
         except Exception as e:
             return f"<h1>Report Generation Error</h1><p>{str(e)}</p>"
 
-
+    # (Tabular system report, more comprehensive)
     def generate_system_report(self):
         self.require_auth()
         
@@ -1554,6 +1520,7 @@ class AdminPanel:
     </body>
     </html>
             """
+    # (# (Tabular report for different sensors, in different time slot 1, 7 days))    
     def sensorInfo(self, user_id, hours=24):
         self.require_auth()
         """Get user sensor data through database adapter with optional time filtering"""
@@ -1613,7 +1580,7 @@ class AdminPanel:
             # Sort data by time (newest first)
             sensor_data.sort(key=lambda x: x.get('time', ''), reverse=True)
             
-            # Build table rows
+            # Build table rows for PIVOTED data
             table_rows = ""
             for entry in sensor_data:
                 raw_time = entry.get('time')
@@ -1629,29 +1596,47 @@ class AdminPanel:
                 except (ValueError, AttributeError):
                     formatted_time = str(raw_time)
                 
-                # Get values with proper defaults
-                user_id_val = entry.get('user_id', entry.get('UserId', user_id))
-                full_name = entry.get('full_name', entry.get('full_name', 'Unknown'))
-                field = entry.get('field', 'N/A')
-                value = entry.get('value', 'N/A')
+                # Get pivoted values with proper defaults
+                temp = entry.get('temp', 'N/A')
+                hr = entry.get('heart_rate', 'N/A')
+                ox = entry.get('oxygen', 'N/A')
+                state = entry.get('state', 'unknown')
                 
-                # Add status styling based on field and value
+                # Clean up formatting for numbers
+                if hr not in ['N/A', None]:
+                    try:
+                        hr = int(float(hr))
+                    except ValueError:
+                        pass
+                
+                if temp not in ['N/A', None]:
+                    try:
+                        temp = round(float(temp), 1)
+                    except ValueError:
+                        pass
+
+                if ox not in ['N/A', None]:
+                    try:
+                        ox = round(float(ox), 1)
+                    except ValueError:
+                        pass
+
+                # Add status styling based on state value
                 row_class = ""
-                if field == 'state':
-                    if value == 'dangerous':
-                        row_class = "style='background-color: #ffebee; color: #c62828;'"
-                    elif value == 'risky':
-                        row_class = "style='background-color: #fff3e0; color: #ef6c00;'"
-                    elif value == 'healthy':
-                        row_class = "style='background-color: #e8f5e8; color: #2e7d32;'"
+                if str(state).lower() == 'dangerous':
+                    row_class = "style='background-color: #ffebee; color: #c62828;'"
+                elif str(state).lower() == 'risky':
+                    row_class = "style='background-color: #fff3e0; color: #ef6c00;'"
+                elif str(state).lower() == 'healthy':
+                    row_class = "style='background-color: #e8f5e8; color: #2e7d32;'"
                 
                 table_rows += f"""
                 <tr {row_class}>
                     <td>{formatted_time}</td>
-                    <td>{user_id_val}</td>
-                    <td>{full_name}</td>
-                    <td>{field}</td>
-                    <td>{value}</td>
+                    <td>{temp}</td>
+                    <td>{hr}</td>
+                    <td>{ox}</td>
+                    <td>{str(state).upper()}</td>
                 </tr>
                 """
             
@@ -1731,10 +1716,10 @@ class AdminPanel:
             <thead>
                 <tr>
                     <th>Time</th>
-                    <th>User ID</th>
-                    <th>Full Name</th>
-                    <th>Metric</th>
-                    <th>Value</th>
+                    <th>Temp (°C)</th>
+                    <th>Heart Rate (BPM)</th>
+                    <th>Oxygen (%)</th>
+                    <th>State</th>
                 </tr>
             </thead>
             <tbody>
@@ -1758,7 +1743,8 @@ class AdminPanel:
     <p>{str(e)}</p>
     <p><a href="/">← Back to Main Menu</a></p>
             """
-
+        
+    # (Generate the data in JSON)
     def report(self, user_id, hours=24):
         self.require_auth()
 
@@ -1910,7 +1896,7 @@ class AdminPanel:
 </body>
 </html>
         """
-
+    # (Doctors registeration pannel)
     def register_doctor_web(self, full_name, chat_id, specialization, hospital=""):
         try:
             doctor_data = {
@@ -2028,37 +2014,21 @@ class AdminPanel:
 </body>
 </html>
             """
-
+# (Call of methods list, giving access to URLs to functions)
 def expose_admin_panel_endpoints():
-    """Expose endpoints without decorators.
+    """ expose all public methods of AdminPanel."""
+    for attr_name in dir(AdminPanel):
+        if attr_name.startswith("_"):
+            continue  # skip private/internal methods
 
-    CherryPy's default object publishing requires each callable endpoint to have
-    a truthy `exposed` attribute. Setting it on the *class* function is reliable.
-    """
-    names = [
-        "login",
-        "logout",
-        "index",
-        "dashboard",
-        "manage_doctors",
-        "view_doctor_patients",
-        "patient_overview",
-        "reports",
-        "generate_patient_report",
-        "generate_doctor_report",
-        "generate_system_report",
-        "sensorInfo",
-        "report",
-        "doctor_registration",
-        "register_doctor_web",
-    ]
-    for name in names:
-        fn = getattr(AdminPanel, name, None)
-        if fn is not None:
+        fn = getattr(AdminPanel, attr_name)
+
+        if callable(fn):
             fn.exposed = True
 
 if __name__ == "__main__":
     # Register the service
+    # (connection architecture to microservices)
     register_service_with_catalog(
         service_name="adminPanel",
         url="http://admin_panel",
@@ -2086,7 +2056,8 @@ if __name__ == "__main__":
     # Expose endpoints (no decorators)
     expose_admin_panel_endpoints()
 
-    # Server config
+    # Server config 
+    # (IP and port config)
     cherrypy.config.update(
         {
             "server.socket_host": "0.0.0.0",
@@ -2095,18 +2066,19 @@ if __name__ == "__main__":
     )
 
     # Mount config (tools)
+
     conf = {
         "/": {
-            "tools.response_headers.on": True,
+            "tools.response_headers.on": True, # ()
             "tools.response_headers.headers": [("Content-Type", "text/html")],
-            "tools.sessions.on": True,
+            "tools.sessions.on": True, # ()
             "tools.sessions.timeout": 480,  # 8 hours in minutes
-            "tools.sessions.storage_class": cherrypy.lib.sessions.RamSession,
+            "tools.sessions.storage_class": cherrypy.lib.sessions.RamSession, # (save on the RAM)
         }
     }
 
-    root = AdminPanel()
-    cherrypy.tree.mount(root, "/", conf)
+    root = AdminPanel() # Create the admin panel
+    cherrypy.tree.mount(root, "/", conf) # Connecting the setting to the root
 
-    cherrypy.engine.start()
+    cherrypy.engine.start() 
     cherrypy.engine.block()

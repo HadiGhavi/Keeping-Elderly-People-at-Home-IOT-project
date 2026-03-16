@@ -3,11 +3,8 @@ import pandas as pd
 import numpy as np
 import ssl
 import certifi
-import os
-try:
-    from config import Config
-except ImportError:
-    from .config import Config
+from config import Config
+
 
 # SSL setup for vitaldb connection
 try:
@@ -110,13 +107,11 @@ def generate_vitaldb_dataset():
             current_tracks = vital_tracks + temp_tracks
             
             # Step A: Get Vitals (30s interval)
-            # vitaldb.load_case will return NaNs for tracks that don't exist in the case
             vitals = vitaldb.load_case(case_id, current_tracks, interval=30)
             
-            # The columns will be in order: HR, SpO2, BT, ESOPH, T1, SKIN
             df_vitals = pd.DataFrame(vitals, columns=['heart_rate', 'blood_oxygen', 'temp_bt', 'temp_esoph', 'temp_t1', 'temp_skin'])
             
-            # Step B: Consolidate temperature (pick the first available)
+            # Step B: (pick the first temp available)
             def get_first_valid_temp(row):
                 for col in ['temp_bt', 'temp_esoph', 'temp_t1', 'temp_skin']:
                     if not pd.isna(row[col]): return row[col]

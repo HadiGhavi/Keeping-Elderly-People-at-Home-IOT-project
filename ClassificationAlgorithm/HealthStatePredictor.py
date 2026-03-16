@@ -1,7 +1,6 @@
 import pandas as pd
 import joblib
 import sys
-import os
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,7 +44,7 @@ class HealthStatePredictor:
         else:
             prediction = self.model.classes_[prediction_idx]
             
-        # Confidence logic: override to 'risky' if max confidence < 50%
+        # Override to 'risky' if max confidence < 50%
         if max_prob < 0.5:
             return 'risky'
             
@@ -107,7 +106,7 @@ if __name__ == "__main__":
     # Healthy -> Risky -> Dangerous
     print("\n=== TESTING SEQUENCE PREDICTION (High Fever Event) ===")
     
-    # Generate a sequence: Temp rising, HR rising, SpO2 rising
+    # Generate a sequence: Temp rising, HR rising, SpO2 constant
     # Temp 36.5 -> 39.5
     temps = np.linspace(36.5, 39.5, 15)
     # HR 70 -> 110 
