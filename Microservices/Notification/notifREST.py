@@ -1,6 +1,5 @@
 import cherrypy
 import json
-import logging
 from notif import NotificationAdapter
 from Microservices.Common.utils import register_service_with_catalog
 

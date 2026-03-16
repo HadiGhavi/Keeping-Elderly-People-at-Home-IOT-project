@@ -4,7 +4,6 @@ import logging
 import threading
 import json
 from MyMQTT import * 
-from datetime import datetime, timedelta
 from Microservices.Common.config import Config
 from Microservices.Common.utils import ServiceRegistry
 

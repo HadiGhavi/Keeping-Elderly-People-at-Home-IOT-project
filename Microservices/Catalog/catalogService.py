@@ -53,10 +53,28 @@ class HumanHealthCatalog:
             return json.dumps({
                 "message": "Human Health API (MethodDispatcher)",
                 "endpoints": {
+                    "GET /project": "get project info",
+                    "PUT /project": "update project info",
+                    "GET /services/<service_name>": "get service by name",
+                    "POST /services/": "add new service",
+                    "GET /device_types": "Get available device types (temp, heart_rate, oxygen)",
+                    "GET /devices": "Get all registered devices",
+                    "GET /devices/<device_id>": "Get specific device",
+                    "POST /devices": "Register a new device (requires: id, type)",
+                    "PUT /devices/<device_id>": "Update device last_update",
+                    "DELETE /devices/<device_id>": "Delete a device",
                     "GET /users": "Get all users",
-                    "POST /users": "Register a new user",
-                    "GET /devices": "Get all devices",
-                    # ... add other endpoints descriptions here
+                    "GET /users/<user_chat_id>": "Get specific user details",
+                    "POST /users": "Create a new user entry",
+                    "PUT /users/<user_chat_id>": "Update a user",
+                    "DELETE /users/<user_chat_id>": "Delete a user",
+                    "GET /user_devices/<user_chat_id>": "Get all devices assigned to user",
+                    "POST /user_devices/<user_chat_id>": "Assign device to user (requires: device_id)",
+                    "DELETE /user_devices/<user_chat_id>/<device_id>": "Remove device from user",
+                    "GET /doctors": "Get all doctors",
+                    "GET /doctors/<doctor_id>": "Get patients for a specific doctor",
+                    "POST /doctors": "Register a new doctor",
+                    "POST /assign_patient": "Assign a patient to a doctor"
                 }
             }).encode('utf-8')
 
@@ -501,7 +519,7 @@ if __name__ == '__main__':
     
     cherrypy.tools.cors = cherrypy._cptools.HandlerTool(cors)
     
-    # CRITICAL: Use MethodDispatcher to map GET/POST/PUT/DELETE methods
+    # Use MethodDispatcher to map GET/POST/PUT/DELETE methods
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),

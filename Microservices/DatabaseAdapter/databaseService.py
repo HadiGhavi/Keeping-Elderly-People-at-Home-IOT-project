@@ -1,6 +1,5 @@
 import cherrypy
 import json
-import pandas as pd
 from influxdbAdapter import InfluxDBAdapter
 from Microservices.Common.utils import register_service_with_catalog
 
@@ -39,7 +38,7 @@ class DatabaseREST():
                 success, data = self.adapter.get_user_health_data(user_id, hours, aggregate=False)
                 if success:
                     return json.dumps({"success": True, "data": data}).encode('utf-8')
-                raise Exception(data) # Pass InfluxDB error to catch block
+                raise Exception(data) 
 
             elif command == "aggregated":
                 success, data = self.adapter.get_user_health_data(user_id, hours, aggregate=True)
@@ -48,7 +47,6 @@ class DatabaseREST():
                 raise Exception(data)
 
         except Exception as e:
-            # This will tell us if it's an InfluxDB error or a Python error
             print(f"Database Service Error: {str(e)}")
             raise cherrypy.HTTPError(400, f"Adapter Error: {str(e)}")
         

@@ -7,7 +7,6 @@ import cherrypy
 import requests
 import json
 from datetime import datetime, timedelta
-from itertools import groupby
 import secrets
 import logging
 from Microservices.Common.config import Config

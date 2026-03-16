@@ -3,7 +3,6 @@ import json
 import threading
 import requests
 import os
-import pickle
 import traceback
 import numpy as np
 import shutil, joblib
@@ -21,13 +20,6 @@ class MockPredictor:
         if temp > 39 or heart_rate > 100 or oxygen < 90: return "dangerous"
         elif temp > 37.5 or heart_rate > 90 or oxygen < 95: return "risky"
         else: return "healthy"
-
-class RetrainedPredictor:
-    def __init__(self, model): self.model = model
-        
-    def predict_state(self, temp, heart_rate, oxygen):
-        features = np.array([[temp, heart_rate, oxygen]])
-        return self.model.predict(features)[0]
 
 class DataHandlerAdapter:
     def __init__(self):
@@ -138,7 +130,7 @@ class DataHandlerAdapter:
                             "vitals": vals 
                         })
                         self.mqtt_client.myPublish(f"iot/notifications/{state}", alert_payload)  
-                        print(f"Alert published for user {user_id} with state {state} ({self.state_counters[user_id]} consecutive)")
+                        print(f"Message published for user {user_id} with state {state} ({self.state_counters[user_id]} consecutive)")
                     else:
                         status_msg = f"suppressed ({self.state_counters[user_id]}/{self.consecutive_alert_threshold})"
                         if self.state_counters[user_id] >= self.consecutive_alert_threshold:
@@ -320,7 +312,6 @@ class DataHandlerAdapter:
             import traceback
             traceback.print_exc()
             
-            # Clean temp file if it exists
             try:
                 if 'temp_path' in locals() and os.path.exists(temp_path):
                     os.remove(temp_path)

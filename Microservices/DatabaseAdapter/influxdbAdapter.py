@@ -58,7 +58,7 @@ class InfluxDBAdapter():
             else:
                 # 1. Separate numeric and string data
                 # 2. Aggregate them while they still have the _value column
-                # 3. Pivot at the very end to join them into one row
+                # 3. Pivot at end to join them into one row
                 query = f'''
                 data = from(bucket: "{self.bucket}")
                     |> range(start: {range_start})

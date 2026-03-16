@@ -1,6 +1,5 @@
 import cherrypy
 import json
-import sys
 from monitor import MonitorAdapter
 from Microservices.Common.utils import register_service_with_catalog
 
@@ -23,7 +22,7 @@ class MonitorREST:
         if not uri:
             return json.dumps({"status": "Monitor Service Running"}).encode('utf-8')
         
-        # 1. Safety Check: Ensure we have at least a command and an ID
+        # Ensure we have at least a command and an ID
         if len(uri) < 2:
             raise cherrypy.HTTPError(400, "Bad Request: Missing chat_id in URL. Use /command/id")
 
