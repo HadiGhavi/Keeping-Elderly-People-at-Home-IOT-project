@@ -22,8 +22,8 @@ class NotificationREST:
                 "status": "running",
                 "last_check": self.adapter.last_check_time.isoformat(),
                 "tracked_users": len(self.adapter.last_notification)
-            }).encode('utf-8')
-        return json.dumps({"message": "Notification Service API"}).encode('utf-8')
+            })
+        return json.dumps({"message": "Notification Service API"})
 
 
 if __name__ == "__main__":
@@ -34,8 +34,13 @@ if __name__ == "__main__":
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
             'tools.sessions.on': True,
+            'tools.response_headers.on': True,
+            'tools.response_headers.headers': [('Content-Type', 'application/json')],
+            'tools.encode.on': True,
+            'tools.encode.encoding': 'utf-8'
         }
     }
+
     cherrypy.tree.mount(notif_rest, '/', conf)
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': 1500})
     cherrypy.engine.start()

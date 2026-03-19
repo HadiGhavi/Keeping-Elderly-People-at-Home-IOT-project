@@ -29,6 +29,7 @@ class Config:
             "notification": "http://notification:1500",
             "mqtt": "broker.hivemq.com:1883",
             "monitor": "http://monitor:3500",
+            "dataIngestion": "http://data_ingestion:2500",
             "adminPanel": "http://admin_panel:9000"
         }
     }

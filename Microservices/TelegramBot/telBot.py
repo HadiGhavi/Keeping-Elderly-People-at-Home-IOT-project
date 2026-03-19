@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import html
-import json
 import logging
 import sys
 import traceback
@@ -1272,37 +1271,6 @@ if __name__ == '__main__':
         'drop_pending_updates': True,
         'charts_enabled': CHARTS_AVAILABLE,
         'logging_level': 'INFO',
-    }
-
-    # -------------------------
-    # Middleware / Tool 
-    # -------------------------
-    async def global_error_tool(update, context):
-        import traceback
-        logger.error("Unhandled exception: %s", context.error)
-        logger.error(traceback.format_exc())
-        try:
-            if update and update.effective_message:
-                await update.effective_message.reply_text("❌ An internal error occurred. Please try again.")
-        except Exception:
-            pass
-
-    # -------------------------
-    # Configuration dict 
-    # -------------------------
-    conf = {
-        'commands': [
-            "start",
-            "register",
-            "menu",
-            "register_doctor",
-            "update_doctor_name",
-            "update_doctor_specialization",
-            "update_doctor_hospital",
-        ],
-        'conversation_handlers': ['device_registration'],
-        'callback_handler': 'button_handler',
-        'error_handler': global_error_tool,
     }
 
     # -------------------------

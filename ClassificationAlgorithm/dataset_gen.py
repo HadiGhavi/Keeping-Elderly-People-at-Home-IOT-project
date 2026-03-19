@@ -40,7 +40,7 @@ def inject_anomaly(df, target_status):
         if target_status == 'risky':
             temp_inc = np.random.uniform(0.7, 1.2)
         else: # dangerous
-            temp_inc = np.random.uniform(2.0, 3.0)
+            temp_inc = np.random.uniform(2.5, 3.0)
             
         df['temperature'] += temp_inc
         df['heart_rate'] += (temp_inc * 8) + np.random.normal(0, 2, len(df))
@@ -50,7 +50,7 @@ def inject_anomaly(df, target_status):
         if target_status == 'risky':
             spo2_dec = np.random.uniform(3, 5)
         else: # dangerous
-            spo2_dec = np.random.uniform(8, 15)
+            spo2_dec = np.random.uniform(10, 15)
             
         df['blood_oxygen'] -= spo2_dec
         df['heart_rate'] += np.random.uniform(5, 15, len(df))
@@ -60,7 +60,7 @@ def inject_anomaly(df, target_status):
         if target_status == 'risky':
             hr_mult = np.random.choice([1.15, 0.85])
         else: # dangerous
-            hr_mult = np.random.choice([1.4, 0.6])
+            hr_mult = np.random.choice([1.5, 0.6])
             
         df['heart_rate'] *= hr_mult
 

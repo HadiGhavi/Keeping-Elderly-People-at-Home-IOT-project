@@ -46,7 +46,6 @@ class HumanHealthCatalog:
     # -------------------------------------------------------
 
     def GET(self, *uri, **params):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         
         # Handle Root (GET /)
         if not uri:
@@ -124,7 +123,6 @@ class HumanHealthCatalog:
         raise cherrypy.HTTPError(404, "Endpoint not found")
 
     def POST(self, *uri, **params):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         if not uri:
             raise cherrypy.HTTPError(400, "Command missing")
         
@@ -170,7 +168,6 @@ class HumanHealthCatalog:
         raise cherrypy.HTTPError(404, "Endpoint not found")
 
     def PUT(self, *uri, **params):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         if not uri:
             raise cherrypy.HTTPError(400, "Command missing")
 
@@ -206,7 +203,6 @@ class HumanHealthCatalog:
         raise cherrypy.HTTPError(404, "Endpoint not found")
 
     def DELETE(self, *uri, **params):
-        cherrypy.response.headers['Content-Type'] = 'application/json'
         if not uri:
             raise cherrypy.HTTPError(400, "Command missing")
         
@@ -507,23 +503,13 @@ class HumanHealthCatalog:
 if __name__ == '__main__':
     cherrypy.config.update({
         'server.socket_host': '0.0.0.0',
-        'server.socket_port': 5001,
-        'tools.encode.on': True,
-        'tools.encode.encoding': 'utf-8'
+        'server.socket_port': 5001
     })
-    
-    def cors():
-        cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
-        cherrypy.response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        cherrypy.response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    
-    cherrypy.tools.cors = cherrypy._cptools.HandlerTool(cors)
-    
+ 
     # Use MethodDispatcher to map GET/POST/PUT/DELETE methods
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
-            'tools.cors.on': True,
             'tools.response_headers.on': True,
             'tools.response_headers.headers': [('Content-Type', 'application/json')]
         }

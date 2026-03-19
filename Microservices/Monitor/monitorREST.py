@@ -51,6 +51,7 @@ if __name__ == "__main__":
             'tools.sessions.on': True,
         }
     }
+
     cherrypy.tree.mount(mon_rest, '/', conf)
     cherrypy.config.update({'server.socket_host': '0.0.0.0', 'server.socket_port': 3500})
     cherrypy.engine.start()

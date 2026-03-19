@@ -2013,6 +2013,7 @@ class AdminPanel:
 </body>
 </html>
             """
+        
 # (Call of methods list, giving access to URLs to functions)
 def expose_admin_panel_endpoints():
     """ expose all public methods of AdminPanel."""
@@ -2059,8 +2060,7 @@ if __name__ == "__main__":
     # (IP and port config)
     cherrypy.config.update(
         {
-            "server.socket_host": "0.0.0.0",
-            "server.socket_port": 9000,
+            "server.socket_host": "0.0.0.0","server.socket_port": 9000,
         }
     )
 
