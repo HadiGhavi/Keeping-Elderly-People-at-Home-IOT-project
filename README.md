@@ -1,74 +1,79 @@
-# 🚀 Keeping Elderly People at Home
+# 🏥 Keeping Elderly People at Home
+![Project Banner](assets/banner.png)
 
-> This project is a continuous health monitoring platform designed to close the gap between patients at home and their doctors. It solves the problem of "silent" critical events by using a Telegram bot to continuously monitor user-provided sensor data and instantly notifying both the patient and doctor when medical assistance may be required.
+> **Continuous health monitoring and real-time intervention for a safer, independent life.**
 
-## ✨ Features
-
-* Telegram Bot interaction
-* Admin Dashboard for management
-* Real-time Patient Monitoring
-* Automated Critical Alerts
-* Comprehensive Reporting
-* Easy Deployment
-
-
-## 📋 Table of Contents
-
-* [Installation](#-installation)
-* [Usage](#-usage)
-* [Configuration](#-configuration)
+This project is a state-of-the-art IoT ecosystem designed to bridge the gap between elderly patients and healthcare providers. By leveraging **XGBoost-based temporal classification**, the system monitors vital signs in real-time, detects anomalies with high precision, and orchestrates notifications via Telegram to ensure timely medical attention.
 
 ---
 
-## 🔧 Installation
+## ✨ Key Features
 
-**Prerequisites:**
-* You must have **Git** installed.
-* You must have **Docker** and **Docker Compose** installed.
+*   **Real-time Vital Tracking:** Continuous monitoring of Heart Rate, SpO2, and Body Temperature.
+*   **Intelligent Alerting:** Two-stage alert system (Warning/Critical) powered by Machine Learning.
+*   **Dual-Interface Access:**
+    *   **Telegram Bot:** Conversational interface for patients to receive alerts and check status.
+    *   **Admin Dashboard:** High-level overview for clinicians and caregivers to manage the patient population.
+*   **Microservices Architecture:** Fully containerized services for scalability and fault tolerance.
+*   **Automated Retraining:** The system periodically retrains on historical data to adapt to individual patient baselines.
 
-**Steps:**
-1.  Clone the repository:
+---
+
+## 🏗️ Technical Architecture
+
+The platform operates as a distributed system of specialized microservices:
+
+| Service | Responsibility |
+| :--- | :--- |
+| **Catalog Service** | Central registry for system configuration, user data, and device mapping. |
+| **Monitor Service** | Collects raw sensor data from IoT devices and publishes to the MQTT broker. |
+| **Data Ingestion** | The brain of the system. Performs real-time classification and manages model retraining. |
+| **Notification** | Orchestrates alerts across different channels based on detected health states. |
+| **Telegram Bot** | The primary user interface for real-time interaction and manual status checks. |
+| **Database Adapter** | Abstraction layer for persistent storage of health metrics and device logs. |
+| **Admin Panel** | Web interface for system administration and doctor-patient mapping. |
+
+---
+
+## 🛠️ Tech Stack
+
+*   **Language:** Python 3.11+
+*   **ML Framework:** XGBoost, Scikit-Learn (Joblib for serialization)
+*   **Messaging:** MQTT (Paho-MQTT) via HiveMQ Broker
+*   **Infrastructure:** Docker & Docker Compose
+*   **API/Web:** CherryPy, Requests
+*   **Communication:** Telegram Bot API (python-telegram-bot)
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+*   **Docker & Docker Compose** installed.
+*   **Telegram Bot Token** (obtainable via [@BotFather](https://t.me/botfather)).
+
+### Installation & Deployment
+1.  **Clone the Repository:**
     ```bash
     git clone https://github.com/HadiGhavi/Keeping-Elderly-People-at-Home-IOT-project.git
+    cd Keeping-Elderly-People-at-Home-IOT-project
     ```
-2.  Navigate to the project directory:
+
+2.  **Configuration:**
+    - Navigate to `Microservices/Common/config.py`.
+    - Update the configuration with your specific MQTT broker details and Telegram API keys.
+
+3.  **Launch the Ecosystem:**
     ```bash
-    cd YOUR_REPO
+    docker-compose up --build -d
     ```
-
-## 💡 Usage
-
-1.  **Build and Start the Services:**
-    Run the following commands in your terminal from the project's root directory.
-
-    ```bash
-    # (Optional) Stop any previous running instances
-    docker-compose down
-    
-    # Build and start the application
-    docker-compose up --build
-    ```
-    *You can add the `-d` flag (`docker-compose up --build -d`) to run the containers in the background (detached mode).*
-
-2.  **Accessing the App:**
-    Once the containers are running, you can use the application:
-    * **Telegram Bot:** Interact with the bot directly on Telegram.
-    * **Admin Dashboard:** Users with admin permissions can access the dashboard in their browser (at `http://localhost:9000`).
 
 ---
 
-## ⚙️ Configuration
+## 🧑‍💻 Core Contributors
 
-Before running `docker-compose up`, you must configure the application.
+*   **Riccardo Fida** - [s327834@studenti.polito.it](mailto:s327834@studenti.polito.it)
+*   **Hadi Ghavipeykar** - [s328181@studenti.polito.it](mailto:s328181@studenti.polito.it)
 
-1. Access the Microservices/Common folder 
-2. Edit config.py with custom values
-3. (Optional) If any problems with containers occur, you would probably change some of the port numbers on which containers are exposed, to do it edit the filed "ports" of the container raising problem in docker-compose.yml file and port number in the field "EXPOSE" in the Dockerfile of the container in the related folder 
-
-
-## 🧑‍💻 Contact
-
-Riccardo Fida - s327834@studenti.polito.it
-Hadi Ghavipeykar - s328181@studenti.polito.it
-
-Project Link: https://github.com/HadiGhavi/Keeping-Elderly-People-at-Home-IOT-project
+---
+*Project Repository: [GitHub](https://github.com/HadiGhavi/Keeping-Elderly-People-at-Home-IOT-project)*

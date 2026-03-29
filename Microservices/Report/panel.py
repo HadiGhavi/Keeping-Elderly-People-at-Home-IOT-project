@@ -1088,14 +1088,12 @@ class AdminPanel:
             
             # Determine health status
             if latest_state:
-                if latest_state.lower() == 'dangerous':
-                    status = "Critical"
-                elif latest_state.lower() == 'risky':
-                    status = "Warning"
-                elif latest_state.lower() == 'healthy':
-                    status = "Normal"
-                else:
-                    status = latest_state.title()
+                label_map = {
+                    "healthy": "Normal",
+                    "risky": "Warning",
+                    "dangerous": "Critical"
+                }
+                status = label_map.get(latest_state.lower(), latest_state.title())
             else:
                 status = "Active" if readings else "No Data"
             

@@ -1,9 +1,12 @@
+import sys
+import os
+from pathlib import Path
+from collections import deque
+
 import pandas as pd
 import joblib
-import sys
-from pathlib import Path
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -13,27 +16,70 @@ except ImportError:
     from .config import Config
 
 class HealthStatePredictor:
-    def __init__(self, model_path):
+    MAX_WINDOW = 10
+    
+    def __init__(self, model_path=None):
+        model_path = model_path or Config.CLASSIFICATION["TRAINMODEL"]
         self.model_info = joblib.load(model_path)
+        
+        # Initialize buffers for each base feature
+        self.buffers = {
+            'temperature': deque(maxlen=self.MAX_WINDOW),
+            'heart_rate': deque(maxlen=self.MAX_WINDOW),
+            'blood_oxygen': deque(maxlen=self.MAX_WINDOW)
+        }
         
         if isinstance(self.model_info, dict):
             self.model = self.model_info['model']
             self.feature_columns = self.model_info.get('feature_columns', ['temperature', 'heart_rate', 'blood_oxygen'])
             self.label_encoder = self.model_info.get('label_encoder', None)
-            print(f"Model loaded from {model_path}")
-            print(f"Training accuracy: {self.model_info.get('accuracy', 'N/A')}")
+            
+            acc = self.model_info.get('accuracy', 'N/A')
+            acc_str = f"{acc:.2%}" if isinstance(acc, (float, int)) else str(acc)
+            
+            #print(f"Model loaded from {model_path}")
+            #print(f"Training accuracy: {acc_str}")
         else:
             self.model = self.model_info
             self.feature_columns = ['temperature', 'heart_rate', 'blood_oxygen']
             self.label_encoder = None
-            print(f"Model loaded from {model_path}")
+            #print(f"Model loaded from {model_path}")
 
-    def predict_state(self, temperature, heart_rate, blood_oxygen):
-        input_data = pd.DataFrame([{
+    def _get_features(self, temperature, heart_rate, blood_oxygen):
+        # Update buffers
+        self.buffers['temperature'].append(temperature)
+        self.buffers['heart_rate'].append(heart_rate)
+        self.buffers['blood_oxygen'].append(blood_oxygen)
+        
+        # Base features
+        features = {
             'temperature': temperature,
             'heart_rate': heart_rate,
             'blood_oxygen': blood_oxygen
-        }], columns=self.feature_columns)
+        }
+        
+        # Diffs (compared to previous reading)
+        if len(self.buffers['temperature']) > 1:
+            features['temp_diff'] = self.buffers['temperature'][-1] - self.buffers['temperature'][-2]
+            features['hr_diff'] = self.buffers['heart_rate'][-1] - self.buffers['heart_rate'][-2]
+            features['spo2_diff'] = self.buffers['blood_oxygen'][-1] - self.buffers['blood_oxygen'][-2]
+        else:
+            features['temp_diff'] = 0.0
+            features['hr_diff'] = 0.0
+            features['spo2_diff'] = 0.0
+            
+        # Rolling features
+        windows = [5, 10]
+        for w in windows:
+            for col in ['temperature', 'heart_rate', 'blood_oxygen']:
+                data = list(self.buffers[col])[-w:]
+                features[f'{col}_roll_mean_{w}'] = np.mean(data)
+                features[f'{col}_roll_std_{w}'] = np.std(data) if len(data) > 1 else 0.0
+                
+        return pd.DataFrame([features], columns=self.feature_columns)
+
+    def predict_state(self, temperature, heart_rate, blood_oxygen):
+        input_data = self._get_features(temperature, heart_rate, blood_oxygen)
         
         probabilities = self.model.predict_proba(input_data)[0]
         max_prob = np.max(probabilities)
@@ -51,11 +97,7 @@ class HealthStatePredictor:
         return prediction
 
     def predict_with_confidence(self, temperature, heart_rate, blood_oxygen):
-        input_data = pd.DataFrame([{
-            'temperature': temperature,
-            'heart_rate': heart_rate,
-            'blood_oxygen': blood_oxygen
-        }], columns=self.feature_columns)
+        input_data = self._get_features(temperature, heart_rate, blood_oxygen)
         
         probabilities = self.model.predict_proba(input_data)[0]
         max_prob = np.max(probabilities)
@@ -69,8 +111,8 @@ class HealthStatePredictor:
             classes = self.model.classes_
             prediction = self.model.classes_[prediction_idx]
         
-        # If max confidence < 50%, probably, it's risky
-        if max_prob < 0.5:
+        # If max confidence < 40%, we are unsure, label as 'risky' for safety
+        if max_prob < 0.4:
             prediction = 'risky'
             
         confidence_scores = dict(zip(classes, probabilities))
@@ -107,23 +149,22 @@ if __name__ == "__main__":
     print("\n=== TESTING SEQUENCE PREDICTION (High Fever Event) ===")
     
     # Generate a sequence: Temp rising, HR rising, SpO2 constant
-    # Temp 36.5 -> 39.5
-    temps = np.linspace(36.5, 39.5, 15)
-    # HR 70 -> 110 
-    hrs = np.linspace(70, 110, 15)
+    # Temp 36.5 -> 40.0 (more points for realistic trend)
+    steps = 60
+    temps = np.linspace(36.5, 40.0, steps)
+    # HR 70 -> 115
+    hrs = np.linspace(70, 115, steps)
     # SpO2 constant at 98%
-    o2s = np.full(15, 98.0)
+    o2s = np.full(steps, 98.0)
     
     for i, (t, h, o) in enumerate(zip(temps, hrs, o2s)):
         t, h, o = round(t, 1), round(h, 0), round(o, 1)
         
         pred, conf = predictor.predict_with_confidence(t, h, o)
-        #predictor.plot_confidence_bar(conf, title="Health State Prediction Confidence")
-
-        score = "N/A"
+        
+        score = "NORMAL"
         if pred == 'dangerous': score = "CRITICAL"
         elif pred == 'risky': score = "WARNING"
-        else: score = "NORMAL"
         
         print(f"Step {i+1:02d}: T={t} C, HR={h} bpm, O2={o}% -> {score} ({pred}) [{conf[pred]:.1%}]")
 

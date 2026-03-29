@@ -78,10 +78,18 @@ class NotificationAdapter:
             self._send_telegram(patient["doctor_id"], f"DOC ALERT: {msg}")
 
     def _format_message(self, name, state, vitals):
+        # Map internal labels to UI labels
+        label_map = {
+            "healthy": "NORMAL",
+            "risky": "WARNING",
+            "dangerous": "CRITICAL"
+        }
+        ui_state = label_map.get(state.lower(), state.upper())
+        
         emoji = "🚨" if state == "dangerous" else "⚠️"
         return (f"{emoji} <b>Health Alert</b>\n"
                 f"Patient: {name}\n"
-                f"Status: {state.upper()}\n"
+                f"Status: {ui_state}\n"
                 f"Temp: {vitals.get('temp', 'N/A')}°C\n"
                 f"HR: {vitals.get('heart_rate', 'N/A')} BPM\n"
                 f"O2: {vitals.get('oxygen', 'N/A')}%")

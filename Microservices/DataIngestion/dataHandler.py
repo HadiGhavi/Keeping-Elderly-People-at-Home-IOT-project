@@ -10,6 +10,7 @@ from datetime import datetime
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+import pandas as pd
 from MyMQTT import MyMQTT 
 from Microservices.Common.config import Config
 from Microservices.Common.utils import ServiceRegistry
@@ -28,7 +29,9 @@ class DataHandlerAdapter:
         self.database_service_url = self.registry.get_service_url("databaseAdapter")
         self.mqtt_info = self.registry.get_service_info("mqtt")
         
-        self.predict = self._load_model()
+        self.predictors = {} # Cache HealthStatePredictor instances per user
+        self.model_path = Config.CLASSIFICATION["TRAINMODEL"]
+        self.feature_columns_list = [] # Updated during retraining
         
         # Cache and Threading
         self.user_sensor_cache = {}
@@ -36,11 +39,11 @@ class DataHandlerAdapter:
         self.cache_lock = threading.Lock()
         
         # Retraining Config
-        self.retrain_interval = 900
+        self.retrain_interval = 3600 # 1 Hour
         self.last_retrain_time = time.time()
         self.min_samples_for_retrain = 100
-        self.model_save_path = Config.CLASSIFICATION.get("TRAINMODEL", "trained_model.pkl")
-        print(f"DataHandler initialized with model: {type(self.predict).__name__}")
+        self.model_save_path = self.model_path
+        print("DataHandler initialized (Predictors are per-user)")
         
         # Consecutive Alert Logic
         self.state_counters = {}
@@ -64,12 +67,19 @@ class DataHandlerAdapter:
         # Start retraining loop
         threading.Thread(target=self._retrain_loop, daemon=True).start()
 
-    def _load_model(self):
-        model_path = Config.CLASSIFICATION["TRAINMODEL"]
-        if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
-            try: return HealthStatePredictor(model_path)
-            except: return MockPredictor()
-        return MockPredictor()
+    def _get_predictor(self, user_id):
+        """Retrieve or initialize a predictor for a specific user"""
+        if user_id not in self.predictors:
+            if os.path.exists(self.model_path) and os.path.getsize(self.model_path) > 0:
+                try: 
+                    self.predictors[user_id] = HealthStatePredictor(self.model_path)
+                    print(f"Loaded HealthStatePredictor instance for user {user_id}")
+                except Exception as e: 
+                    print(f"Falling back to MockPredictor for user {user_id}: {e}")
+                    self.predictors[user_id] = MockPredictor()
+            else:
+                self.predictors[user_id] = MockPredictor()
+        return self.predictors[user_id]
 
     def notify(self, topic, payload):
         """REQUIRED by MyMQTT"""
@@ -102,7 +112,8 @@ class DataHandlerAdapter:
 
             # If we have all 3 vitals, predict 
             if len(vals) == 3:
-                state = self.predict.predict_state(
+                predictor = self._get_predictor(user_id)
+                state = predictor.predict_state(
                     float(vals["temp"]), 
                     int(float(vals["heart_rate"])), 
                     float(vals["oxygen"])
@@ -206,7 +217,8 @@ class DataHandlerAdapter:
                 new_model_info = self._train_classifier(X, y)
                 if new_model_info:
                     self._save_model(new_model_info)
-                    self.predict = HealthStatePredictor(self.model_save_path)
+                    # Clear predictors to force re-loading of the new model
+                    self.predictors = {}
                     return True
             return False
             
@@ -217,42 +229,52 @@ class DataHandlerAdapter:
     def _prepare_training_data(self, data):
         try:
             # Group data by time to get complete records
-            from collections import defaultdict
+            df = pd.DataFrame(data)
+            df = df.pivot(index=['user_id', 'time'], columns='field', values='value').reset_index()
             
-            records = defaultdict(dict)
+            # Map column names if they differ
+            df = df.rename(columns={'temp': 'temperature'})
             
-            for entry in data:
-                time_key = entry.get("time")
-                field = entry.get("field")
-                value = entry.get("value")
-                
-                if time_key and field:
-                    records[time_key][field] = value
-            
-            # Extract complete samples (with temp, heart_rate, oxygen, and state)
-            X_train = []
-            y_train = []
-            
-            for time_key, record in records.items():
-                if all(field in record for field in ["temp", "heart_rate", "oxygen", "state"]):
-                    try:
-                        temp = float(record["temp"])
-                        heart_rate = float(record["heart_rate"])
-                        oxygen = float(record["oxygen"])
-                        state = str(record["state"])
-                        
-                        X_train.append([temp, heart_rate, oxygen])
-                        y_train.append(state)
-                    except (ValueError, TypeError) as e:
-                        continue
-            
-            if len(X_train) == 0:
+            # Check for required fields
+            required_vitals = ['temperature', 'heart_rate', 'oxygen']
+            if not all(field in df.columns for field in required_vitals + ['state']):
                 return None, None
+                
+            # Convert to numeric
+            for col in required_vitals:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
             
-            return np.array(X_train), np.array(y_train)
+            df = df.dropna(subset=required_vitals + ['state'])
+            df = df.sort_values(['user_id', 'time'])
+            
+            # Feature Engineering (Temporal Patterns)
+            df['hr_diff'] = df.groupby('user_id')['heart_rate'].diff().fillna(0)
+            df['spo2_diff'] = df.groupby('user_id')['oxygen'].diff().fillna(0)
+            df['temp_diff'] = df.groupby('user_id')['temperature'].diff().fillna(0)
+            
+            feature_cols = ['temperature', 'heart_rate', 'oxygen', 'hr_diff', 'spo2_diff', 'temp_diff']
+            
+            # Add Rolling Windows (Temporal Patterns)
+            windows = [5, 10]
+            for w in windows:
+                for col in ['temperature', 'heart_rate', 'oxygen']:
+                    df[f'{col}_roll_mean_{w}'] = df.groupby('user_id')[col].transform(lambda x: x.rolling(w, min_periods=1).mean())
+                    df[f'{col}_roll_std_{w}'] = df.groupby('user_id')[col].transform(lambda x: x.rolling(w, min_periods=1).std().fillna(0))
+                    feature_cols.append(f'{col}_roll_mean_{w}')
+                    feature_cols.append(f'{col}_roll_std_{w}')
+            
+            # Prepare X and y
+            X = df[feature_cols].values
+            y = df['state'].values
+            
+            self.feature_columns_list = feature_cols # Store for _train_classifier
+            
+            return X, y
             
         except Exception as e:
             print(f"Error preparing training data: {e}")
+            import traceback
+            traceback.print_exc()
             return None, None
 
     def _train_classifier(self, X_train, y_train):
@@ -267,9 +289,9 @@ class DataHandlerAdapter:
             )
             
             model = xgb.XGBClassifier(
-                n_estimators=400,
-                learning_rate=0.01,
-                max_depth=4,
+                n_estimators=500,
+                learning_rate=0.05,
+                max_depth=7,
                 eval_metric='mlogloss',
                 random_state=42
             )
@@ -278,11 +300,11 @@ class DataHandlerAdapter:
             
             # Validate
             val_score = model.score(X_val, y_val)
-            print(f"Validation accuracy: {val_score:.2%}")
+            print(f"Validation accuracy (online): {val_score:.2%}")
             
             model_info = {
                 'model': model,
-                'feature_columns': ['temperature', 'heart_rate', 'blood_oxygen'],
+                'feature_columns': self.feature_columns_list,
                 'label_encoder': label_encoder,
                 'accuracy': val_score
             }

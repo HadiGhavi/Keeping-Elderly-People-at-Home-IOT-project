@@ -239,16 +239,17 @@ def format_health_report(data: List[Dict[str, Any]], user_id: int) -> str:
     for r in sorted_data[:10]:
         ts = r.get("time", "Unknown time")
         
-        # FIX: Ensure state is a string even if it's None in the database
+        # Mapping for UI
         state = r.get("state") or "unknown" 
+        label_map = {"healthy": "NORMAL", "risky": "WARNING", "dangerous": "CRITICAL"}
+        ui_state = label_map.get(state.lower(), state.upper())
         
         emoji = {"healthy": "✅", "risky": "⚠️", "dangerous": "🚨"}.get(state.lower(), "❓")
 
         ts_fmt = ts.split('.')[0].replace('T', ' ') 
 
         lines.append(f"<b>📅 {ts_fmt}</b>")
-        # Use state.upper() safely now
-        lines.append(f"{emoji} Status: <b>{state.upper()}</b>")
+        lines.append(f"{emoji} Status: <b>{ui_state}</b>")
         lines.append(f"🌡️ Temp: {r.get('temp', 'N/A')}°C")
         lines.append(f"❤️ HR: {r.get('heart_rate', 'N/A')} BPM")
         lines.append(f"🫁 O2: {r.get('oxygen', 'N/A')}%")
@@ -256,14 +257,18 @@ def format_health_report(data: List[Dict[str, Any]], user_id: int) -> str:
 
     # Summary logic remains the same but is faster to calculate
     latest = sorted_data[0]
+    latest_state = latest.get('state', 'unknown')
+    label_map = {"healthy": "NORMAL", "risky": "WARNING", "dangerous": "CRITICAL"}
+    
     lines.append("\n<b>📊 Summary (Last 24h)</b>")
-    lines.append(f"Latest Status: <b>{latest.get('state', 'unknown')}</b>")
+    lines.append(f"Latest Status: <b>{label_map.get(latest_state.lower(), latest_state.upper())}</b>")
     
     from collections import Counter
     counts = Counter(r.get("state", "unknown") for r in sorted_data)
     for state, count in counts.items():
         pct = (count / len(sorted_data)) * 100
-        lines.append(f"  • {state}: {count} ({pct:.1f}%)")
+        ui_state = label_map.get(state.lower(), state.upper())
+        lines.append(f"  • {ui_state}: {count} ({pct:.1f}%)")
 
     return "\n".join(lines)
 
@@ -359,7 +364,7 @@ def generate_chart_for(user_id: int, chart_type: str = "combined", max_hours: in
             axes[1, 1].scatter(df["time"], df["state_num"], c=colors, s=100, edgecolors='black', alpha=0.7)
             axes[1, 1].set_title("Health Status Legend", fontweight="bold")
             axes[1, 1].set_yticks([0, 1, 2])
-            axes[1, 1].set_yticklabels(["Healthy", "Risky", "Dangerous"])
+            axes[1, 1].set_yticklabels(["Normal", "Warning", "Critical"])
             axes[1, 1].grid(axis='y', linestyle='--', alpha=0.5)
 
         # 4. Global X-Axis Formatting (Time)
