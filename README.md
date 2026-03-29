@@ -1,5 +1,4 @@
 # 🏥 Keeping Elderly People at Home
-![Project Banner](assets/banner.png)
 
 > **Continuous health monitoring and real-time intervention for a safer, independent life.**
 
