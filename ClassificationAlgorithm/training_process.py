@@ -6,8 +6,9 @@ import xgboost as xgb
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.utils.class_weight import compute_class_weight
+import matplotlib.pyplot as plt
 
 from config import Config
 
@@ -139,6 +140,19 @@ def train_health_model():
 
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+
+    # Confusion Matrix Visualization
+    print("\nStep 7.1: Generating Confusion Matrix...")
+    cm = confusion_matrix(y_test, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_encoder.classes_)
+    
+    fig, ax = plt.subplots(figsize=(10, 8))
+    disp.plot(ax=ax, cmap='Blues', values_format='d')
+    plt.title('Health State Classification Confusion Matrix')
+    
+    cm_path = os.path.join(os.path.dirname(Config.CLASSIFICATION["TRAINMODEL"]), "confusion_matrix.png")
+    plt.savefig(cm_path)
+    print(f"Confusion matrix saved at {cm_path}")
 
     # =========================================================
     # 🔥 STEP 8: SAVE MODEL
