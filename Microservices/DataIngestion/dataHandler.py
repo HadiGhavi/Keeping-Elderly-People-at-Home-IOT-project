@@ -95,7 +95,7 @@ class DataHandlerAdapter:
             user_id = str(msg["user_id"])
             user_name = msg["user_name"]
             now = time.time()
-            print(f"Received data from user {user_id} with vitals {msg}")
+            #print(f"Received data from user {user_id} with vitals {msg}")
             with self.cache_lock:
                 if user_id not in self.user_sensor_cache: 
                     self.user_sensor_cache[user_id] = {}
@@ -118,7 +118,7 @@ class DataHandlerAdapter:
                     int(float(vals["heart_rate"])), 
                     float(vals["oxygen"])
                 )
-                                
+                print(f"Predicted state for user {user_id}: {state}")                
                 self._write_to_db(user_id, user_name, vals["temp"], vals["heart_rate"], vals["oxygen"], state)
                 
                 if state in ["risky", "dangerous"]:

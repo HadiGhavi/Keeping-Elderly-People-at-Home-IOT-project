@@ -26,6 +26,7 @@ class NotificationAdapter:
         )
 
     def start_listening(self):
+        print("Notification Service: Started listening for notifications...")
         self.mqtt_client.start() 
         self.mqtt_client.mySubscribe("iot/notifications/#") 
 
@@ -35,6 +36,7 @@ class NotificationAdapter:
             user_id = alert_data.get("user_id")
             state = alert_data.get("state")
             vitals = alert_data.get("vitals", {})
+            print(f"Notification received for user {user_id}: state={state}")
 
             if self._should_send(user_id, state):
                 # Update state BEFORE sending to prevent race conditions
@@ -70,26 +72,53 @@ class NotificationAdapter:
         threading.Thread(target=perform_request, daemon=True).start()
         
     def _send_alerts(self, patient, state, vitals_dict):
-        user_id = patient["user_chat_id"]
-        msg = self._format_message(patient.get("full_name"), state, vitals_dict)
+        chat_id = patient["user_chat_id"]
+        full_name = patient.get("full_name", "Unknown")
         
-        self._send_telegram(user_id, msg)
+        # Format and send patient message
+        patient_msg = self._format_patient_message(full_name, state, vitals_dict)
+        print(f"Sending Telegram alert to patient {chat_id} ({full_name}) - State: {state}")
+        self._send_telegram(chat_id, patient_msg)
+        
+        # Format and send doctor message if exists
         if patient.get("doctor_id"):
-            self._send_telegram(patient["doctor_id"], f"DOC ALERT: {msg}")
+            doctor_msg = self._format_doctor_message(full_name, chat_id, state, vitals_dict)
+            print(f"Sending Telegram alert to doctor {patient.get('doctor_id')}")
+            self._send_telegram(patient["doctor_id"], doctor_msg)
 
-    def _format_message(self, name, state, vitals):
-        # Map internal labels to UI labels
-        label_map = {
-            "healthy": "NORMAL",
-            "risky": "WARNING",
-            "dangerous": "CRITICAL"
-        }
-        ui_state = label_map.get(state.lower(), state.upper())
-        
+    def _format_patient_message(self, name, state, vitals):
         emoji = "🚨" if state == "dangerous" else "⚠️"
-        return (f"{emoji} <b>Health Alert</b>\n"
-                f"Patient: {name}\n"
-                f"Status: {ui_state}\n"
-                f"Temp: {vitals.get('temp', 'N/A')}°C\n"
-                f"HR: {vitals.get('heart_rate', 'N/A')} BPM\n"
-                f"O2: {vitals.get('oxygen', 'N/A')}%")
+        severity = "CRITICAL" if state == "dangerous" else "WARNING"
+        
+        temp = vitals.get('temp', 'N/A')
+        heart_rate = vitals.get('heart_rate', 'N/A')
+        oxygen = vitals.get('oxygen', 'N/A')
+
+        return (
+            f"{emoji} <b>Health Alert - {severity}</b>\n\n"
+            f"Your health status requires attention:\n\n"
+            f"Status: <b>{state.upper()}</b>\n"
+            f"🌡️ Temperature: {temp}°C\n"
+            f"❤️ Heart Rate: {heart_rate} BPM\n"
+            f"🫁 Oxygen: {oxygen}%\n\n"
+            f"Please monitor your condition carefully."
+        )
+
+    def _format_doctor_message(self, patient_name, patient_id, state, vitals):
+        emoji = "🚨" if state == "dangerous" else "⚠️"
+        severity = "CRITICAL" if state == "dangerous" else "WARNING"
+        
+        temp = vitals.get('temp', 'N/A')
+        heart_rate = vitals.get('heart_rate', 'N/A')
+        oxygen = vitals.get('oxygen', 'N/A')
+
+        return (
+            f"{emoji} <b>Patient Alert - {severity}</b>\n\n"
+            f"Patient: <b>{patient_name}</b> (ID: {patient_id})\n"
+            f"Status: <b>{state.upper()}</b>\n\n"
+            f"Vital Signs:\n"
+            f"🌡️ Temperature: {temp}°C\n"
+            f"❤️ Heart Rate: {heart_rate} BPM\n"
+            f"🫁 Oxygen: {oxygen}%\n\n"
+            f"Immediate attention may be required."
+        )
