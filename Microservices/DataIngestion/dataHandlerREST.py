@@ -17,16 +17,31 @@ class DataHandlerREST:
             port=2500,
             endpoints={
                 "GET /getUserData/<id>": "get user data",
-                "GET /database/info": "db info"
+                "GET /database/info": "db info",
+                "GET /status": "service status"
             }
         )
 
     def GET(self, *uri, **params):
         if not uri:
-            return json.dumps({"status": "Data Ingestion Running"}).encode('utf-8')
+            return json.dumps({
+                "message": "Data Ingestion Service API",
+                "endpoints": {
+                    "GET /status": "Service status",
+                    "GET /getUserData/<id>": "get user data",
+                    "GET /database/info": "db info"
+                }
+            }).encode('utf-8')
         
         command = uri[0]
         
+        if command == "status":
+            return json.dumps({
+                "status": "running",
+                "last_check": self.handler.last_check_time.isoformat(),
+                "tracked_users": len(self.handler.user_sensor_cache)
+            }).encode('utf-8')
+
         if command == "getUserData":
             user_id = uri[1]
             res = requests.get(f"{self.handler.database_service_url}/read/{user_id}")
@@ -47,6 +62,10 @@ if __name__ == "__main__":
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
             'tools.sessions.on': True,
+            'tools.response_headers.on': True,
+            'tools.response_headers.headers': [('Content-Type', 'application/json')],
+            'tools.encode.on': True,
+            'tools.encode.encoding': 'utf-8'
         }
     }
 

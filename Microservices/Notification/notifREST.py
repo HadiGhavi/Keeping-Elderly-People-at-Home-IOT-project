@@ -22,8 +22,13 @@ class NotificationREST:
                 "status": "running",
                 "last_check": self.adapter.last_check_time.isoformat(),
                 "tracked_users": len(self.adapter.last_notification)
-            })
-        return json.dumps({"message": "Notification Service API"})
+            }).encode('utf-8')
+        return json.dumps({
+            "message": "Notification Service API",
+            "endpoints": {
+                "GET /status": "Service status"
+            }
+        }).encode('utf-8')
 
 
 if __name__ == "__main__":

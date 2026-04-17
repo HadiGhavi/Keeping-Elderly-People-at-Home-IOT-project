@@ -3,6 +3,7 @@ import requests
 import logging
 import threading
 import json
+from datetime import datetime
 from MyMQTT import * 
 from Microservices.Common.config import Config
 from Microservices.Common.utils import ServiceRegistry
@@ -17,6 +18,7 @@ class NotificationAdapter:
         self.telegram_token = Config.TELEGRAM_TOKEN
         self.last_notification = {}
         self.notification_cooldown = 300 
+        self.last_check_time = datetime.now()
         
         self.mqtt_client = MyMQTT(
             clientID="NotificationService",
@@ -31,6 +33,7 @@ class NotificationAdapter:
         self.mqtt_client.mySubscribe("iot/notifications/#") 
 
     def notify(self, topic, payload):
+        self.last_check_time = datetime.now()
         try:
             alert_data = json.loads(payload)
             user_id = alert_data.get("user_id")

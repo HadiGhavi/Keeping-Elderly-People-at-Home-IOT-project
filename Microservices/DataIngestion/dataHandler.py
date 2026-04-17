@@ -43,6 +43,7 @@ class DataHandlerAdapter:
         self.last_retrain_time = time.time()
         self.min_samples_for_retrain = 100
         self.model_save_path = self.model_path
+        self.last_check_time = datetime.now()
         print("DataHandler initialized (Predictors are per-user)")
         
         # Consecutive Alert Logic
@@ -90,6 +91,7 @@ class DataHandlerAdapter:
 
     def process_mqtt_message(self, topic, message):
         """Processes incoming sensor data from Monitor"""
+        self.last_check_time = datetime.now()
         try:
             msg = json.loads(message)
             user_id = str(msg["user_id"])

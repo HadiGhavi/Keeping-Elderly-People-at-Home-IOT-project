@@ -2,6 +2,7 @@ import threading
 import time
 import requests
 import json
+from datetime import datetime
 from Microservices.Monitor.sensor_generator import GenerateSensor
 from Microservices.Monitor.MyMQTT import MyMQTT 
 from Microservices.Common.config import Config
@@ -18,6 +19,7 @@ class MonitorAdapter:
         self.device_stop_events = {}  # device_id -> stop_event
         self.user_devices = {}  # user_id -> [device_ids]
         self.lock = threading.Lock()
+        self.last_check_time = datetime.now()
 
     def start_monitoring(self, chat_id):
         user_id = int(chat_id)
@@ -83,6 +85,7 @@ class MonitorAdapter:
         
         try:
             while not stop_event.is_set():
+                self.last_check_time = datetime.now()
                 val = self.sensor.read_value(0, 100, device['type'])
                 if val is not None:
                     payload = {

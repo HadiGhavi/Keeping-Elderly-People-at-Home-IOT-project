@@ -1274,7 +1274,8 @@
             "port": 3500,
             "endpoints": {
                 "GET /read/<id>": "start monitoring",
-                "GET /stop/<id>": "stop monitoring"
+                "GET /stop/<id>": "stop monitoring",
+                "GET /status": "service status"
             }
         },
         {
@@ -1293,7 +1294,8 @@
                 "GET /read/<id>": "read raw health data",
                 "GET /aggregated/<id>": "get 5-min averaged vitals",
                 "POST /write": "save new health record",
-                "GET /info": "get database connection info"
+                "GET /info": "get database connection info",
+                "GET /status": "service status"
             }
         },
         {
@@ -1325,7 +1327,8 @@
             "port": 2500,
             "endpoints": {
                 "GET /getUserData/<id>": "get user data",
-                "GET /database/info": "db info"
+                "GET /database/info": "db info",
+                "GET /status": "service status"
             }
         }
     ]
