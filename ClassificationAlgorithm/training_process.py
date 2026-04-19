@@ -143,11 +143,11 @@ def train_health_model():
 
     # Confusion Matrix Visualization
     print("\nStep 7.1: Generating Confusion Matrix...")
-    cm = confusion_matrix(y_test, y_pred)
+    cm = confusion_matrix(y_test, y_pred, normalize='true')
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_encoder.classes_)
     
     fig, ax = plt.subplots(figsize=(10, 8))
-    disp.plot(ax=ax, cmap='Blues', values_format='d')
+    disp.plot(ax=ax, cmap='Blues', values_format='.2f')
     plt.title('Health State Classification Confusion Matrix')
     
     cm_path = os.path.join(os.path.dirname(Config.CLASSIFICATION["TRAINMODEL"]), "confusion_matrix.png")
