@@ -2,7 +2,7 @@
 
 > **Continuous health monitoring and real-time intervention for a safer, independent life.**
 
-This project is a state-of-the-art IoT ecosystem designed to bridge the gap between elderly patients and healthcare providers. By leveraging **XGBoost-based temporal classification**, the system monitors vital signs in real-time, detects anomalies with high precision, and orchestrates notifications via Telegram to ensure timely medical attention.
+This project is an IoT ecosystem designed to bridge the gap between elderly patients and healthcare providers (and caregivers). By leveraging **XGBoost-based temporal classification**, the system monitors vital signs in real-time, detects anomalies with high precision, and orchestrates notifications via Telegram to ensure timely medical attention.
 
 ---
 
