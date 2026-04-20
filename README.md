@@ -12,7 +12,7 @@ This project is a state-of-the-art IoT ecosystem designed to bridge the gap betw
 *   **Intelligent Alerting:** Two-stage alert system (Warning/Critical) powered by Machine Learning.
 *   **Dual-Interface Access:**
     *   **Telegram Bot:** Conversational interface for patients to receive alerts and check status.
-    *   **Admin Dashboard:** High-level overview for clinicians and caregivers to manage the patient population.
+    *   **Admin Dashboard:** High-level overview for admins to manage the system users.
 *   **Microservices Architecture:** Fully containerized services for scalability and fault tolerance.
 *   **Automated Retraining:** The system periodically retrains on historical data to adapt to individual patient baselines.
 
