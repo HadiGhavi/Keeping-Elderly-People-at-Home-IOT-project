@@ -52,6 +52,7 @@ class HumanHealthCatalog:
             return json.dumps({
                 "message": "Human Health API (MethodDispatcher)",
                 "endpoints": {
+                    "GET /services": "Get all registered services",
                     "GET /project": "get project info",
                     "PUT /project": "update project info",
                     "GET /services/<service_name>": "get service by name",

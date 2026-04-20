@@ -2046,8 +2046,8 @@ if __name__ == "__main__":
             "GET /generate_patient_report": "Patient summary report",
             "GET /generate_doctor_report": "Doctor summary report",
             "GET /generate_system_report": "System summary report",
-            "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-            "GET /report/<userid>": "get user sensor data by id => json",
+            "GET /sensorInfo/<userid>": "get user sensor data by id => Html view ",
+            "GET /report/<userid>": "get user sensor data by id => json ",
         },
     )
 

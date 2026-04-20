@@ -31,10 +31,11 @@ class DatabaseREST():
                     "status": "running",
                     "last_check": self.last_check_time.isoformat(),
                     "endpoints": {
-                        "GET /read/<id>": "read raw health data",
+                        "GET /read/<id>": "read raw health data ",
                         "GET /aggregated/<id>": "get 5-min averaged vitals",
                         "POST /write": "save new health record",
-                        "GET /info": "get database connection info"
+                        "GET /info": "get database connection info",
+                        "GET /status": "service status"
                     }
                 }).encode('utf-8')
             

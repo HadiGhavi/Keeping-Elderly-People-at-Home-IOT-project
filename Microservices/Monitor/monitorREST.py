@@ -13,8 +13,8 @@ class MonitorREST:
             url="http://monitor",
             port=3500,
             endpoints={
-                "GET /read/<id>": "start monitoring",
-                "GET /stop/<id>": "stop monitoring",
+                "GET /read/<chat_id>": "start monitoring for user",
+                "GET /stop/<chat_id>": "stop monitoring for user",
                 "GET /status": "service status"
             }
         )

@@ -17,7 +17,7 @@ class DataHandlerREST:
             port=2500,
             endpoints={
                 "GET /getUserData/<id>": "get user data",
-                "GET /database/info": "db info",
+                "GET /database/<action>": "Proxy to database adapter (e.g. /database/info, /database/status)",
                 "GET /status": "service status"
             }
         )
@@ -29,7 +29,7 @@ class DataHandlerREST:
                 "endpoints": {
                     "GET /status": "Service status",
                     "GET /getUserData/<id>": "get user data",
-                    "GET /database/info": "db info"
+                    "GET /database/<action>": "Proxy to database adapter (e.g. /database/info, /database/status)"
                 }
             }).encode('utf-8')
         

@@ -13,7 +13,9 @@ class NotificationREST:
             service_name="notification",
             url="http://notification",
             port=1500,
-            endpoints={"GET /status": "Service status"}
+            endpoints={
+                "GET /status": "Service status"
+            }
         )
 
     def GET(self, *uri):

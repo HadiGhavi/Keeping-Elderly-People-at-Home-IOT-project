@@ -693,6 +693,11 @@
             "id": "oxygen_548805315_1763459226",
             "type": "oxygen",
             "last_update": "2025-12-16T14:55:38Z"
+        },
+        {
+            "id": "oxygen_8483019182_1776693596",
+            "type": "oxygen",
+            "last_update": "2026-04-20T13:59:56.516671Z"
         }
     ],
     "users": [
@@ -1212,7 +1217,7 @@
             "devices": [
                 "temp_8483019182_1762797952",
                 "heart_rate_8483019182_1762797960",
-                "oxygen_8483019182_1762798675"
+                "oxygen_8483019182_1776693596"
             ],
             "doctor_id": 548805315,
             "user_type": "patient"
@@ -1235,6 +1240,7 @@
             "url": "http://catalog",
             "port": 5001,
             "endpoints": {
+                "GET /services": "Get all registered services",
                 "GET /project": "get project info",
                 "PUT /project": "update project info",
                 "GET /services/<service_name>": "get service by name",
@@ -1265,7 +1271,8 @@
             "port": 1883,
             "topics": [
                 "iot_user_sensor/#",
-                "iot_notifications/#"
+                "iot_user_sensor/value",
+                "iot/notifications/#"
             ]
         },
         {
@@ -1273,8 +1280,8 @@
             "url": "http://monitor",
             "port": 3500,
             "endpoints": {
-                "GET /read/<id>": "start monitoring",
-                "GET /stop/<id>": "stop monitoring",
+                "GET /read/<chat_id>": "start monitoring for user",
+                "GET /stop/<chat_id>": "stop monitoring for user",
                 "GET /status": "service status"
             }
         },
@@ -1317,8 +1324,8 @@
                 "GET /generate_patient_report": "Patient summary report",
                 "GET /generate_doctor_report": "Doctor summary report",
                 "GET /generate_system_report": "System summary report",
-                "GET /sensorInfo/<userid>": "get user sensor data by id => Html view",
-                "GET /report/<userid>": "get user sensor data by id => json"
+                "GET /sensorInfo/<userid>": "get user sensor data by id => Html view ",
+                "GET /report/<userid>": "get user sensor data by id => json "
             }
         },
         {
@@ -1327,7 +1334,7 @@
             "port": 2500,
             "endpoints": {
                 "GET /getUserData/<id>": "get user data",
-                "GET /database/info": "db info",
+                "GET /database/<action>": "Proxy to database adapter (e.g. /database/info, /database/status)",
                 "GET /status": "service status"
             }
         }
