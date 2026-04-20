@@ -46,6 +46,16 @@ class InfluxDBAdapter():
         try:
             clean_hours = int(str(hours).replace('h', '')) if hours else 24
             range_start = f"-{clean_hours}h"
+
+            # Dynamic window calculation based on timeframe
+            if clean_hours <= 24:
+                window = "5m"
+            elif clean_hours <= 48:
+                window = "15m"
+            elif clean_hours <= 72:
+                window = "30m"
+            else:
+                window = "2h"
             
             if not aggregate:
                 # Just filter and pivot
@@ -66,11 +76,11 @@ class InfluxDBAdapter():
 
                 vitals = data
                     |> filter(fn: (r) => r._field != "state")
-                    |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+                    |> aggregateWindow(every: {window}, fn: mean, createEmpty: false)
 
                 status = data
                     |> filter(fn: (r) => r._field == "state")
-                    |> aggregateWindow(every: 5m, fn: mode, createEmpty: false)
+                    |> aggregateWindow(every: {window}, fn: mode, createEmpty: false)
 
                 union(tables: [vitals, status])
                     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
