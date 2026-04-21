@@ -1298,6 +1298,7 @@
             "url": "http://database_adapter",
             "port": 3000,
             "endpoints": {
+                "GET /": "Service status and endpoint list",
                 "GET /read/<id>": "read raw health data",
                 "GET /aggregated/<id>": "get 5-min averaged vitals",
                 "POST /write": "save new health record",
